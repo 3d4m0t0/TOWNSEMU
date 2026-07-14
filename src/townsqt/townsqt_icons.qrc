@@ -1,0 +1,13 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/icons">
+    <file alias="tsugaru.png">../resources/tsugaru_icon_128.png</file>
+    <file alias="tsugaru_128.png">../resources/tsugaru_icon_128.png</file>
+    <file alias="tsugaru_512.png">../resources/tsugaru_icon_512.png</file>
+    <file alias="tsugaru_64.png">../resources/tsugaru_icon_64.png</file>
+    <file alias="tsugaru_48.png">../resources/tsugaru_icon_48.png</file>
+    <file alias="tsugaru_32.png">../resources/tsugaru_icon_32.png</file>
+    <file alias="tsugaru_16.png">../resources/tsugaru_icon_16.png</file>
+    <file alias="tsugaru_pixel_128.png">../resources/tsugaru_pixel_128.png</file>
+  </qresource>
+</RCC>

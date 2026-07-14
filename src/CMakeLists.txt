@@ -1,4 +1,17 @@
 cmake_minimum_required(VERSION 3.20)
+
+# openSUSE suse-devel-config may set CXX="ccache g++", which breaks Qt AutoMoc.
+foreach(_TSUGARU_COMPILER_VAR CC CXX)
+	if(DEFINED ENV{${_TSUGARU_COMPILER_VAR}})
+		string(STRIP "$ENV{${_TSUGARU_COMPILER_VAR}}" _TSUGARU_COMPILER_VALUE)
+		if(_TSUGARU_COMPILER_VALUE MATCHES "^ccache[ ]+(.+)$")
+			set(ENV{${_TSUGARU_COMPILER_VAR}} "${CMAKE_MATCH_1}")
+		endif()
+		unset(_TSUGARU_COMPILER_VALUE)
+	endif()
+endforeach()
+unset(_TSUGARU_COMPILER_VAR)
+
 project(TSUGARU)
 
 # Uncomment the following line to compile CPU core in high-fidelity mode.
@@ -73,6 +86,7 @@ add_subdirectory(diskimg)
 
 add_subdirectory(main_cui)
 add_subdirectory(main_headless)
+add_subdirectory(townsqt)
 
 
 #externals
