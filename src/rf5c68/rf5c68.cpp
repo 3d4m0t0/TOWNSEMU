@@ -14,8 +14,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 << LICENSE */
 #include <iostream>
 #include <cstring>
+#include <cmath>
+#include <algorithm>
 #include "rf5c68.h"
 #include "cpputil.h"
+
+namespace
+{
+int ClampHostLpfCutoffHz(int cutoff_hz)
+{
+	return std::max(200,std::min(cutoff_hz,20000));
+}
+}
 
 
 
@@ -62,6 +72,112 @@ static inline int lerp_int(int start, int end, float t)
 	return (int)ret;
 }
 
+namespace
+{
+constexpr int kSincHalfWidth=8;
+constexpr int kSincTaps=2*kSincHalfWidth+1;
+constexpr int kSincLutScale=256;
+constexpr int kSincLutSize=kSincHalfWidth*kSincLutScale+1;
+
+struct SincTables
+{
+	float blackman[kSincTaps]={};
+	float lut[kSincLutSize]={};
+
+	SincTables()
+	{
+		for(int i=0; i<kSincTaps; ++i)
+		{
+			const float x=static_cast<float>(i)/static_cast<float>(kSincTaps-1);
+			blackman[i]=0.42f
+			          -0.5f*std::cos(2.f*static_cast<float>(M_PI)*x)
+			          +0.08f*std::cos(4.f*static_cast<float>(M_PI)*x);
+		}
+		for(int i=0; i<kSincLutSize; ++i)
+		{
+			const float d=static_cast<float>(i)/static_cast<float>(kSincLutScale);
+			if(d<1e-6f)
+			{
+				lut[i]=1.0f;
+			}
+			else
+			{
+				const float pix=static_cast<float>(M_PI)*d;
+				lut[i]=std::sin(pix)/pix;
+			}
+		}
+	}
+};
+
+const SincTables &SincTablesInstance()
+{
+	static const SincTables tables;
+	return tables;
+}
+
+float LookupSinc(float d)
+{
+	const float ad=std::fabs(d);
+	if(ad>=static_cast<float>(kSincHalfWidth))
+	{
+		return 0.0f;
+	}
+	const float scaled=ad*static_cast<float>(kSincLutScale);
+	const int idx=static_cast<int>(scaled);
+	const float frac=scaled-static_cast<float>(idx);
+	const auto &lut=SincTablesInstance().lut;
+	return lut[idx]*(1.0f-frac)+lut[idx+1]*frac;
+}
+
+int ChipHistSample(
+    const int *hist,int hist_write,int hist_count,
+    int idx,int current,int prev)
+{
+	if(0==idx)
+	{
+		return current;
+	}
+	if(-1==idx)
+	{
+		return prev;
+	}
+	if(0<idx)
+	{
+		return current;
+	}
+	const int age=-idx-1;
+	if(age>=hist_count)
+	{
+		return 0;
+	}
+	return hist[(hist_write-1-age+RF5C68::SINC_HISTORY_SIZE)%RF5C68::SINC_HISTORY_SIZE];
+}
+
+int WindowedSincInterp(
+    const int *hist,int hist_write,int hist_count,
+    int current,int prev,float pos)
+{
+	// pos in [-1,0]: -1 at prev chip sample, 0 at current.
+	const auto &tables=SincTablesInstance();
+	const int i0=static_cast<int>(std::floor(pos));
+	float sum=0.f;
+	float wsum=0.f;
+	int tap=0;
+	for(int k=i0-kSincHalfWidth+1; k<=i0+kSincHalfWidth; ++k,++tap)
+	{
+		const float d=pos-static_cast<float>(k);
+		const float w=LookupSinc(d)*tables.blackman[tap];
+		sum+=static_cast<float>(ChipHistSample(hist,hist_write,hist_count,k,current,prev))*w;
+		wsum+=w;
+	}
+	if(wsum<1e-6f)
+	{
+		return lerp_int(prev,current,pos+1.f);
+	}
+	return static_cast<int>(sum/wsum);
+}
+}
+
 
 RF5C68::RF5C68()
 {
@@ -98,6 +214,28 @@ void RF5C68::Clear(void)
 	state.timeBalance=0;
 	state.Lout_prev=0;
 	state.Rout_prev=0;
+	hostLpfL_=0.0f;
+	hostLpfR_=0.0f;
+	sincHistWrite_=0;
+	sincHistCount_=0;
+}
+
+void RF5C68::SetHostLpf(bool enabled,int cutoff_hz)
+{
+	hostLpfEnabled_=enabled;
+	hostLpfCutoffHz_=ClampHostLpfCutoffHz(cutoff_hz);
+	hostLpfL_=0.0f;
+	hostLpfR_=0.0f;
+}
+
+void RF5C68::SetResampleHighQuality(bool enabled)
+{
+	if(resampleHighQuality_!=enabled)
+	{
+		resampleHighQuality_=enabled;
+		sincHistWrite_=0;
+		sincHistCount_=0;
+	}
 }
 
 RF5C68::StartAndStopChannelBits RF5C68::WriteControl(unsigned char value)
@@ -476,10 +614,29 @@ unsigned int RF5C68::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int n
 
 		while(0<=state.timeBalance && nFilled<numSamples)
 		{
-			//WordOp_Add(wavePtr  ,Lout);
-			//WordOp_Add(wavePtr+2,Rout);
-			WordOp_Add(wavePtr  ,lerp_int(state.Lout_prev,Lout,time));
-			WordOp_Add(wavePtr+2,lerp_int(state.Rout_prev,Rout,time));
+			int Ls,Rs;
+			if(true==resampleHighQuality_)
+			{
+				const float t=std::min(time,1.0f);
+				const float pos=-1.f+t;
+				Ls=WindowedSincInterp(sincHistL_,sincHistWrite_,sincHistCount_,Lout,state.Lout_prev,pos);
+				Rs=WindowedSincInterp(sincHistR_,sincHistWrite_,sincHistCount_,Rout,state.Rout_prev,pos);
+			}
+			else
+			{
+				Ls=lerp_int(state.Lout_prev,Lout,time);
+				Rs=lerp_int(state.Rout_prev,Rout,time);
+			}
+			if(true==hostLpfEnabled_ && 0<hostLpfCutoffHz_ && 0<outSamplingRate)
+			{
+				const float coeff=std::exp(-2.0f*static_cast<float>(M_PI)*static_cast<float>(hostLpfCutoffHz_)/static_cast<float>(outSamplingRate));
+				hostLpfL_=coeff*hostLpfL_+(1.0f-coeff)*static_cast<float>(Ls);
+				hostLpfR_=coeff*hostLpfR_+(1.0f-coeff)*static_cast<float>(Rs);
+				Ls=static_cast<int>(hostLpfL_);
+				Rs=static_cast<int>(hostLpfR_);
+			}
+			WordOp_Add(wavePtr  ,Ls);
+			WordOp_Add(wavePtr+2,Rs);
 			time+=time_add;
 			state.timeBalance-=SAMPLING_RATE;
 			wavePtr+=4;
@@ -491,6 +648,14 @@ unsigned int RF5C68::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int n
 			}
 		}
 		state.timeBalance+=outSamplingRate;
+
+		sincHistL_[sincHistWrite_]=Lout;
+		sincHistR_[sincHistWrite_]=Rout;
+		sincHistWrite_=(sincHistWrite_+1)%SINC_HISTORY_SIZE;
+		if(sincHistCount_<SINC_HISTORY_SIZE)
+		{
+			++sincHistCount_;
+		}
 
 		state.Lout_prev=Lout;
 		state.Rout_prev=Rout;

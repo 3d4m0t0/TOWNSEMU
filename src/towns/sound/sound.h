@@ -42,6 +42,10 @@ public:
 		FM_PCM_MILLISEC_PER_WAVE=20, // Looks like time resolution of Wave Playback of Direct Sound is 10ms.  And, it needs to be 10 times integer.
 		BEEP_MILLISEC_PER_WAVE=20,
 		WAVE_STREAMING_SAFETY_BUFFER=10,
+#elif defined(TOWNSQT_AUDIO_20MS)
+		FM_PCM_MILLISEC_PER_WAVE=20,
+		BEEP_MILLISEC_PER_WAVE=20,
+		WAVE_STREAMING_SAFETY_BUFFER=10,
 #else
 		FM_PCM_MILLISEC_PER_WAVE=40, // Maybe because I am developing on VirtualBox, I am getting outrageously slow latency of 80ms (40ms*2).
 		BEEP_MILLISEC_PER_WAVE=40,
@@ -81,6 +85,9 @@ public:
 		VGMRecorder vgmRecorder;
 
 		bool maximumDoubleBuffering=false;
+
+		/*! Host-side CDDA volume multiplier (0.0–1.0), applied when mixing CD audio into FM/PCM output. */
+		float cddaUserGain=1.0f;
 	};
 
 	State state;
@@ -95,6 +102,7 @@ public:
 	std::vector <unsigned char> FMPCMrecording;
 
 	uint64_t lastFMPCMWaveGenTime=0;
+	uint64_t lastFMPCMActivityTime=0;
 	std::vector <unsigned char> nextFMPCMWave;
 
 	inline bool IsFMPlaying(void) const
@@ -113,6 +121,22 @@ public:
 	inline bool IsHighResPCMPlaying(void) const;
 
 	TownsSound(class FMTownsCommon *townsPtr);
+	inline void SetCDDAUserGain(float gain)
+	{
+		if(gain<0.0f)
+		{
+			gain=0.0f;
+		}
+		else if(1.0f<gain)
+		{
+			gain=1.0f;
+		}
+		var.cddaUserGain=gain;
+	}
+	inline float GetCDDAUserGain(void) const
+	{
+		return var.cddaUserGain;
+	}
 	void SetOutsideWorld(class Outside_World::Sound *outside_world);
 	void SetCDROMPointer(TownsCDROM *cdrom);
 	void SetSCSIPointer(TownsSCSI *scsi);

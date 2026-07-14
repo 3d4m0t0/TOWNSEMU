@@ -160,6 +160,12 @@ public:
 
 	unsigned int AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSamples,int outSamplingRate,uint64_t lastWAVGenTime);
 
+	/*! Host-side PCM low-pass filter applied when mixing into the output buffer. */
+	void SetHostLpf(bool enabled,int cutoff_hz);
+
+	/*! Use windowed-sinc upsampling instead of linear interpolation (20833 Hz -> out rate). */
+	void SetResampleHighQuality(bool enabled);
+
 	/*! Returns true if playing.
 	*/
 	bool IsPlaying(void) const;
@@ -197,6 +203,18 @@ public:
 	bool useScheduling=false;
 	std::vector <RegWriteLog> regWriteSched;
 	void FlushRegisterSchedule(void);
+
+	bool hostLpfEnabled_=false;
+	int hostLpfCutoffHz_=8000;
+	float hostLpfL_=0.0f;
+	float hostLpfR_=0.0f;
+
+	bool resampleHighQuality_=false;
+	static constexpr int SINC_HISTORY_SIZE=64;
+	int sincHistL_[SINC_HISTORY_SIZE]={};
+	int sincHistR_[SINC_HISTORY_SIZE]={};
+	int sincHistWrite_=0;
+	int sincHistCount_=0;
 };
 
 
