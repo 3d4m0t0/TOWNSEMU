@@ -9,6 +9,8 @@ public:
 	static void Delete(MIDI_Interface *);
 	virtual void SendCommand(const unsigned char cmdBuf[])=0;
 	virtual void SendExclusiveCommand(const unsigned char cmdBuf[],int len)=0;
+	/*! MPU-401 / i8251 reset hook: clear host synth state (FluidSynth SC-55 restore). */
+	virtual void ResetPlaybackState(void) {}
 };
 
 /* } */

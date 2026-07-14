@@ -47,7 +47,8 @@ void TownsMIDI::MIDICard::ByteSentFromVM(int port,unsigned char data)
 				case 0xf0:
 					p.midiSysExflag=true;
 					p.midiMessageLen=0;
-					break;
+					p.midiMessageFilled=0;
+					return;
 				case 0xf1:
 				case 0xf3:
 					p.midiMessageLen = 2;
@@ -88,7 +89,9 @@ void TownsMIDI::MIDICard::ByteSentFromVM(int port,unsigned char data)
 				owner->townsPtr->debugger.WriteLogFile(s);
 			}
 			p.midiItfc->SendCommand(p.midiMessage);
-			p.midiMessageFilled = 1; // May re-use the status byte.
+			p.midiMessage[1]=0;
+			p.midiMessage[2]=0;
+			p.midiMessageFilled=1; // May re-use the status byte (running status).
 		}
 	}
 	else
@@ -110,27 +113,14 @@ void TownsMIDI::MIDICard::ByteSentFromVM(int port,unsigned char data)
 			}
 			p.midiItfc->SendExclusiveCommand(p.midiMessage,p.midiMessageLen);
 			p.midiSysExflag=false;
+			p.midiMessageFilled=0;
+			p.midiMessageLen=0;
+			return;
 		}
 
-		p.midiMessage[p.midiMessageLen++]=data;
-
-		if (p.midiMessageLen >= 12)
+		if(p.midiMessageLen<MIDIPort::MIDI_MESSAGE_MAX)
 		{
-			if (true == owner->midiMonitor)
-			{
-				std::string s = "MIDI Exclusive Message ";
-				s += "F0";
-				for (int i = 0; i < 12; ++i)
-				{
-					s += cpputil::Ubtox(p.midiMessage[i]);
-					s += " ";
-				}
-				s += "F7";
-				std::cout << s << std::endl;
-				owner->townsPtr->debugger.WriteLogFile(s);
-			}
-			p.midiItfc->SendExclusiveCommand(p.midiMessage,12);
-			p.midiSysExflag=false;
+			p.midiMessage[p.midiMessageLen++]=data;
 		}
 	}
 }
@@ -213,6 +203,20 @@ TownsMIDI::TownsMIDI(class FMTownsCommon *townsPtr) : Device(townsPtr)
 	}
 }
 
+void TownsMIDI::ResetMidiHostPlaybackState(void)
+{
+	for(auto &card : state.cards)
+	{
+		for(auto &p : card.ports)
+		{
+			if(nullptr!=p.midiItfc)
+			{
+				p.midiItfc->ResetPlaybackState();
+			}
+		}
+	}
+}
+
 void TownsMIDI::PowerOn(void)
 {
 	state.timer.PowerOn();
@@ -233,6 +237,7 @@ void TownsMIDI::PowerOn(void)
 	state.timerINTMask=0;
 	state.timerINTOccured=0;
 	state.lastTimerTickTime=0;
+	ResetMidiHostPlaybackState();
 }
 
 void TownsMIDI::Reset(void)
@@ -255,6 +260,7 @@ void TownsMIDI::Reset(void)
 	state.timerINTMask=0;
 	state.timerINTOccured=0;
 	state.lastTimerTickTime=0;
+	ResetMidiHostPlaybackState();
 }
 
 void TownsMIDI::EnableCards(int nCards)

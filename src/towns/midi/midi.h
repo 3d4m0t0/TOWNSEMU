@@ -73,7 +73,8 @@ public:
 			MIDI_Interface *midiItfc=nullptr;
 			unsigned char midiMessageFilled=0,midiMessageLen=0;
 			bool midiSysExflag=false;
-			unsigned char midiMessage[12];
+			unsigned char midiMessage[256];
+			static constexpr int MIDI_MESSAGE_MAX=256;
 			i8251Client interface;  // Fixed in the constructor.  Not saved in the state.
 		};
 
@@ -157,6 +158,7 @@ public:
 	void UpdateInterruptRequestSerial(void);
 	void UpdateInterruptRequestTimer(void);
 	void UpdateSchedule(void);
+	void ResetMidiHostPlaybackState(void);
 
 	void PowerOn(void) override;
 	void Reset(void) override;
