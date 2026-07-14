@@ -1616,14 +1616,22 @@ void TownsSCSI::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSam
 		// }
 		// else
 		{
+			const float userGain=townsPtr->sound.GetCDDAUserGain();
 			uint64_t writePtr=0;
 			for(uint64_t i=0; i<numSamples && d.CDDAPlayPointer+3<CDDAWaveSize; ++i)
 			{
 				int L=cpputil::GetSignedWord(waveBuf+writePtr);
 				int R=cpputil::GetSignedWord(waveBuf+writePtr+2);
 
-				L+=cpputil::GetSignedWord(d.CDDAWave.data()+d.CDDAPlayPointer);
-				R+=cpputil::GetSignedWord(d.CDDAWave.data()+d.CDDAPlayPointer+2);
+				int Lcd=cpputil::GetSignedWord(d.CDDAWave.data()+d.CDDAPlayPointer);
+				int Rcd=cpputil::GetSignedWord(d.CDDAWave.data()+d.CDDAPlayPointer+2);
+				if(1.0f!=userGain)
+				{
+					Lcd=static_cast<int>(Lcd*userGain);
+					Rcd=static_cast<int>(Rcd*userGain);
+				}
+				L+=Lcd;
+				R+=Rcd;
 
 				L=std::max(std::min(L,32767),-32767);
 				R=std::max(std::min(R,32767),-32767);

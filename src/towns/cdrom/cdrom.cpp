@@ -1981,6 +1981,8 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 			}
 		}
 
+		const float userGain=townsPtr->sound.GetCDDAUserGain();
+
 		if(63==Lvol && 63==Rvol)
 		{
 			uint64_t writePtr=0;
@@ -1989,8 +1991,15 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 				int L=cpputil::GetSignedWord(waveBuf+writePtr);
 				int R=cpputil::GetSignedWord(waveBuf+writePtr+2);
 
-				L+=cpputil::GetSignedWord(state.CDDAWave.data()+state.CDDAPlayPointer);
-				R+=cpputil::GetSignedWord(state.CDDAWave.data()+state.CDDAPlayPointer+2);
+				int Lcd=cpputil::GetSignedWord(state.CDDAWave.data()+state.CDDAPlayPointer);
+				int Rcd=cpputil::GetSignedWord(state.CDDAWave.data()+state.CDDAPlayPointer+2);
+				if(1.0f!=userGain)
+				{
+					Lcd=static_cast<int>(Lcd*userGain);
+					Rcd=static_cast<int>(Rcd*userGain);
+				}
+				L+=Lcd;
+				R+=Rcd;
 
 				L=std::max(std::min(L,32767),-32767);
 				R=std::max(std::min(R,32767),-32767);
@@ -2017,8 +2026,8 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 				int Lcd=cpputil::GetSignedWord(state.CDDAWave.data()+state.CDDAPlayPointer);
 				int Rcd=cpputil::GetSignedWord(state.CDDAWave.data()+state.CDDAPlayPointer+2);
 
-				Lcd=Lcd*Ltr;
-				Rcd=Rcd*Rtr;
+				Lcd=Lcd*Ltr*userGain;
+				Rcd=Rcd*Rtr*userGain;
 
 				L+=Lcd;
 				R+=Rcd;

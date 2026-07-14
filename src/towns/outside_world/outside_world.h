@@ -19,6 +19,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <vector>
 #include <string>
 #include <queue>
+#include <deque>
 #include <mutex>
 
 #include "render.h"
@@ -60,6 +61,14 @@ public:
 	bool mouseIntegrationActive=false;
 	int lastMx,lastMy,mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 	bool differentialMouseIntegration=false;
+	/*! TownsQt: drive mouse motion with image-space deltas when differential integration is off. */
+	bool qtImageDeltaMouseMotion=false;
+	/*! Test mode: set guest mouse coordinate equal to host in one step (no ScaleStep). */
+	bool snapMouseIntegration=false;
+	/*! Gradual integration frames before snap engages (layout / BIOS settle). */
+	int snapMouseWarmupRemaining=0;
+	int snapMouseWarmupFrames=60;
+	void ResetSnapMouseWarmup(void);
 
 	// Wing Commander and Strike Commander series can be configured to use mouse as joystick.
 	bool mouseByFlightstickAvailable=false;
@@ -153,11 +162,24 @@ public:
 	unsigned int dx=0,dy=0;  // Screen (0,0) will be window (dx,dy)
 	unsigned int scalingX=100; // In Percent
 	unsigned int scalingY=100; // In Percent
+	unsigned int displayW=0,displayH=0; // Rendered Towns image area in host window coords
 	bool pauseKey=false;
 
 	unsigned int lowerRightIcon=LOWER_RIGHT_NONE;
 
 	bool closeWindow=false; // Must be copied from WindowInterface::closeWindow in Communicate.
+
+	/*! Updated on the VM thread in DevicePolling for TownsQt mouse-integration debug. */
+	int debugGuestMx=0,debugGuestMy=0;
+	int debugMosMx=0,debugMosMy=0;
+	int debugTbiosMx=0,debugTbiosMy=0;
+	unsigned int debugMosWorkPhysAddr=0;
+	unsigned int debugTbiosMouseInfoOffset=0;
+	bool debugGuestValid=false;
+	bool debugMouseBIOSActive=false;
+	unsigned int debugTBIOSVersion=0;
+	unsigned int debugAppSpecific=0;
+	int debugSnapWarmupRemaining=0;
 
 	Outside_World();
 	virtual ~Outside_World();
@@ -174,6 +196,7 @@ public:
 	virtual void Start(void)=0;
 	virtual void Stop(void)=0;
 	virtual void DevicePolling(class FMTownsCommon &towns)=0;
+	void UpdateMouseIntegrationDebug(class FMTownsCommon &towns);
 	void UpdateStatusBarInfo(class FMTownsCommon &towns);
 
 	/*! Implementation should return true if the image needs to be flipped before drawn on the window.
@@ -246,6 +269,26 @@ public:
 		std::mutex renderingLock;
 		std::mutex newImageLock;
 
+		static constexpr size_t VM_CAPTURE_QUEUE_DEPTH=3;
+
+		struct VmCaptureSlot
+		{
+			unsigned char VRAM[TOWNS_MAX_VRAM_SIZE];
+			uint32_t vramBytes=TOWNS_MAX_VRAM_SIZE;
+			TownsCRTC::AnalogPalette palette;
+			TownsCRTC::ChaseHQPalette chaseHQ;
+			unsigned long long captureTownsTime=0;
+			bool imageNeedsFlip=false;
+			TownsRender::PreparedState rendererState;
+		};
+
+		std::deque<VmCaptureSlot> vmCaptureQueue;
+		mutable std::mutex vmCaptureMutex;
+
+		bool EnqueueCapture(class FMTownsCommon &towns,bool imageNeedsFlip);
+		bool FlushOneCaptureToShared(void);
+		size_t VmCaptureQueueDepth(void) const;
+
 		class SharedVariables
 		{
 		public:
@@ -259,11 +302,13 @@ public:
 			unsigned int dx=0,dy=0;  // Screen (0,0) will be window (dx,dy)
 			unsigned int scalingX=100; // In Percent
 			unsigned int scalingY=100; // In Percent
+			unsigned int displayW=0,displayH=0;
 			unsigned int lowerRightIcon=LOWER_RIGHT_NONE;
 
 			// Managed by newImageLock
 			bool needRender=false;
 			bool imageNeedsFlip=false;
+			unsigned long long captureTownsTime=0;
 			TownsRender renderer;
 			unsigned char VRAMCopy[TOWNS_MAX_VRAM_SIZE];
 			TownsCRTC::AnalogPalette paletteCopy;
@@ -284,6 +329,7 @@ public:
 
 			TownsRender::ImageCopy mostRecentImage;
 			bool newImageRendered=false;
+			unsigned long long lastCaptureTownsTime=0;
 			std::vector <unsigned int> gamePadsNeedUpdate;  // Copy of Outside_World's gamePadsNeedUpdate.
 			int winWid=640,winHei=480;
 
@@ -303,6 +349,15 @@ public:
 		unsigned int windowSizeOnStartUp[2]={640,480}; // Valid only with WINDOW_SPECIFY_SIZE
 
 		bool closeWindow=false;  // Windows is closed from outside.
+
+		/*! Extra height reserved at the top of the host window (TownsUI menu bar). */
+		unsigned int menuBarHei=0;
+
+		unsigned int ContentAreaHeight(unsigned winHei) const
+		{
+			const unsigned chrome=STATUS_HEI+menuBarHei;
+			return (winHei>chrome) ? (winHei-chrome) : 0;
+		}
 
 		WindowInterface();
 		~WindowInterface();
@@ -395,6 +450,24 @@ public:
 		virtual void BeepPlay(int samplingRate, std::vector<unsigned char>& wave) = 0;
 		virtual void BeepPlayStop() = 0;
 		virtual bool BeepChannelPlaying() const = 0;
+
+		/*! Pull-model audio: advance PCM delivery contract to emulated time (nanoseconds). */
+		virtual void SyncPcmContract(unsigned long long towns_time_ns)
+		{
+			(void)towns_time_ns;
+		}
+
+		/*! Pre-buffer PCM before the VM thread sleeps for real-time pacing. */
+		virtual void PrepareAudioSleep(unsigned long long sleep_time_ns)
+		{
+			(void)sleep_time_ns;
+		}
+
+		/*! SPSC playback buffer fill in milliseconds (0 if not applicable). */
+		virtual double PlaybackBufferMillisec() const
+		{
+			return 0.0;
+		}
 	};
 	virtual Sound *CreateSound(void) const=0;
 	virtual void DeleteSound(Sound *) const=0;

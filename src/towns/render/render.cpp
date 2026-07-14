@@ -70,33 +70,58 @@ void TownsRender::MakeOpaque(void)
 
 void TownsRender::Prepare(const TownsCRTC &crtc)
 {
-	fmt3631=crtc.fmt3631->IsEnabled();
+	ApplyPreparedState(MakePreparedState(crtc,damperWireLine,scanLineEffectIn15KHz));
+}
 
-	frequency=crtc.GetHorizontalFrequency();
-	highResCRTC=crtc.state.highResCRTCEnabled;
-	if(true==fmt3631)
+TownsRender::PreparedState TownsRender::MakePreparedState(const TownsCRTC &crtc,bool damperWireLine,bool scanLineEffectIn15KHz)
+{
+	PreparedState state;
+	state.fmt3631=crtc.fmt3631->IsEnabled();
+	state.frequency=crtc.GetHorizontalFrequency();
+	state.highResCRTC=crtc.state.highResCRTCEnabled;
+	if(true==state.fmt3631)
 	{
-		hardwareMouse=crtc.fmt3631->state.hwCursor;
+		state.hardwareMouse=crtc.fmt3631->state.hwCursor;
 	}
-	else if(true==highResCRTC)
+	else if(true==state.highResCRTC)
 	{
-		hardwareMouse=crtc.state.highResCrtcMouse;
+		state.hardwareMouse=crtc.state.highResCrtcMouse;
 	}
-	crtcIsSinglePageMode=crtc.InSinglePageMode();
-	if(true==crtcIsSinglePageMode)
+	state.crtcIsSinglePageMode=crtc.InSinglePageMode();
+	if(true==state.crtcIsSinglePageMode)
 	{
-		crtcShowPage[0]=crtc.state.ShowPage(0);
-		crtc.MakePageLayerInfo(crtcLayer[0],0);
+		state.crtcShowPage[0]=crtc.state.ShowPage(0);
+		crtc.MakePageLayerInfo(state.crtcLayer[0],0);
 	}
 	else
 	{
-		crtcShowPage[0]=crtc.state.ShowPage(0);
-		crtcShowPage[1]=crtc.state.ShowPage(1);
-		crtc.MakePageLayerInfo(crtcLayer[0],0);
-		crtc.MakePageLayerInfo(crtcLayer[1],1);
+		state.crtcShowPage[0]=crtc.state.ShowPage(0);
+		state.crtcShowPage[1]=crtc.state.ShowPage(1);
+		crtc.MakePageLayerInfo(state.crtcLayer[0],0);
+		crtc.MakePageLayerInfo(state.crtcLayer[1],1);
 	}
-	crtcPriorityPage=crtc.GetPriorityPage();
-	crtcRenderSize=crtc.GetRenderSize();
+	state.crtcPriorityPage=crtc.GetPriorityPage();
+	state.crtcRenderSize=crtc.GetRenderSize();
+	state.damperWireLine=damperWireLine;
+	state.scanLineEffectIn15KHz=scanLineEffectIn15KHz;
+	return state;
+}
+
+void TownsRender::ApplyPreparedState(const PreparedState &state)
+{
+	fmt3631=state.fmt3631;
+	frequency=state.frequency;
+	highResCRTC=state.highResCRTC;
+	hardwareMouse=state.hardwareMouse;
+	crtcIsSinglePageMode=state.crtcIsSinglePageMode;
+	crtcShowPage[0]=state.crtcShowPage[0];
+	crtcShowPage[1]=state.crtcShowPage[1];
+	crtcLayer[0]=state.crtcLayer[0];
+	crtcLayer[1]=state.crtcLayer[1];
+	crtcPriorityPage=state.crtcPriorityPage;
+	crtcRenderSize=state.crtcRenderSize;
+	damperWireLine=state.damperWireLine;
+	scanLineEffectIn15KHz=state.scanLineEffectIn15KHz;
 }
 
 void TownsRender::PrepareEntireVRAMLayer(const TownsCRTC &crtc,int layer)

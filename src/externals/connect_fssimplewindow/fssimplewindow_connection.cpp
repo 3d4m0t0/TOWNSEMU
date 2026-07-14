@@ -1368,21 +1368,43 @@ std::string FsSimpleWindowConnection::GetProgramResourceDirectory(void) const
 			{
 				int wid=windowEvent.winWid;
 				int hei=windowEvent.winHei;
-				if(mx<0)
+				if(0<this->displayW && 0<this->displayH)
 				{
-					mx=0;
+					if(mx<0)
+					{
+						mx=0;
+					}
+					else if((int)this->displayW<=mx)
+					{
+						mx=this->displayW-1;
+					}
+					if(my<0)
+					{
+						my=0;
+					}
+					else if((int)this->displayH<=my)
+					{
+						my=this->displayH-1;
+					}
 				}
-				else if(wid<=mx)
+				else
 				{
-					mx=wid-1;
-				}
-				if(my<0)
-				{
-					my=0;
-				}
-				else if(hei<=my)
-				{
-					my=hei-1;
+					if(mx<0)
+					{
+						mx=0;
+					}
+					else if(wid<=mx)
+					{
+						mx=wid-1;
+					}
+					if(my<0)
+					{
+						my=0;
+					}
+					else if(hei<=my)
+					{
+						my=hei-1;
+					}
 				}
 				if(0!=scalingX && 0!=scalingY) // Just in case
 				{
@@ -1402,6 +1424,7 @@ std::string FsSimpleWindowConnection::GetProgramResourceDirectory(void) const
 			}
 		}
 	}
+	this->UpdateMouseIntegrationDebug(towns);
 }
 
 /* virtual */ bool FsSimpleWindowConnection::ImageNeedsFlip(void)
@@ -1629,12 +1652,12 @@ void FsSimpleWindowConnection::WindowConnection::Start(void)
 
 	if(0==FsCheckWindowOpen())
 	{
-		FsOpenWindow(0,winY0,wid,hei+STATUS_HEI,1,WINDOW_TITLE);
+		FsOpenWindow(0,winY0,wid,hei+STATUS_HEI+menuBarHei,1,WINDOW_TITLE);
 		FsRegisterCloseWindowCallBack(FsSimpleWindowConnection::WindowConnection::CloseWindowCallBack,this);
 	}
 	else
 	{
-		FsResizeWindow(wid,hei+STATUS_HEI);
+		FsResizeWindow(wid,hei+STATUS_HEI+menuBarHei);
 	}
 
 	switch(windowModeOnStartUp)
@@ -1757,8 +1780,18 @@ void FsSimpleWindowConnection::WindowConnection::Interval(void)
 		// Next FsGetMouseEvent may lag from FsSetMousePosition if more events are in the queue.
 		// Therefore mouse position for differentialMouseIntegration should be polled separately.
 
-		winThrEx.primary.mouseMoveXY[0]+=mx-diffMouseXY[0];
-		winThrEx.primary.mouseMoveXY[1]+=my-diffMouseXY[1];
+		const int rawDx=mx-diffMouseXY[0];
+		const int rawDy=my-diffMouseXY[1];
+		if(0!=shared.scalingX && 0!=shared.scalingY)
+		{
+			winThrEx.primary.mouseMoveXY[0]+=rawDx*100/shared.scalingX;
+			winThrEx.primary.mouseMoveXY[1]+=rawDy*100/shared.scalingY;
+		}
+		else
+		{
+			winThrEx.primary.mouseMoveXY[0]+=rawDx;
+			winThrEx.primary.mouseMoveXY[1]+=rawDy;
+		}
 
 		diffMouseXY[0]=mx;
 		diffMouseXY[1]=my;
@@ -1834,7 +1867,7 @@ void FsSimpleWindowConnection::WindowConnection::Render(bool swapBuffers)
 			if(0<imgWid && 0<imgHei)
 			{
 				unsigned int scaleX=100*winWid/imgWid;
-				unsigned int scaleY=100*(winHei-STATUS_HEI)/imgHei;
+				unsigned int scaleY=100*ContentAreaHeight(winHei)/imgHei;
 				shared.scalingX=std::min(scaleX,scaleY);
 				shared.scalingY=shared.scalingX;
 			}
@@ -1844,7 +1877,7 @@ void FsSimpleWindowConnection::WindowConnection::Render(bool swapBuffers)
 			if(0<imgWid && 0<imgHei)
 			{
 				shared.scalingX=100*winWid/imgWid;
-				shared.scalingY=100*(winHei-STATUS_HEI)/imgHei;
+				shared.scalingY=100*ContentAreaHeight(winHei)/imgHei;
 			}
 		}
 	}
@@ -1852,7 +1885,10 @@ void FsSimpleWindowConnection::WindowConnection::Render(bool swapBuffers)
 	unsigned int renderWid=imgWid*shared.scalingX/100;
 	unsigned int renderHei=imgHei*shared.scalingY/100;
 	shared.dx=(renderWid<winWid ? (winWid-renderWid)/2 : 0);
-	shared.dy=(renderHei<(winHei-STATUS_HEI) ? (winHei-STATUS_HEI-renderHei)/2 : 0);
+	{
+		const unsigned contentHei=ContentAreaHeight(winHei);
+		shared.dy=(renderHei<contentHei ? (contentHei-renderHei)/2 : 0)+menuBarHei;
+	}
 
 	UpdateStatusBitmap();
 
@@ -1889,7 +1925,7 @@ void FsSimpleWindowConnection::WindowConnection::Render(bool swapBuffers)
 			--winThrEx.sinceLastResize;
 			if(0==winThrEx.sinceLastResize)
 			{
-				FsResizeWindow(winThr.winWid*scalingX/100,winThr.winHei*scalingY/100+STATUS_HEI);
+				FsResizeWindow(winThr.winWid*scalingX/100,winThr.winHei*scalingY/100+STATUS_HEI+menuBarHei);
 			}
 		}
 	}
@@ -2042,6 +2078,8 @@ void FsSimpleWindowConnection::WindowConnection::Communicate(Outside_World *ow)
 		outside_world->scalingY=shared.scalingY;
 		outside_world->dx=shared.dx;
 		outside_world->dy=shared.dy;
+		outside_world->displayW=shared.displayW;
+		outside_world->displayH=shared.displayH;
 	}
 }
 

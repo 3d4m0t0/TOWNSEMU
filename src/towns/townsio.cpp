@@ -348,16 +348,3 @@ void FMTownsCommon::UpdateEleVol(int eleVol)
 {
 	Reset();
 }
-void FMTownsCommon::AdjustMachineSpeedForMemoryWait(void)
-{
-	if(true==FASTModeLamp())
-	{
-		state.currentFreq=state.fastModeFreq;
-		sprite.state.transferTime=TownsSprite::SPRITE_ONE_TRANSFER_TIME_FASTMODE;
-	}
-	else
-	{
-		state.currentFreq=var.slowModeFreq;
-		sprite.state.transferTime=TownsSprite::SPRITE_ONE_TRANSFER_TIME;
-	}
-}

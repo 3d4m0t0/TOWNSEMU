@@ -78,6 +78,14 @@ public:
 	bool damperWireLine=true;
 	bool scanLineEffectIn15KHz=false;
 
+	enum
+	{
+		SPRITE_TRANSFER_AUTO=0,
+		SPRITE_TRANSFER_HALF=1,
+		SPRITE_TRANSFER_UNLIMITED=2, // transferTime=0; sprite index cap remains 1024
+	};
+	unsigned int spriteTransferMode=SPRITE_TRANSFER_AUTO;
+
 	bool removeInternalCD=false;
 
 	bool enableLAN=false;

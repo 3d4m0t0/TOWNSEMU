@@ -19,6 +19,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <vector>
 #include <string>
 #include <map>
+#include <atomic>
 
 #include "lineparser.h"
 
@@ -102,6 +103,9 @@ public:
 		    I think 64-bit is long enough.  So, I make it signed int.
 		*/
 		long long int townsTime;
+
+		/*! Published once per VM time-sync slice for GUI/audio observers (nanoseconds). */
+		std::atomic<uint64_t> observerTownsTimeNs{0};
 
 		int64_t nextDevicePollingTime=0;
 
@@ -292,6 +296,8 @@ public:
 
 		bool scanLineEffectIn15KHz=false;
 
+		unsigned int spriteTransferMode=TownsStartParameters::SPRITE_TRANSFER_AUTO;
+
 		// Report from TGMOUSE.EXE running in Windows 3.1
 		mutable bool mousePositionReported=false;
 		int mouseXReported=0,mouseYReported=0;
@@ -328,6 +334,10 @@ public:
 		unsigned int frequencyBackup=0;
 
 		unsigned int slowModeFreq=FREQUENCY_SLOWMODE_DEFAULT;
+
+		/*! Updated in AdjustMachineSpeedForMemoryWait when FASTModeLamp() changes (VM thread). */
+		bool cachedFastModeLamp=false;
+		std::atomic<uint32_t> fastModeLampRevision{0};
 
 		/*! VM State loaded at start-up.
 		    Loaded in TownsThread::VMStart
@@ -400,6 +410,9 @@ public:
 		    the machine state has just been loaded.
 		*/
 		bool justLoadedState=false;
+
+		/*! Number of MIDI cards enabled at machine setup (from argv / TownsQt settings). */
+		int configuredMidiCards=0;
 
 
 
@@ -589,7 +602,10 @@ public:
 	    current mouse coordinate in the VM and the host mouse coordinate.
 	*/
 	bool ControlMouse(int hostMouseX,int houstMouseY,unsigned int tbiosid);
-	bool ControlMouse(int &diffX,int &diffY,int hostMouseX,int houstMouseY,unsigned int tbiosid);
+	bool ControlMouse(int &diffX,int &diffY,int hostMouseX,int houstMouseY,unsigned int tbiosid,bool snap=false);
+
+	/*! Write guest mouse coordinate directly (used by snap mouse integration test). */
+	bool SetMouseCoordinate(int mx,int my,unsigned int tbiosid);
 
 	/*! Control mouse return.  The difference from ControlMouse is the input x and y are in the Towns's
 	    mouse coordinate.
@@ -726,6 +742,16 @@ public:
 		}
 	}
 
+	inline void PublishObserverTownsTime(void)
+	{
+		state.observerTownsTimeNs.store(static_cast<uint64_t>(state.townsTime),std::memory_order_release);
+	}
+
+	inline uint64_t GetObserverTownsTimeNs(void) const
+	{
+		return state.observerTownsTimeNs.load(std::memory_order_acquire);
+	}
+
 	/*! Check Rendering Timer and render if townsTime catches up with the timer.
 	    It will increment rendering timer.
 	    Returns true if rendered.
@@ -792,6 +818,7 @@ public:
 
 	/*! Adjust CPU frequency to simulate memory wait.
 	*/
+	void ApplySpriteTransferTime(void);
 	void AdjustMachineSpeedForMemoryWait(void);
 
 	// VM<->Host Interface

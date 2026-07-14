@@ -275,6 +275,12 @@ void TownsARGV::PrintHelp(void) const
 	std::cout << "  Render damper-wire line to make you feel nostalgic." << std::endl;
 	std::cout << "-NODAMPERWIRELINE" << std::endl;
 	std::cout << "  Don't render damper-wire line." << std::endl;
+	std::cout << "-SPRITETRANSFERHALF" << std::endl;
+	std::cout << "  Sprite DMA busy time: 36.5us per sprite (half of 73us)." << std::endl;
+	std::cout << "-SPRITETRANSFERUNLIMITED" << std::endl;
+	std::cout << "  Disable sprite DMA transfer timing limit." << std::endl;
+	std::cout << "-SPRITETRANSFERAUTO" << std::endl;
+	std::cout << "  Sprite transfer timing follows FAST/SLOW mode (default)." << std::endl;
 	std::cout << "-SCANLINE15K\n";
 	std::cout << "  Enable scan-line effect in 15KHz screen modes.\n";
 	std::cout << "-TOWNSTYPE" << std::endl;
@@ -1070,6 +1076,18 @@ bool TownsARGV::AnalyzeCommandParameter(int argc,char *argv[])
 		else if("-NODAMPERWIRELINE"==ARG)
 		{
 			damperWireLine=false;
+		}
+		else if("-SPRITETRANSFERHALF"==ARG)
+		{
+			spriteTransferMode=SPRITE_TRANSFER_HALF;
+		}
+		else if("-SPRITETRANSFERUNLIMITED"==ARG)
+		{
+			spriteTransferMode=SPRITE_TRANSFER_UNLIMITED;
+		}
+		else if("-SPRITETRANSFERAUTO"==ARG)
+		{
+			spriteTransferMode=SPRITE_TRANSFER_AUTO;
 		}
 		else if("-SCANLINE15K"==ARG)
 		{

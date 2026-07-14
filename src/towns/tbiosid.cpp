@@ -568,7 +568,7 @@ bool FMTownsCommon::ControlMouse(int hostMouseX,int hostMouseY,unsigned int tbio
 	int diffX,diffY;
 	return ControlMouse(diffX,diffY,hostMouseX,hostMouseY,tbiosid);
 }
-bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMouseY,unsigned int tbiosid)
+bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMouseY,unsigned int tbiosid,bool snap)
 {
 	// Wing Commander 2 requires mouse deltas to be zero until the mouse-presence check is done.
 	if(true!=state.mouseBIOSActive &&
@@ -710,7 +710,151 @@ bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMo
 
 		diffX=hostMouseX-mx;
 		diffY=hostMouseY-my;
+		if(true==snap)
+		{
+			if(true==SetMouseCoordinate(hostMouseX,hostMouseY,tbiosid))
+			{
+				DontControlMouse();
+				return true;
+			}
+			// Mouse BIOS storage may not be ready yet at boot — use gradual integration.
+			return ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
+		}
 		return ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
+	}
+	return false;
+}
+
+bool FMTownsCommon::SetMouseCoordinate(int mx,int my,unsigned int tbiosid)
+{
+	if(true==crtc.state.highResCRTCEnabled && true==crtc.state.highResCrtcMouse.defined)
+	{
+		crtc.state.highResCrtcMouse.X=mx;
+		crtc.state.highResCrtcMouse.Y=my;
+		return true;
+	}
+
+	if(true==var.customMouseIntegration)
+	{
+		mem.StoreWord(state.appSpecific_MousePtrX,mx);
+		mem.StoreWord(state.appSpecific_MousePtrY,my);
+		return true;
+	}
+
+	const bool useUltimaUnderworldMouse=(
+	    TOWNS_APPSPECIFIC_ULTIMAUNDERWORLD==state.appSpecificSetting &&
+	    0!=state.appSpecific_MousePtrX);
+
+	if(true==state.mouseBIOSActive && true!=useUltimaUnderworldMouse)
+	{
+		switch(tbiosid)
+		{
+		case TBIOS_V31L22A:
+			mem.StoreWord(state.MOS_work_physicalAddr+0x52,mx);
+			mem.StoreWord(state.MOS_work_physicalAddr+0x54,my);
+			return true;
+		case TBIOS_V31L23A:
+		case TBIOS_V31L31_90:
+			mem.StoreWord(state.MOS_work_physicalAddr+0x56,mx);
+			mem.StoreWord(state.MOS_work_physicalAddr+0x58,my);
+			return true;
+		case TBIOS_V31L31_91:
+			mem.StoreWord(state.TBIOS_physicalAddr+0x56C,mx);
+			mem.StoreWord(state.TBIOS_physicalAddr+0x56E,my);
+			return true;
+		case TBIOS_V31L31_92:
+		case TBIOS_V31L31_93:
+			mem.StoreWord(state.TBIOS_physicalAddr+0x510,mx);
+			mem.StoreWord(state.TBIOS_physicalAddr+0x512,my);
+			return true;
+		case TBIOS_V31L35:
+			if(0!=state.TBIOS_physicalAddr && 0!=state.TBIOS_mouseInfoOffset)
+			{
+				mem.StoreWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0C,mx);
+				mem.StoreWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0E,my);
+			}
+			if(0!=state.MOS_work_physicalAddr)
+			{
+				mem.StoreWord(state.MOS_work_physicalAddr+0x56,mx);
+				mem.StoreWord(state.MOS_work_physicalAddr+0x58,my);
+			}
+			return true;
+		}
+	}
+	else
+	{
+		switch(state.appSpecificSetting)
+		{
+		case TOWNS_APPSPECIFIC_ULTIMAUNDERWORLD:
+			{
+				auto debugStop=CheckDebugBreak();
+				mem.StoreWord(state.appSpecific_MousePtrX,mx);
+				mem.StoreWord(state.appSpecific_MousePtrY,(399-my)/2);
+				SetDebugBreakFlag(debugStop);
+			}
+			return true;
+		case TOWNS_APPSPECIFIC_RASHINBAN:
+		case TOWNS_APPSPECIFIC_WINGCOMMANDER1:
+		case TOWNS_APPSPECIFIC_LEMMINGS:
+		case TOWNS_APPSPECIFIC_LEMMINGS2:
+		case TOWNS_APPSPECIFIC_OPERATIONWOLF:
+			{
+				auto debugStop=CheckDebugBreak();
+				mem.StoreWord(state.appSpecific_MousePtrX,mx);
+				mem.StoreWord(state.appSpecific_MousePtrY,my);
+				SetDebugBreakFlag(debugStop);
+			}
+			return true;
+		case TOWNS_APPSPECIFIC_WINGCOMMANDER2:
+			{
+				auto debugStop=CheckDebugBreak();
+				mem.StoreWord(state.appSpecific_MousePtrX,mx);
+				mem.StoreWord(state.appSpecific_MousePtrY,my);
+				SetDebugBreakFlag(debugStop);
+			}
+			return true;
+		case TOWNS_APPSPECIFIC_STRIKECOMMANDER:
+			{
+				auto debugStop=CheckDebugBreak();
+				mem.StoreWord(state.appSpecific_MousePtrX,mx*2);
+				mem.StoreWord(state.appSpecific_MousePtrY,my);
+				SetDebugBreakFlag(debugStop);
+			}
+			return true;
+		case TOWNS_APPSPECIFIC_BRANDISH:
+			{
+				auto debugStop=CheckDebugBreak();
+				mem.StoreWord(0x30000+0x40E6,mx);
+				mem.StoreWord(0x30000+0x40E8,my);
+				SetDebugBreakFlag(debugStop);
+			}
+			return true;
+		case TOWNS_APPSPECIFIC_AMARANTH3:
+			{
+				const uint32_t signature[]=
+				{
+					0x000B0E8B,
+					0x0095E8FA
+				};
+				const int32_t mouseCoordObserved=0x248F0+0x0040;
+				const int32_t readMouseProcObserved=0x24940+0x044E;
+				const int32_t physAddrOffset=mouseCoordObserved-readMouseProcObserved;
+
+				for(uint32_t addr=0x24000; addr<=0x24FFF; addr+=0x10)
+				{
+					if(signature[0]==mem.FetchDword(addr+0x44E) &&
+					   signature[1]==mem.FetchDword(addr+0x452))
+					{
+						auto debugStop=CheckDebugBreak();
+						mem.StoreWord(int(addr+0x44E)+physAddrOffset,mx);
+						mem.StoreWord(int(addr+0x44E)+physAddrOffset+2,my);
+						SetDebugBreakFlag(debugStop);
+						return true;
+					}
+				}
+			}
+			break;
+		}
 	}
 	return false;
 }
@@ -958,8 +1102,11 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 
 	// Custom Mouse Integration <<
 
-	if(true==state.mouseBIOSActive &&
-	   TOWNS_APPSPECIFIC_ULTIMAUNDERWORLD!=state.appSpecificSetting)
+	const bool useUltimaUnderworldMouse=(
+	    TOWNS_APPSPECIFIC_ULTIMAUNDERWORLD==state.appSpecificSetting &&
+	    0!=state.appSpecific_MousePtrX);
+
+	if(true==state.mouseBIOSActive && true!=useUltimaUnderworldMouse)
 	{
 		switch(tbiosid)
 		{
@@ -1019,29 +1166,18 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 			my=(int)mem.FetchWord(state.TBIOS_physicalAddr+0x512);
 			return true;
 		case TBIOS_V31L35:
-			// V2.1 L31
-			// 0110:00014B2B BF804A0100                MOV     EDI,00014A80H
-
-			// 0110:00014C94 8A6F1C                    MOV     CH,[EDI+1CH]
-			// 0110:00014C97 8B570C                    MOV     EDX,[EDI+0CH]
-			// 0110:00014C9A 0FA4D310                  SHLD    EBX,EDX,10H
-			// 0110:00014C9E 886D1D                    MOV     [EBP+1DH],CH
-			// 0110:00014CA1 66895518                  MOV     [EBP+18H],DX
-			// 0110:00014CA5 66895D14                  MOV     [EBP+14H],BX
-			// 0110:00014CA9 C3                        RET
-
-			// V2.1 L50
-			// 0110:000162C8 BF30620100                MOV     EDI,00016230H
-
-			// 0110:0001643C 8A6F1C                    MOV     CH,[EDI+1CH]
-			// 0110:0001643F 8B570C                    MOV     EDX,[EDI+0CH]
-			// 0110:00016442 0FA4D310                  SHLD    EBX,EDX,10H
-			// 0110:00016446 886D1D                    MOV     [EBP+1DH],CH
-			// 0110:00016449 66895518                  MOV     [EBP+18H],DX
-			// 0110:0001644D 66895D14                  MOV     [EBP+14H],BX
-			// 0110:00016451 C3                        RET
-			mx=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0C);
-			my=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0E);
+			// V2.1 L31 / L50 — mouse X/Y at [EDI+0CH] / [EDI+0EH]
+			if(0!=state.TBIOS_physicalAddr && 0!=state.TBIOS_mouseInfoOffset)
+			{
+				mx=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0C);
+				my=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0E);
+			}
+			if(0!=state.MOS_work_physicalAddr &&
+			   (0==state.TBIOS_mouseInfoOffset || (0==mx && 0==my)))
+			{
+				mx=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x56);
+				my=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x58);
+			}
 			return true;
 		}
 	}

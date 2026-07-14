@@ -341,7 +341,7 @@ public:
 			if(inCycle<CRT_VERTICAL_DURATION)
 			{
 				state.VSYNC=false;
-				TurnOffVSYNCIRQ();
+				/* VSYNC IRQ stays asserted until software writes 0x5CA. */
 			}
 		}
 	}

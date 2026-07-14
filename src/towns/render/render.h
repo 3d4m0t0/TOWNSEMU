@@ -59,6 +59,25 @@ public:
 
 	TownsRender();
 
+	/*! Lightweight snapshot of Prepare(); avoids TownsRender copies in capture queues. */
+	struct PreparedState
+	{
+		bool fmt3631=false;
+		bool highResCRTC=false;
+		bool crtcIsSinglePageMode=false;
+		bool crtcShowPage[2]={};
+		TownsCRTC::Layer crtcLayer[2];
+		TownsCRTC::HardwareMouseCursor hardwareMouse;
+		int crtcPriorityPage=0;
+		Vec2i crtcRenderSize;
+		int frequency=0;
+		bool damperWireLine=false;
+		bool scanLineEffectIn15KHz=false;
+	};
+
+	static PreparedState MakePreparedState(const TownsCRTC &crtc,bool damperWireLine,bool scanLineEffectIn15KHz);
+	void ApplyPreparedState(const PreparedState &state);
+
 	/*! Create a bitmap image.
 	*/
 	void Create(int wid,int hei);

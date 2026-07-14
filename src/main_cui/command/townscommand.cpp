@@ -1118,6 +1118,10 @@ void TownsCommandInterpreter::Execute(TownsThread &thr,FMTownsCommon &towns,clas
 		exit(0);
 		break;
 	case CMD_RESET:
+		if(nullptr!=outside_world && true==outside_world->snapMouseIntegration)
+		{
+			outside_world->ResetSnapMouseWarmup();
+		}
 		if(1<cmd.argv.size())
 		{
 			unsigned int bootKeyComb=TownsStrToKeyComb(cmd.argv[1]);

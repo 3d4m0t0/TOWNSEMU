@@ -83,7 +83,7 @@ void TownsThread::VMMainLoopTemplate(
 	bool terminate=false;
 	for(;true!=terminate;)
 	{
-		auto realTime0=std::chrono::high_resolution_clock::now();
+		auto realTime0=std::chrono::steady_clock::now();
 		auto townsTime0=townsPtr->state.townsTime;
 
 		int runModeCopy=0;
@@ -322,10 +322,12 @@ void TownsThread::VMMainLoopTemplate(
 		uiThread->uiLock.unlock();
 		if(true==townsPtr->var.justLoadedState)
 		{
+			townsPtr->PublishObserverTownsTime();
 		}
 		else if(true==clockTicking)
 		{
-			AdjustRealTime(townsPtr,townsPtr->state.townsTime-townsTime0,realTime0,outside_world);
+			AdjustRealTime(townsPtr,townsPtr->state.townsTime-townsTime0,realTime0,outside_world,sound);
+			townsPtr->PublishObserverTownsTime();
 		}
 	}
 
@@ -409,9 +411,9 @@ void TownsThread::CheckRenderingTimer(FMTownsCommon &towns,class Outside_World::
 //                                     |------>|  New deficit
 
 
-void TownsThread::AdjustRealTime(FMTownsCommon *townsPtr,long long int cpuTimePassed,std::chrono::time_point<std::chrono::high_resolution_clock> time0,Outside_World *outside_world)
+void TownsThread::AdjustRealTime(FMTownsCommon *townsPtr,long long int cpuTimePassed,std::chrono::time_point<std::chrono::steady_clock> time0,Outside_World *outside_world,Outside_World::Sound *sound)
 {
-	long long int realTimePassed=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-time0).count();
+	long long int realTimePassed=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-time0).count();
 
 	townsPtr->var.timeAdjustLog[townsPtr->var.timeAdjustLogPtr]=cpuTimePassed-realTimePassed;
 	townsPtr->var.timeDeficitLog[townsPtr->var.timeAdjustLogPtr]=townsPtr->state.timeDeficit;
@@ -433,12 +435,21 @@ void TownsThread::AdjustRealTime(FMTownsCommon *townsPtr,long long int cpuTimePa
 	{
 		if(true!=townsPtr->state.noWait)
 		{
-			while(townsPtr->state.timeDeficit+realTimePassed<cpuTimePassed)
+			const int64_t target_real_ns=cpuTimePassed-townsPtr->state.timeDeficit;
+			if(realTimePassed<target_real_ns)
 			{
-				townsPtr->ProcessSound(outside_world);
-				realTimePassed=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-time0).count();
+				if(nullptr!=sound)
+				{
+					sound->SyncPcmContract(townsPtr->state.townsTime);
+					const auto sleep_ns=target_real_ns-realTimePassed;
+					sound->PrepareAudioSleep(static_cast<unsigned long long>(sleep_ns));
+				}
+				const auto deadline=time0+std::chrono::nanoseconds(target_real_ns);
+				std::this_thread::sleep_until(deadline);
+				realTimePassed=std::chrono::duration_cast<std::chrono::nanoseconds>(
+				    std::chrono::steady_clock::now()-time0).count();
 			}
-			int64_t newBalance=cpuTimePassed-(townsPtr->state.timeDeficit+realTimePassed);
+			const int64_t newBalance=cpuTimePassed-(townsPtr->state.timeDeficit+realTimePassed);
 			townsPtr->state.timeDeficit=-newBalance;
 		}
 		else

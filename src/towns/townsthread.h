@@ -43,10 +43,14 @@ private:
 	};
 	unsigned int renderTiming=RENDER_TIMING_OUTSIDE_VSYNC;
 
-public:
+	public:
 	enum
 	{
-		NANOSECONDS_PER_TIME_SYNC=    1000000, // 1ms
+#if defined(TOWNSQT_SMOOTH_TIMING)
+		NANOSECONDS_PER_TIME_SYNC=1000000, // 1ms — TownsQt pacing slice
+#else
+		NANOSECONDS_PER_TIME_SYNC=1000000, // 1ms
+#endif
 		TIME_DEFICIT_PAYBACK_PER_INSTRUCTION= 1000, // 1us
 	};
 
@@ -70,7 +74,7 @@ private:
 
 	template <class FMTownsClass>
 	void VMMainLoopTemplate(FMTownsClass *townsPtr,Outside_World *outside_world,Outside_World::Sound *sound,Outside_World::WindowInterface *window,class TownsUIThread *uiThread);
-	void AdjustRealTime(FMTownsCommon *townsPtr,long long int cpuTimePassed,std::chrono::time_point<std::chrono::high_resolution_clock> time0,Outside_World *outside_world);
+	void AdjustRealTime(FMTownsCommon *townsPtr,long long int cpuTimePassed,std::chrono::time_point<std::chrono::steady_clock> time0,Outside_World *outside_world,Outside_World::Sound *sound);
 
 public:
 

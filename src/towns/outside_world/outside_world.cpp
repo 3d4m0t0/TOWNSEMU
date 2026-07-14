@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 << LICENSE */
 #include <iostream>
+#include <algorithm>
 #include <cstring> // std::memcpy for Linux compiler
 
 #include "outside_world.h"
@@ -1339,32 +1340,48 @@ bool Outside_World::PauseKeyPressed(void)
 void Outside_World::ProcessInkey(class FMTownsCommon &towns,int townsKey)
 {
 }
+void Outside_World::ResetSnapMouseWarmup(void)
+{
+	snapMouseWarmupRemaining=std::max(0,snapMouseWarmupFrames);
+	mouseIntegrationActive=false;
+	mouseStationaryCount=MOUSE_STATIONARY_COUNT;
+}
 void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb,int mx,int my)
 {
 	towns.SetMouseButtonState((0!=lb),(0!=rb));
 
+	const bool hostMoved=(lastMx!=mx || lastMy!=my);
+	if(hostMoved)
 	{
-		int dx=lastMx-mx;
-		int dy=lastMy-my;
-		if(0!=dx || 0!=dy)
-		{
-			// std::cout << "Mouse Integration Active" << std::endl;
-			mouseIntegrationActive=true;
-			mouseStationaryCount=MOUSE_STATIONARY_COUNT;
-		}
+		mouseIntegrationActive=true;
+		mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 	}
 
-	if(true==mouseIntegrationActive)
+	const bool snapEnabled=true==snapMouseIntegration && true!=differentialMouseIntegration;
+	const bool inSnapWarmup=snapEnabled && 0<snapMouseWarmupRemaining;
+	if(inSnapWarmup)
 	{
-		int diffX,diffY;
-		towns.ControlMouse(diffX,diffY,mx,my,towns.state.tbiosVersion);
-		if(-1<=diffX && diffX<=1 && -1<=diffY && diffY<=1) // Added tolerance.
+		// Keep gradual integration alive until warmup completes.
+		mouseIntegrationActive=true;
+		mouseStationaryCount=MOUSE_STATIONARY_COUNT;
+	}
+
+	int diffX=0,diffY=0;
+	const bool useSnap=snapEnabled && !inSnapWarmup;
+	if(true==towns.ControlMouse(diffX,diffY,mx,my,towns.state.tbiosVersion,useSnap))
+	{
+		mouseIntegrationActive=true;
+		if(inSnapWarmup)
+		{
+			// Count warmup only after gradual integration actually runs.
+			--snapMouseWarmupRemaining;
+		}
+		if(-1<=diffX && diffX<=1 && -1<=diffY && diffY<=1)
 		{
 			--mouseStationaryCount;
-			if(mouseStationaryCount<=0)
+			if(mouseStationaryCount<=0 && !inSnapWarmup)
 			{
 				mouseIntegrationActive=false;
-				// std::cout << "Mouse Integration Paused" << std::endl;
 			}
 		}
 		else
@@ -1372,19 +1389,51 @@ void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb
 			mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 		}
 	}
-	else
+	else if(true!=mouseIntegrationActive && !inSnapWarmup)
 	{
 		towns.DontControlMouse();
 	}
+
 	lastMx=mx;
 	lastMy=my;
+}
+
+void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
+{
+	debugMouseBIOSActive=towns.state.mouseBIOSActive;
+	debugTBIOSVersion=towns.state.tbiosVersion;
+	debugAppSpecific=towns.state.appSpecificSetting;
+	debugMosWorkPhysAddr=towns.state.MOS_work_physicalAddr;
+	debugTbiosMouseInfoOffset=towns.state.TBIOS_mouseInfoOffset;
+
+	debugMosMx=0;
+	debugMosMy=0;
+	if(0!=towns.state.MOS_work_physicalAddr)
+	{
+		debugMosMx=(int)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+0x56);
+		debugMosMy=(int)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+0x58);
+	}
+
+	debugTbiosMx=0;
+	debugTbiosMy=0;
+	if(0!=towns.state.TBIOS_physicalAddr && 0!=towns.state.TBIOS_mouseInfoOffset)
+	{
+		debugTbiosMx=(int)towns.mem.FetchWord(towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset+0x0C);
+		debugTbiosMy=(int)towns.mem.FetchWord(towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset+0x0E);
+	}
+
+	int gx=0,gy=0;
+	debugGuestValid=towns.GetMouseCoordinate(gx,gy,towns.state.tbiosVersion);
+	debugGuestMx=gx;
+	debugGuestMy=gy;
+	debugSnapWarmupRemaining=snapMouseWarmupRemaining;
 }
 
 void Outside_World::ProcessMouseDifferential(class FMTownsCommon &towns,int lb,int mb,int rb,int dx,int dy,int refX,int refY)
 {
 	towns.SetMouseButtonState((0!=lb),(0!=rb));
 
-	if(dx<-1 || 1<dx || dy<-1 || 1<dy)
+	if(0!=dx || 0!=dy)
 	{
 		// std::cout << "Mouse Integration Active" << std::endl;
 		mouseIntegrationActive=true;
@@ -1631,15 +1680,22 @@ Outside_World::WindowInterface::~WindowInterface()
 */
 void Outside_World::WindowInterface::BaseInterval(void)
 {
+	if(true!=shared.needRender)
+	{
+		FlushOneCaptureToShared();
+	}
+
 	newImageLock.lock();
 	if(true==shared.needRender)
 	{
 		shared.renderer.BuildImage(shared.VRAMCopy,shared.paletteCopy,shared.chaseHQPaletteCopy);
 		shared.needRender=false;
 		auto imageNeedsFlipCopy=shared.imageNeedsFlip;
+		const auto captureTownsTimeCopy=shared.captureTownsTime;
 		newImageLock.unlock();
 
 		winThr.newImageRendered=true;
+		winThr.lastCaptureTownsTime=captureTownsTimeCopy;
 
 		// Rendered image won't be touched by the VM Thread.  Safe to cook.
 		if(true==imageNeedsFlipCopy)
@@ -1649,33 +1705,87 @@ void Outside_World::WindowInterface::BaseInterval(void)
 
 		auto img=shared.renderer.MoveImage();
 		std::swap(winThr.mostRecentImage,img);
+
+		FlushOneCaptureToShared();
 	}
 	else
 	{
 		newImageLock.unlock();
 	}
 }
+bool Outside_World::WindowInterface::EnqueueCapture(class FMTownsCommon &towns,bool imageNeedsFlip)
+{
+	VmCaptureSlot slot;
+	const auto vramBytes=towns.crtc.GetEffectiveVRAMSize();
+	slot.vramBytes=vramBytes;
+	std::memcpy(slot.VRAM,towns.GetUsingVRAM(),vramBytes);
+	slot.palette=towns.crtc.GetPalette();
+	slot.chaseHQ=towns.crtc.chaseHQPalette;
+	slot.captureTownsTime=towns.state.townsTime;
+	slot.imageNeedsFlip=imageNeedsFlip;
+	slot.rendererState=TownsRender::MakePreparedState(
+	    towns.crtc,towns.var.damperWireLine,towns.var.scanLineEffectIn15KHz);
+
+	std::lock_guard<std::mutex> lock(vmCaptureMutex);
+	if(VM_CAPTURE_QUEUE_DEPTH<=vmCaptureQueue.size())
+	{
+		vmCaptureQueue.pop_front();
+	}
+	vmCaptureQueue.push_back(std::move(slot));
+	return true;
+}
+bool Outside_World::WindowInterface::FlushOneCaptureToShared(void)
+{
+	std::unique_lock<std::mutex> vmLock(vmCaptureMutex);
+	if(true==vmCaptureQueue.empty())
+	{
+		return false;
+	}
+
+	if(false==newImageLock.try_lock())
+	{
+		return false;
+	}
+
+	if(true==shared.needRender)
+	{
+		newImageLock.unlock();
+		return false;
+	}
+
+	auto slot=std::move(vmCaptureQueue.front());
+	vmCaptureQueue.pop_front();
+	vmLock.unlock();
+
+	const auto vramBytes=slot.vramBytes;
+	std::memcpy(shared.VRAMCopy,slot.VRAM,vramBytes);
+	shared.paletteCopy=slot.palette;
+	shared.chaseHQPaletteCopy=slot.chaseHQ;
+	shared.imageNeedsFlip=slot.imageNeedsFlip;
+	shared.captureTownsTime=slot.captureTownsTime;
+	shared.renderer.ApplyPreparedState(slot.rendererState);
+	shared.needRender=true;
+
+	newImageLock.unlock();
+	return true;
+}
+size_t Outside_World::WindowInterface::VmCaptureQueueDepth(void) const
+{
+	std::lock_guard<std::mutex> lock(vmCaptureMutex);
+	return vmCaptureQueue.size();
+}
 /*! Called from the VM thread to tell the new image should be rendered.
-    It will try_lock the renderer, but it fails, it gives up not to block
-    the VM thread.
+    Captures are queued on the VM thread and flushed when the GUI thread
+    is ready, so try_lock failure does not drop a frame.
 */
 bool Outside_World::WindowInterface::SendNewImage(class FMTownsCommon &towns,bool imageNeedsFlip)
 {
-	if(true==newImageLock.try_lock())
+	if(true!=EnqueueCapture(towns,imageNeedsFlip))
 	{
-		shared.renderer.Prepare(towns.crtc);
-		shared.renderer.damperWireLine=towns.var.damperWireLine;
-		shared.renderer.scanLineEffectIn15KHz=towns.var.scanLineEffectIn15KHz;
-		memcpy(shared.VRAMCopy,towns.GetUsingVRAM(),towns.crtc.GetEffectiveVRAMSize());
-		shared.paletteCopy=towns.crtc.GetPalette();
-		shared.chaseHQPaletteCopy=towns.crtc.chaseHQPalette;
-		shared.imageNeedsFlip=imageNeedsFlip;
-		shared.needRender=true;
-
-		newImageLock.unlock();
-		return true;
+		return false;
 	}
-	return false;
+	FlushOneCaptureToShared();
+	return true;
 }
 /*! Called from the VM thread to tell VM is closed.
 */

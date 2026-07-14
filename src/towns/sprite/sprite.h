@@ -25,6 +25,7 @@ public:
 		SPRITE_SCREEN_CLEAR_TIME=32000,
 		SPRITE_ONE_TRANSFER_TIME_FASTMODE=57000,  // FM TOWNS Technical Databook tells it is 75us.  Actual measurement was 57us.  WTF.
 		SPRITE_ONE_TRANSFER_TIME=73000,  // Looks like MX's sprite is faster.
+		SPRITE_ONE_TRANSFER_TIME_HALF=36500,  // Half of SPRITE_ONE_TRANSFER_TIME (73us / 2).
 	};
 	enum
 	{

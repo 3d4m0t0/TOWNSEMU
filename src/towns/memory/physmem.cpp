@@ -13,6 +13,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 << LICENSE */
 #include <iostream>
+#include <cctype>
+#include <cstring>
+
+#ifndef _WIN32
+#include <dirent.h>
+#endif
 
 #include "physmem.h"
 #include "ramrom.h"
@@ -22,6 +28,88 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "i486.h"
 #include "i486debug.h"
 
+namespace
+{
+void PrintRomLoadHeader(const std::string &dirName)
+{
+	std::cout << "[ROM] Loading ROM images from: " << dirName << std::endl;
+}
+
+void PrintRomLoadLine(const char *romName,const std::string &path,size_t size,size_t expectedSize,bool optional)
+{
+	std::cout << "[ROM]   " << romName << ": ";
+	if(0<expectedSize && size==expectedSize)
+	{
+		std::cout << "OK (" << size << " bytes) " << path;
+	}
+	else if(true==optional && 0==size)
+	{
+		std::cout << "not present (optional) " << path;
+	}
+	else if(0==size)
+	{
+		std::cout << "MISSING " << path;
+	}
+	else if(0<expectedSize)
+	{
+		std::cout << "wrong size (" << size << " bytes, expected " << expectedSize << ") " << path;
+	}
+	else
+	{
+		std::cout << size << " bytes " << path;
+	}
+	std::cout << std::endl;
+}
+
+static int CompareFileNameCaseInsensitive(const char *a,const char *b)
+{
+	while(0!=*a && 0!=*b)
+	{
+		const unsigned char ca=(unsigned char)std::tolower((unsigned char)*a);
+		const unsigned char cb=(unsigned char)std::tolower((unsigned char)*b);
+		if(ca!=cb)
+		{
+			return (ca<cb) ? -1 : 1;
+		}
+		++a;
+		++b;
+	}
+	if(0==*a && 0==*b)
+	{
+		return 0;
+	}
+	return (0==*a) ? -1 : 1;
+}
+
+/*! Try canonical name first, then match ROM filename case-insensitively in dirName. */
+static std::string ResolveRomImagePath(const std::string &dirName,const char *canonicalName)
+{
+	const auto exact=cpputil::MakeFullPathName(dirName,canonicalName);
+	if(true==cpputil::FileExists(exact))
+	{
+		return exact;
+	}
+
+#ifndef _WIN32
+	DIR *dp=opendir(dirName.c_str());
+	if(nullptr!=dp)
+	{
+		for(struct dirent *de=readdir(dp); nullptr!=de; de=readdir(dp))
+		{
+			if(0==CompareFileNameCaseInsensitive(de->d_name,canonicalName))
+			{
+				const auto resolved=cpputil::MakeFullPathName(dirName,de->d_name);
+				closedir(dp);
+				return resolved;
+			}
+		}
+		closedir(dp);
+	}
+#endif
+
+	return exact;
+}
+}
 
 void TownsPhysicalMemory::KanjiROMAccess::Reset()
 {
@@ -388,37 +476,37 @@ std::vector <unsigned char> TownsPhysicalMemory::LoadROMImage(std::string fName,
 
 bool TownsPhysicalMemory::LoadROMImages(std::string dirName,bool verbose)
 {
-	std::string fName;
-	fName=cpputil::MakeFullPathName(dirName,"FMT_SYS.ROM");
-	sysRom=LoadROMImage(fName,verbose);
+	PrintRomLoadHeader(dirName);
 
-	fName=cpputil::MakeFullPathName(dirName,"FMT_DOS.ROM");
-	dosRom=LoadROMImage(fName,verbose);
+	const auto sysRomPath=ResolveRomImagePath(dirName,"FMT_SYS.ROM");
+	sysRom=LoadROMImage(sysRomPath,verbose);
 
-	fName=cpputil::MakeFullPathName(dirName,"FMT_FNT.ROM");
-	fontRom=LoadROMImage(fName,verbose);
+	const auto dosRomPath=ResolveRomImagePath(dirName,"FMT_DOS.ROM");
+	dosRom=LoadROMImage(dosRomPath,verbose);
 
-	fName=cpputil::MakeFullPathName(dirName,"FMT_F20.ROM");
-	font20Rom=LoadROMImage(fName,verbose);
+	const auto fontRomPath=ResolveRomImagePath(dirName,"FMT_FNT.ROM");
+	fontRom=LoadROMImage(fontRomPath,verbose);
 
-	fName=cpputil::MakeFullPathName(dirName,"FMT_DIC.ROM");
-	dicRom=LoadROMImage(fName,verbose);
+	const auto font20RomPath=ResolveRomImagePath(dirName,"FMT_F20.ROM");
+	font20Rom=LoadROMImage(font20RomPath,verbose);
 
-	fName=cpputil::MakeFullPathName(dirName,"MYTOWNS.ROM");
-	std::vector <uint8_t> serROM=LoadROMImage(fName,verbose);
+	const auto dicRomPath=ResolveRomImagePath(dirName,"FMT_DIC.ROM");
+	dicRom=LoadROMImage(dicRomPath,verbose);
 
-	fName=cpputil::MakeFullPathName(dirName,"MAR_EX0.ROM");
-	std::vector <uint8_t> mar0=LoadROMImage(fName,verbose);
-	fName=cpputil::MakeFullPathName(dirName,"MAR_EX1.ROM");
-	std::vector <uint8_t> mar1=LoadROMImage(fName,verbose);
-	fName=cpputil::MakeFullPathName(dirName,"MAR_EX2.ROM");
-	std::vector <uint8_t> mar2=LoadROMImage(fName,verbose);
-	fName=cpputil::MakeFullPathName(dirName,"MAR_EX3.ROM");
-	std::vector <uint8_t> mar3=LoadROMImage(fName,verbose);
+	const auto serRomPath=ResolveRomImagePath(dirName,"MYTOWNS.ROM");
+	std::vector <uint8_t> serROM=LoadROMImage(serRomPath,verbose);
 
+	const auto mar0Path=ResolveRomImagePath(dirName,"MAR_EX0.ROM");
+	std::vector <uint8_t> mar0=LoadROMImage(mar0Path,verbose);
+	const auto mar1Path=ResolveRomImagePath(dirName,"MAR_EX1.ROM");
+	std::vector <uint8_t> mar1=LoadROMImage(mar1Path,verbose);
+	const auto mar2Path=ResolveRomImagePath(dirName,"MAR_EX2.ROM");
+	std::vector <uint8_t> mar2=LoadROMImage(mar2Path,verbose);
+	const auto mar3Path=ResolveRomImagePath(dirName,"MAR_EX3.ROM");
+	std::vector <uint8_t> mar3=LoadROMImage(mar3Path,verbose);
 
-	fName=cpputil::MakeFullPathName(dirName,"FMT_ALL.ROM");
-	auto allRoms=LoadROMImage(fName,verbose);
+	const auto allRomPath=ResolveRomImagePath(dirName,"FMT_ALL.ROM");
+	auto allRoms=LoadROMImage(allRomPath,verbose);
 	if(0<allRoms.size())
 	{
 		if(true==verbose)
@@ -499,24 +587,44 @@ bool TownsPhysicalMemory::LoadROMImages(std::string dirName,bool verbose)
 		}
 	}
 
+	PrintRomLoadLine("FMT_SYS.ROM",sysRomPath,sysRom.size(),256*1024,false);
+	PrintRomLoadLine("FMT_DOS.ROM",dosRomPath,dosRom.size(),512*1024,false);
+	PrintRomLoadLine("FMT_FNT.ROM",fontRomPath,fontRom.size(),256*1024,false);
+	PrintRomLoadLine("FMT_F20.ROM",font20RomPath,font20Rom.size(),512*1024,true);
+	PrintRomLoadLine("FMT_DIC.ROM",dicRomPath,dicRom.size(),512*1024,false);
+	PrintRomLoadLine("MYTOWNS.ROM",serRomPath,serROM.size(),SERIAL_ROM_LENGTH,true);
+	if(0<allRoms.size())
+	{
+		std::cout << "[ROM]   FMT_ALL.ROM: OK (" << allRoms.size() << " bytes) "
+		          << allRomPath << std::endl;
+	}
+	else
+	{
+		std::cout << "[ROM]   FMT_ALL.ROM: not present (optional) "
+		          << allRomPath << std::endl;
+	}
 
 	if(256*1024!=sysRom.size())
 	{
+		std::cout << "[ROM] ERROR: FMT_SYS.ROM is required (256 KB)." << std::endl;
 		Abort("Cannot read FMT_SYS.ROM or incorrect file size.");
 		return false;
 	}
 	if(512*1024!=dosRom.size())
 	{
+		std::cout << "[ROM] ERROR: FMT_DOS.ROM is required (512 KB)." << std::endl;
 		Abort("Cannot read FMT_DOS.ROM or incorrect file size.");
 		return false;
 	}
 	if(256*1024!=fontRom.size())
 	{
+		std::cout << "[ROM] ERROR: FMT_FNT.ROM is required (256 KB)." << std::endl;
 		Abort("Cannot read FMT_FNT.ROM or incorrect file size.");
 		return false;
 	}
 	if(512*1024!=font20Rom.size())
 	{
+		std::cout << "[ROM]   FMT_F20.ROM: optional missing -> filling with 0xFF" << std::endl;
 		std::cout << "Cannot read FMT_F20.ROM or incorrect file size." << std::endl;
 		std::cout << "Filling with all 0FFHs." << std::endl;
 		font20Rom.resize(512*1024);
@@ -527,11 +635,13 @@ bool TownsPhysicalMemory::LoadROMImages(std::string dirName,bool verbose)
 	}
 	if(512*1024!=dicRom.size())
 	{
+		std::cout << "[ROM] ERROR: FMT_DIC.ROM is required (512 KB)." << std::endl;
 		Abort("Cannot read FMT_DIC.ROM or incorrect file size.");
 		return false;
 	}
 	if(SERIAL_ROM_LENGTH<=serROM.size())
 	{
+		std::cout << "[ROM]   MYTOWNS.ROM: applied to serial ROM (" << serROM.size() << " bytes)" << std::endl;
 		for(int i=0; i<SERIAL_ROM_LENGTH; ++i)
 		{
 			serialROM[i]=serROM[i];
@@ -543,6 +653,7 @@ bool TownsPhysicalMemory::LoadROMImages(std::string dirName,bool verbose)
 	   512*1024==mar2.size() &&
 	   512*1024==mar3.size())
 	{
+		std::cout << "[ROM]   Marty EX-ROM (MAR_EX0-3): OK (2048 KB)" << std::endl;
 		martyRom.resize(2048*1024);
 		size_t ptr=0;
 		for(auto d : mar0)
@@ -564,8 +675,11 @@ bool TownsPhysicalMemory::LoadROMImages(std::string dirName,bool verbose)
 	}
 	else
 	{
+		std::cout << "[ROM]   Marty EX-ROM (MAR_EX0-3): not present (optional)" << std::endl;
 		martyRom.clear();
 	}
+
+	std::cout << "[ROM] ROM load finished." << std::endl;
 
 	return true;
 }

@@ -96,6 +96,7 @@ void FMTownsCommon::State::PowerOn(void)
 
 	if(""!=argv.ROMPath)
 	{
+		std::cout << "[ROM] Using ROM directory from command line." << std::endl;
 		if(true!=towns.LoadROMImages(argv.ROMPath.c_str(),argv.verbose))
 		{
 			std::cout << towns.vmAbortReason << std::endl;
@@ -106,10 +107,14 @@ void FMTownsCommon::State::PowerOn(void)
 	{
 		char cwd[4096];
 		getcwd(cwd,sizeof(cwd));
+		std::cout << "[ROM] ROM directory not specified. Trying current directory." << std::endl;
 		if(true!=towns.LoadROMImages(cwd,argv.verbose))
 		{
-			if(true!=towns.LoadROMImages(outside_world->GetProgramResourceDirectory(),argv.verbose))
+			const auto progResDir=outside_world->GetProgramResourceDirectory();
+			std::cout << "[ROM] Trying program resource directory: " << progResDir << std::endl;
+			if(true!=towns.LoadROMImages(progResDir,argv.verbose))
 			{
+				std::cout << "[ROM] Failed to load required ROM images." << std::endl;
 				std::cout << "Usage:" << std::endl;
 				std::cout << "  Tsugaru_CUI rom_directory_name" << std::endl;
 				std::cout << "or," << std::endl;
@@ -167,11 +172,20 @@ void FMTownsCommon::State::PowerOn(void)
 	{
 		auto imgFileName=towns.var.ApplyAlias(argv.cdImgFName);
 		imgFileName=cpputil::ExpandFileName(imgFileName,towns.var.specialPath);
+		std::cout << "[MEDIA] Internal CD-ROM image: " << imgFileName << std::endl;
 		auto errCode=towns.cdrom.state.GetDisc().Open(imgFileName);
 		if(DiscImage::ERROR_NOERROR!=errCode)
 		{
-			std::cout << DiscImage::ErrorCodeToText(errCode);
+			std::cout << "[MEDIA] CD-ROM open failed: " << DiscImage::ErrorCodeToText(errCode) << std::endl;
 		}
+		else
+		{
+			std::cout << "[MEDIA] CD-ROM image loaded." << std::endl;
+		}
+	}
+	else
+	{
+		std::cout << "[MEDIA] No internal CD-ROM image (-CD not specified)." << std::endl;
 	}
 	if(0!=argv.cdSpeed)
 	{
@@ -390,6 +404,7 @@ void FMTownsCommon::State::PowerOn(void)
 
 	towns.highResPCM.state.enabled=argv.highResPCM;
 
+	towns.var.configuredMidiCards=argv.nMidiCards;
 	towns.midi.EnableCards(argv.nMidiCards);
 
 	if(TOWNS_KEYBOARD_MODE_DEFAULT!=argv.keyboardMode)
@@ -422,6 +437,7 @@ void FMTownsCommon::State::PowerOn(void)
 
 	towns.var.damperWireLine=argv.damperWireLine;
 	towns.var.scanLineEffectIn15KHz=argv.scanLineEffectIn15KHz;
+	towns.var.spriteTransferMode=argv.spriteTransferMode;
 	towns.var.forceQuitOnPowerOff=argv.forceQuitOnPowerOff;
 
 	outside_world->throttlePhysicalId=argv.throttlePhysicalId;
@@ -520,6 +536,8 @@ void FMTownsCommon::State::PowerOn(void)
 	{
 		towns.fmt3631.state.enabled=true;
 	}
+
+	towns.ApplySpriteTransferTime();
 
 	return result;
 }
@@ -1362,6 +1380,45 @@ void FMTownsCommon::SetUpVRAMAccess(bool breakOnRead,bool breakOnWrite)
 bool FMTownsCommon::FASTModeLamp(void) const
 {
 	return (0==state.mainRAMWait && state.VRAMWait<3);
+}
+
+void FMTownsCommon::ApplySpriteTransferTime(void)
+{
+	switch(var.spriteTransferMode)
+	{
+	default:
+	case TownsStartParameters::SPRITE_TRANSFER_AUTO:
+		sprite.state.transferTime=(true==FASTModeLamp() ?
+		    TownsSprite::SPRITE_ONE_TRANSFER_TIME_FASTMODE :
+		    TownsSprite::SPRITE_ONE_TRANSFER_TIME);
+		break;
+	case TownsStartParameters::SPRITE_TRANSFER_HALF:
+		sprite.state.transferTime=TownsSprite::SPRITE_ONE_TRANSFER_TIME_HALF;
+		break;
+	case TownsStartParameters::SPRITE_TRANSFER_UNLIMITED:
+		sprite.state.transferTime=0;
+		break;
+	}
+}
+
+void FMTownsCommon::AdjustMachineSpeedForMemoryWait(void)
+{
+	const bool fast_mode=true==FASTModeLamp();
+	if(true==fast_mode)
+	{
+		state.currentFreq=state.fastModeFreq;
+	}
+	else
+	{
+		state.currentFreq=var.slowModeFreq;
+	}
+	ApplySpriteTransferTime();
+
+	if(fast_mode!=var.cachedFastModeLamp)
+	{
+		var.cachedFastModeLamp=fast_mode;
+		var.fastModeLampRevision.fetch_add(1u,std::memory_order_release);
+	}
 }
 
 void FMTownsCommon::SetMainRAMSize(long long int size)

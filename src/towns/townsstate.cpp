@@ -217,6 +217,9 @@ void FMTownsCommon::LoadStatePostProcess(void)
 	cdrom.ResumeCDDAAfterRestore();
 	scsi.ResumeCDDAAfterRestore();
 
+	// Save states may have been taken without a MIDI board; honor machine config.
+	midi.EnableCards(var.configuredMidiCards);
+
 	var.justLoadedState=true;
 }
 
