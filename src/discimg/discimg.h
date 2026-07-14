@@ -20,6 +20,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <string>
 #include <cstdint>
 
+class DiscImageChdBackend;
+
 // MDS/MDF implementation is based on:
 //   https://problemkaputt.de/psx-spx.htm#cdromdiskimagesmdsmdfalcohol120
 
@@ -69,6 +71,7 @@ public:
 		FILETYPE_CUE,
 		FILETYPE_MDS,
 		FILETYPE_CCD,
+		FILETYPE_CHD,
 	};
 	enum
 	{
@@ -302,6 +305,8 @@ public:
 	std::vector <Track> tracks;
 	std::vector <DiscLayout> layout;
 	std::vector <unsigned char> binaryCache;
+	DiscImageChdBackend *chdBackend_=nullptr;
+	bool chdAudioByteSwap_=false;
 
 	class TrackTime
 	{
@@ -321,6 +326,7 @@ private:
 	bool TryAnalyzeTracksWithProbablyCorrectInterpretation(void);
 	bool TryAnalyzeTracksWithAbsurdCUEInterpretation(void);
 	bool TryAnalyzeTracksWithMoreReasonableCUEInterpretation(void);
+	bool LocateSectorInLayout(unsigned int HSG,uint64_t &fileOffset,unsigned int &sectorLength,unsigned int &indexToBinary,int &layoutType) const;
 
 public:
 	unsigned int OpenISO(const std::string &fName);
@@ -332,6 +338,9 @@ public:
 
 public:
 	unsigned int OpenCCD(const std::string &fName);
+	unsigned int OpenCHD(const std::string &fName);
+	bool ReadBinaryBytes(const Binary &bin,uint64_t offset,unsigned char *buf,size_t len) const;
+	void ApplyChdAudioByteSwap(unsigned char *wave,size_t size) const;
 
 	/*! Cache binary file.  It may take large memory.
 	    If it is the multi-binary image, it only reads the first binary.

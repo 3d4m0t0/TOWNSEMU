@@ -1,6 +1,6 @@
-add_library(discimg discimg.h discimg.cpp)
-target_link_libraries(discimg cpputil)
-target_include_directories(discimg PUBLIC .)
+add_library(discimg discimg.h discimg.cpp discimg_chd.h discimg_chd.cpp)
+target_link_libraries(discimg cpputil chdr-static)
+target_include_directories(discimg PUBLIC . ${CMAKE_CURRENT_SOURCE_DIR}/../externals/libchdr/include)
 
 add_executable(testmsf testmsf.cpp)
 target_link_libraries(testmsf discimg)

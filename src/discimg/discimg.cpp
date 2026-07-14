@@ -16,11 +16,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <fstream>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 #include <string.h>
 #include <stdint.h>
 #include <ctype.h>
 
 #include "discimg.h"
+#include "discimg_chd.h"
 #include "cpputil.h"
 
 
@@ -129,6 +131,12 @@ DiscImage::DiscImage()
 }
 void DiscImage::CleanUp(void)
 {
+	if(nullptr!=chdBackend_)
+	{
+		delete chdBackend_;
+		chdBackend_=nullptr;
+	}
+	chdAudioByteSwap_=false;
 	fileType=FILETYPE_NONE;
 	totalBinLength=0;
 	fName="";
@@ -195,6 +203,10 @@ unsigned int DiscImage::Open(const std::string &fName)
 	if(".CCD"==ext)
 	{
 		return OpenCCD(fName);
+	}
+	if(".CHD"==ext)
+	{
+		return OpenCHD(fName);
 	}
 	return ERROR_UNSUPPORTED;
 }
@@ -526,31 +538,23 @@ void DiscImage::MakeLayoutFromTracksAndBinaryFiles(void)
 		L.sectorLength=tracks[i].sectorLength;
 		L.startHSG=tracks[i].start.ToHSG();
 		L.indexToBinary=(1==binaries.size() ? 0 : i);
-		if(0==i)
+		auto locationInFile=tracks[i].locationInFile;
+		auto preGapInHSG=tracks[i].preGap.ToHSG();
+		if(0<preGapInHSG)
 		{
-			L.locationInFile=0;
-			layout.push_back(L);
+			DiscLayout preGap;
+			preGap.layoutType=LAYOUT_GAP;
+			preGap.sectorLength=tracks[i].preGapSectorLength;
+			preGap.startHSG=tracks[i].start.ToHSG()-preGapInHSG;
+			preGap.numSectors=preGapInHSG;
+			preGap.locationInFile=locationInFile;
+			preGap.indexToBinary=(1==binaries.size() ? 0 : i);
+			layout.push_back(preGap);
+			locationInFile+=tracks[i].preGapSectorLength*preGapInHSG;
 		}
-		else
-		{
-			auto locationInFile=tracks[i].locationInFile;
-			auto preGapInHSG=tracks[i].preGap.ToHSG();
-			if(0<preGapInHSG)
-			{
-				DiscLayout preGap;
-				preGap.layoutType=LAYOUT_GAP;
-				preGap.sectorLength=tracks[i].preGapSectorLength;
-				preGap.startHSG=tracks[i].start.ToHSG()-preGapInHSG;
-				preGap.numSectors=preGapInHSG;
-				preGap.locationInFile=locationInFile;
-				preGap.indexToBinary=(1==binaries.size() ? 0 : i);
-				layout.push_back(preGap);
-				locationInFile+=tracks[i].preGapSectorLength*preGapInHSG;
-			}
-			L.startHSG+=preGapInHSG;
-			L.locationInFile=locationInFile;
-			layout.push_back(L);
-		}
+		L.startHSG=tracks[i].start.ToHSG();
+		L.locationInFile=locationInFile;
+		layout.push_back(L);
 	}
 	{
 		DiscLayout L;
@@ -1164,10 +1168,113 @@ unsigned int DiscImage::OpenCCD(const std::string &fName)
 	return ERROR_CANNOT_OPEN;
 }
 
+unsigned int DiscImage::OpenCHD(const std::string &fName)
+{
+	CleanUp();
+
+	chdBackend_=new DiscImageChdBackend;
+	std::string error_message;
+	if(true!=chdBackend_->Open(fName,error_message))
+	{
+		std::cout << "DiscImage::OpenCHD failed: " << error_message << std::endl;
+		CleanUp();
+		return ERROR_CANNOT_OPEN;
+	}
+
+	std::vector<DiscImageChdTrack> chd_tracks;
+	uint64_t total_bin_length=0;
+	bool need_audio_byte_swap=false;
+	if(true!=DiscImageParseChdTracks(
+	       chdBackend_->Handle(),
+	       chdBackend_->BytesPerFrame(),
+	       need_audio_byte_swap,
+	       chd_tracks,
+	       total_bin_length,
+	       error_message))
+	{
+		std::cout << "DiscImage::OpenCHD failed: " << error_message << std::endl;
+		CleanUp();
+		return ERROR_UNSUPPORTED;
+	}
+
+	this->fName=fName;
+	fileType=FILETYPE_CHD;
+	chdAudioByteSwap_=true;
+	totalBinLength=total_bin_length;
+	num_sectors=chd_tracks.back().end_hsg+1;
+
+	const uint32_t bytes_per_frame=chdBackend_->BytesPerFrame();
+	for(const auto &chd_track : chd_tracks)
+	{
+		Track trk;
+		trk.trackType=chd_track.track_type;
+		trk.sectorLength=bytes_per_frame;
+		trk.preGapSectorLength=chd_track.sector_length;
+		trk.locationInFile=static_cast<uint64_t>(chd_track.start_hsg)*bytes_per_frame;
+		trk.preGap.FromHSG(0);
+		trk.start.FromHSG(chd_track.start_hsg);
+		trk.end.FromHSG(chd_track.end_hsg);
+		tracks.push_back(trk);
+	}
+
+	Binary bin;
+	bin.fName=fName;
+	bin.fileSize=total_bin_length;
+	binaries.push_back(bin);
+
+	MakeLayoutFromTracksAndBinaryFiles();
+	return ERROR_NOERROR;
+}
+
+bool DiscImage::ReadBinaryBytes(const Binary &bin,uint64_t offset,unsigned char *buf,size_t len) const
+{
+	if(nullptr==buf || 0==len)
+	{
+		return false;
+	}
+	if(FILETYPE_CHD==fileType && nullptr!=chdBackend_)
+	{
+		return chdBackend_->Read(offset,buf,len);
+	}
+	std::ifstream ifp;
+	ifp.open(bin.fName,std::ios::binary);
+	if(true!=ifp.is_open())
+	{
+		return false;
+	}
+	ifp.seekg(static_cast<std::streamoff>(offset),std::ios::beg);
+	ifp.read(reinterpret_cast<char *>(buf),static_cast<std::streamsize>(len));
+	return ifp.gcount()==static_cast<std::streamsize>(len);
+}
+
+void DiscImage::ApplyChdAudioByteSwap(unsigned char *wave,size_t size) const
+{
+	if(true!=chdAudioByteSwap_ || nullptr==wave || 0==size)
+	{
+		return;
+	}
+	for(size_t i=0; i+1<size; i+=2)
+	{
+		const unsigned char b=wave[i];
+		wave[i]=wave[i+1];
+		wave[i+1]=b;
+	}
+}
+
 bool DiscImage::CacheBinary(void)
 {
 	if(0<binaries.size())
 	{
+		if(FILETYPE_CHD==fileType && nullptr!=chdBackend_)
+		{
+			binaryCache.resize(static_cast<size_t>(totalBinLength));
+			if(true!=ReadBinaryBytes(binaries[0],0,binaryCache.data(),binaryCache.size()))
+			{
+				binaryCache.clear();
+				return false;
+			}
+			return true;
+		}
 		std::ifstream ifp;
 		ifp.open(binaries[0].fName,std::ios::binary);
 		if(true==ifp.is_open())
@@ -1224,71 +1331,62 @@ const std::vector <DiscImage::Track> &DiscImage::GetTracks(void) const
 std::vector <unsigned char> DiscImage::ReadSectorMODE1(unsigned int HSG,unsigned int numSec) const
 {
 	std::vector <unsigned char> data;
-
-	if(0<binaries.size())
+	if(0==numSec || 0==binaries.size())
 	{
-		if(0==binaryCache.size())
-		{
-			std::ifstream ifp;
-			ifp.open(binaries[0].fName,std::ios::binary);
-			if(true==ifp.is_open() && 0<tracks.size() && (tracks[0].trackType==TRACK_MODE1_DATA || tracks[0].trackType==TRACK_MODE2_DATA))
-			{
-				if(HSG+numSec<=tracks[0].end.ToHSG()+1)
-				{
-					auto sectorIntoTrack=HSG-tracks[0].start.ToHSG();
-					auto locationInTrack=sectorIntoTrack*tracks[0].sectorLength;
+		return data;
+	}
 
-					ifp.seekg(tracks[0].locationInFile+locationInTrack,std::ios::beg);
-					data.resize(numSec*MODE1_BYTES_PER_SECTOR);
-					if(MODE1_BYTES_PER_SECTOR==tracks[0].sectorLength)
-					{
-						ifp.read((char *)data.data(),MODE1_BYTES_PER_SECTOR*numSec);
-					}
-					else
-					{
-						unsigned int dataPointer=0;
-						for(int i=0; i<(int)numSec; ++i)
-						{
-							ifp.read(skipBuf,16);
-							ifp.read((char *)data.data()+dataPointer,MODE1_BYTES_PER_SECTOR);
-							ifp.read(skipBuf,tracks[0].sectorLength-MODE1_BYTES_PER_SECTOR-16);
-							dataPointer+=MODE1_BYTES_PER_SECTOR;
-						}
-					}
-				}
+	data.resize(numSec*MODE1_BYTES_PER_SECTOR);
+	unsigned int dataPointer=0;
+	for(unsigned int sec=0; sec<numSec; ++sec)
+	{
+		const unsigned int curHSG=HSG+sec;
+		uint64_t fileOffset=0;
+		unsigned int sectorLength=0;
+		unsigned int indexToBinary=0;
+		int layoutType=LAYOUT_DATA;
+		if(true!=LocateSectorInLayout(curHSG,fileOffset,sectorLength,indexToBinary,layoutType))
+		{
+			data.clear();
+			return data;
+		}
+		if(LAYOUT_GAP==layoutType)
+		{
+			memset(data.data()+dataPointer,0,MODE1_BYTES_PER_SECTOR);
+			dataPointer+=MODE1_BYTES_PER_SECTOR;
+			continue;
+		}
+		if(LAYOUT_AUDIO==layoutType)
+		{
+			data.clear();
+			return data;
+		}
+
+		const auto &bin=binaries[indexToBinary];
+		if(MODE1_BYTES_PER_SECTOR==sectorLength)
+		{
+			if(true!=ReadBinaryBytes(bin,fileOffset,data.data()+dataPointer,MODE1_BYTES_PER_SECTOR))
+			{
+				data.clear();
+				return data;
 			}
+		}
+		else if(MODE1_BYTES_PER_SECTOR+16<=sectorLength)
+		{
+			unsigned char sectorBuf[4096];
+			if(sectorLength>sizeof(sectorBuf) || true!=ReadBinaryBytes(bin,fileOffset,sectorBuf,sectorLength))
+			{
+				data.clear();
+				return data;
+			}
+			memcpy(data.data()+dataPointer,sectorBuf+16,MODE1_BYTES_PER_SECTOR);
 		}
 		else
 		{
-			if(0<tracks.size() && (tracks[0].trackType==TRACK_MODE1_DATA || tracks[0].trackType==TRACK_MODE2_DATA))
-			{
-				if(HSG+numSec<=tracks[0].end.ToHSG()+1)
-				{
-					auto sectorIntoTrack=HSG-tracks[0].start.ToHSG();
-					auto locationInTrack=sectorIntoTrack*tracks[0].sectorLength;
-
-					auto filePtr=tracks[0].locationInFile+locationInTrack;
-					data.resize(numSec*MODE1_BYTES_PER_SECTOR);
-					if(MODE1_BYTES_PER_SECTOR==tracks[0].sectorLength)
-					{
-						uint64_t copyLen;
-						copyLen=std::min<uint64_t>(data.size(),binaryCache.size()-filePtr);
-						memcpy(data.data(),binaryCache.data()+filePtr,copyLen);
-					}
-					else
-					{
-						unsigned int dataPointer=0;
-						for(int i=0; i<(int)numSec && filePtr+MODE1_BYTES_PER_SECTOR<=binaryCache.size(); ++i)
-						{
-							filePtr+=16;
-							memcpy(data.data()+dataPointer,binaryCache.data()+filePtr,MODE1_BYTES_PER_SECTOR);
-							filePtr+=tracks[0].sectorLength;
-							dataPointer+=MODE1_BYTES_PER_SECTOR;
-						}
-					}
-				}
-			}
+			data.clear();
+			return data;
 		}
+		dataPointer+=MODE1_BYTES_PER_SECTOR;
 	}
 	return data;
 }
@@ -1296,53 +1394,57 @@ std::vector <unsigned char> DiscImage::ReadSectorMODE1(unsigned int HSG,unsigned
 std::vector <unsigned char> DiscImage::ReadSectorRAW(unsigned int HSG,unsigned int numSec) const
 {
 	std::vector <unsigned char> data;
-
-	if(0<binaries.size())
+	if(0==numSec || 0==binaries.size())
 	{
-		std::ifstream ifp;
-		ifp.open(binaries[0].fName,std::ios::binary);
-		if(true==ifp.is_open() && 0<tracks.size() && (tracks[0].trackType==TRACK_MODE1_DATA || tracks[0].trackType==TRACK_MODE2_DATA))
-		{
-			if(HSG+numSec<=tracks[0].end.ToHSG()+1)
-			{
-				auto sectorIntoTrack=HSG-tracks[0].start.ToHSG();
-				auto locationInTrack=sectorIntoTrack*tracks[0].sectorLength;
+		return data;
+	}
 
-				ifp.seekg(tracks[0].locationInFile+locationInTrack,std::ios::beg);
-				data.resize(numSec*RAW_BYTES_PER_SECTOR);
-				if(MODE1_BYTES_PER_SECTOR==tracks[0].sectorLength)
-				{
-					for(auto &d : data) // Sorry, I don't know how to calculate first four bytes and last 288 bytes.
-					{
-						d=0;
-					}
-					unsigned int dataPointer=0;
-					for(int i=0; i<(int)numSec; ++i)
-					{
-						ifp.read((char *)data.data()+4+dataPointer,MODE1_BYTES_PER_SECTOR);
-						dataPointer+=RAW_BYTES_PER_SECTOR;
-					}
-				}
-				else if(RAW_BYTES_PER_SECTOR<=tracks[0].sectorLength)
-				{
-					unsigned int dataPointer=0;
-					for(int i=0; i<(int)numSec; ++i)
-					{
-						ifp.read(skipBuf,12);
-						ifp.read((char *)data.data()+dataPointer,RAW_BYTES_PER_SECTOR);
-						ifp.read(skipBuf,tracks[0].sectorLength-RAW_BYTES_PER_SECTOR-12);
-						dataPointer+=RAW_BYTES_PER_SECTOR;
-					}
-				}
-				else
-				{
-					for(auto &d : data) // Sorry, I don't know how to calculate first four bytes and last 288 bytes.
-					{
-						d=0;
-					}
-				}
+	data.resize(numSec*RAW_BYTES_PER_SECTOR);
+	unsigned int dataPointer=0;
+	for(unsigned int sec=0; sec<numSec; ++sec)
+	{
+		const unsigned int curHSG=HSG+sec;
+		uint64_t fileOffset=0;
+		unsigned int sectorLength=0;
+		unsigned int indexToBinary=0;
+		int layoutType=LAYOUT_DATA;
+		if(true!=LocateSectorInLayout(curHSG,fileOffset,sectorLength,indexToBinary,layoutType))
+		{
+			data.clear();
+			return data;
+		}
+		if(LAYOUT_GAP==layoutType || LAYOUT_AUDIO==layoutType)
+		{
+			memset(data.data()+dataPointer,0,RAW_BYTES_PER_SECTOR);
+			dataPointer+=RAW_BYTES_PER_SECTOR;
+			continue;
+		}
+
+		const auto &bin=binaries[indexToBinary];
+		if(MODE1_BYTES_PER_SECTOR==sectorLength)
+		{
+			memset(data.data()+dataPointer,0,RAW_BYTES_PER_SECTOR);
+			if(true!=ReadBinaryBytes(bin,fileOffset,data.data()+dataPointer+4,MODE1_BYTES_PER_SECTOR))
+			{
+				data.clear();
+				return data;
 			}
 		}
+		else if(RAW_BYTES_PER_SECTOR+12<=sectorLength)
+		{
+			unsigned char sectorBuf[4096];
+			if(sectorLength>sizeof(sectorBuf) || true!=ReadBinaryBytes(bin,fileOffset,sectorBuf,sectorLength))
+			{
+				data.clear();
+				return data;
+			}
+			memcpy(data.data()+dataPointer,sectorBuf+12,RAW_BYTES_PER_SECTOR);
+		}
+		else
+		{
+			memset(data.data()+dataPointer,0,RAW_BYTES_PER_SECTOR);
+		}
+		dataPointer+=RAW_BYTES_PER_SECTOR;
 	}
 	return data;
 }
@@ -1350,55 +1452,116 @@ std::vector <unsigned char> DiscImage::ReadSectorRAW(unsigned int HSG,unsigned i
 std::vector <unsigned char> DiscImage::ReadSectorMODE2(unsigned int HSG,unsigned int numSec) const
 {
 	std::vector <unsigned char> data;
-
-	if(0<binaries.size())
+	if(0==numSec || 0==binaries.size())
 	{
-		std::ifstream ifp;
-		ifp.open(binaries[0].fName,std::ios::binary);
-		if(true==ifp.is_open() && 0<tracks.size() && (tracks[0].trackType==TRACK_MODE1_DATA || tracks[0].trackType==TRACK_MODE2_DATA))
-		{
-			if(HSG+numSec<=tracks[0].end.ToHSG()+1)
-			{
-				auto sectorIntoTrack=HSG-tracks[0].start.ToHSG();
-				auto locationInTrack=sectorIntoTrack*tracks[0].sectorLength;
+		return data;
+	}
 
-				ifp.seekg(tracks[0].locationInFile+locationInTrack,std::ios::beg);
-				data.resize(numSec*RAW_BYTES_PER_SECTOR);
-				if(MODE1_BYTES_PER_SECTOR==tracks[0].sectorLength)
-				{
-					for(auto &d : data) // Sorry, I don't know how to calculate first four bytes and last 288 bytes.
-					{
-						d=0;
-					}
-					unsigned int dataPointer=0;
-					for(int i=0; i<(int)numSec; ++i)
-					{
-						ifp.read((char *)data.data()+4+dataPointer,MODE2_BYTES_PER_SECTOR);
-						dataPointer+=RAW_BYTES_PER_SECTOR;
-					}
-				}
-				else if(MODE2_BYTES_PER_SECTOR<=tracks[0].sectorLength)
-				{
-					unsigned int dataPointer=0;
-					for(int i=0; i<(int)numSec; ++i)
-					{
-						ifp.read(skipBuf,16);
-						ifp.read((char *)data.data()+dataPointer,MODE2_BYTES_PER_SECTOR);
-						ifp.read(skipBuf,tracks[0].sectorLength-MODE2_BYTES_PER_SECTOR-16);
-						dataPointer+=RAW_BYTES_PER_SECTOR;
-					}
-				}
-				else
-				{
-					for(auto &d : data) // Sorry, I don't know how to calculate first four bytes and last 288 bytes.
-					{
-						d=0;
-					}
-				}
+	data.resize(numSec*RAW_BYTES_PER_SECTOR);
+	unsigned int dataPointer=0;
+	for(unsigned int sec=0; sec<numSec; ++sec)
+	{
+		const unsigned int curHSG=HSG+sec;
+		uint64_t fileOffset=0;
+		unsigned int sectorLength=0;
+		unsigned int indexToBinary=0;
+		int layoutType=LAYOUT_DATA;
+		if(true!=LocateSectorInLayout(curHSG,fileOffset,sectorLength,indexToBinary,layoutType))
+		{
+			data.clear();
+			return data;
+		}
+		if(LAYOUT_GAP==layoutType || LAYOUT_AUDIO==layoutType)
+		{
+			memset(data.data()+dataPointer,0,RAW_BYTES_PER_SECTOR);
+			dataPointer+=RAW_BYTES_PER_SECTOR;
+			continue;
+		}
+
+		const auto &bin=binaries[indexToBinary];
+		if(MODE1_BYTES_PER_SECTOR==sectorLength)
+		{
+			memset(data.data()+dataPointer,0,RAW_BYTES_PER_SECTOR);
+			if(true!=ReadBinaryBytes(bin,fileOffset,data.data()+dataPointer+4,MODE2_BYTES_PER_SECTOR))
+			{
+				data.clear();
+				return data;
+			}
+		}
+		else if(MODE2_BYTES_PER_SECTOR+16<=sectorLength)
+		{
+			unsigned char sectorBuf[4096];
+			if(sectorLength>sizeof(sectorBuf) || true!=ReadBinaryBytes(bin,fileOffset,sectorBuf,sectorLength))
+			{
+				data.clear();
+				return data;
+			}
+			memcpy(data.data()+dataPointer,sectorBuf+16,MODE2_BYTES_PER_SECTOR);
+		}
+		else
+		{
+			memset(data.data()+dataPointer,0,RAW_BYTES_PER_SECTOR);
+		}
+		dataPointer+=RAW_BYTES_PER_SECTOR;
+	}
+	return data;
+}
+
+bool DiscImage::LocateSectorInLayout(
+    unsigned int HSG,
+    uint64_t &fileOffset,
+    unsigned int &sectorLength,
+    unsigned int &indexToBinary,
+    int &layoutType) const
+{
+	if(0<layout.size())
+	{
+		for(int i=0; i+1<(int)layout.size(); ++i)
+		{
+			if(LAYOUT_END==layout[i].layoutType)
+			{
+				continue;
+			}
+
+			unsigned int segEnd=layout[i+1].startHSG;
+			if(LAYOUT_END==layout[i+1].layoutType)
+			{
+				segEnd=layout[i].startHSG+layout[i].numSectors;
+			}
+			if(HSG<layout[i].startHSG || segEnd<=HSG)
+			{
+				continue;
+			}
+
+			fileOffset=layout[i].locationInFile+static_cast<uint64_t>(layout[i].sectorLength)*(HSG-layout[i].startHSG);
+			sectorLength=layout[i].sectorLength;
+			indexToBinary=layout[i].indexToBinary;
+			layoutType=layout[i].layoutType;
+			return true;
+		}
+	}
+
+	if(0<tracks.size())
+	{
+		for(unsigned int i=0; i<tracks.size(); ++i)
+		{
+			if(tracks[i].trackType!=TRACK_MODE1_DATA && tracks[i].trackType!=TRACK_MODE2_DATA)
+			{
+				continue;
+			}
+			const unsigned int startHSG=tracks[i].start.ToHSG();
+			const unsigned int endHSG=tracks[i].end.ToHSG();
+			if(startHSG<=HSG && HSG<=endHSG)
+			{
+				fileOffset=tracks[i].locationInFile+static_cast<uint64_t>(tracks[i].sectorLength)*(HSG-startHSG);
+				sectorLength=tracks[i].sectorLength;
+				indexToBinary=(1==binaries.size() ? 0 : i);
+				layoutType=LAYOUT_DATA;
+				return true;
 			}
 		}
 	}
-	return data;
+	return false;
 }
 
 int DiscImage::GetTrackFromMSF(MinSecFrm MSF) const
@@ -1430,115 +1593,117 @@ int DiscImage::GetTrackFromMSF(MinSecFrm MSF) const
 std::vector <unsigned char> DiscImage::GetWave(MinSecFrm startMSF,MinSecFrm endMSF) const
 {
 	std::vector <unsigned char> wave;
-	if(0<tracks.size() && startMSF<endMSF)
+	if(0==tracks.size() || !(startMSF<endMSF) || layout.size()<2)
 	{
-		auto startHSG=startMSF.ToHSG();
-		auto endHSG=endMSF.ToHSG();
+		return wave;
+	}
 
-	#ifdef DEBUG_DISCIMG
-		std::cout << "From " << startHSG << " To " << endHSG << " (" << endHSG-startHSG << ")" << std::endl;
-	#endif
+	const unsigned int startHSG=startMSF.ToHSG();
+	const unsigned int endHSG=endMSF.ToHSG();
+	if(endHSG<=startHSG)
+	{
+		return wave;
+	}
 
-		for(int i=0; i+1<layout.size(); ++i)  // Condition i<layout.size()-1 will crash when layout.size()==0 because it is unsigned.
+	for(int i=0; i+1<(int)layout.size(); ++i)
+	{
+		if(LAYOUT_END==layout[i].layoutType)
 		{
-			unsigned long long int readFrom=0,readTo=0;
-			const auto layoutType=layout[i].layoutType;
+			continue;
+		}
 
-			if(startHSG<=layout[i].startHSG)
-			{
-				if(LAYOUT_DATA==layout[i].layoutType) // I have a feeling that this condition does nothing....
-				{
-					wave.clear();
-					return wave;
-				}
-				readFrom=layout[i].locationInFile;
-			}
-			else if(startHSG<layout[i+1].startHSG)
-			{
-				readFrom=layout[i].locationInFile+layout[i].sectorLength*(startHSG-layout[i].startHSG);
-			}
-			else
+		unsigned int segStartHSG=layout[i].startHSG;
+		unsigned int segEndHSG=layout[i+1].startHSG;
+		if(LAYOUT_END==layout[i+1].layoutType)
+		{
+			segEndHSG=segStartHSG+layout[i].numSectors;
+		}
+
+		if(endHSG<=segStartHSG || startHSG>=segEndHSG)
+		{
+			continue;
+		}
+
+		const unsigned int clipStartHSG=(startHSG>segStartHSG ? startHSG : segStartHSG);
+		const unsigned int clipEndHSG=(endHSG<segEndHSG ? endHSG : segEndHSG);
+		if(clipEndHSG<=clipStartHSG)
+		{
+			continue;
+		}
+
+		const auto layoutType=layout[i].layoutType;
+		const auto layoutSectorLength=layout[i].sectorLength;
+		const auto &bin=binaries[layout[i].indexToBinary];
+
+		const uint64_t readFrom=layout[i].locationInFile
+		    +static_cast<uint64_t>(layoutSectorLength)*(clipStartHSG-segStartHSG);
+		const uint64_t readTo=layout[i].locationInFile
+		    +static_cast<uint64_t>(layoutSectorLength)*(clipEndHSG-segStartHSG);
+		if(readFrom>=readTo)
+		{
+			continue;
+		}
+
+		if(layoutSectorLength<=AUDIO_SECTOR_SIZE)
+		{
+			uint64_t readSize=(readTo-readFrom)&(~3ULL);
+			if(0==readSize || readSize>256u*1024u*1024u)
 			{
 				continue;
 			}
-
-			auto &bin=binaries[layout[i].indexToBinary]; // Do it before (*1)
-			auto layoutSectorLength=layout[i].sectorLength; // Do it before (*1)
-
-			if(layout[i+1].startHSG<=endHSG)
+			const size_t curSize=wave.size();
+			if(curSize+static_cast<size_t>(readSize)<curSize)
 			{
-				readTo=layout[i+1].locationInFile;
+				continue;
 			}
-			else
+			wave.resize(curSize+static_cast<size_t>(readSize));
+			memset(wave.data()+curSize,0,static_cast<size_t>(readSize));
+			if(LAYOUT_AUDIO==layoutType)
 			{
-				readTo=layout[i].locationInFile+layout[i].sectorLength*(endHSG-layout[i].startHSG);
-				i=layout.size(); // Let it loop-out. (*1)
-			}
-
-			if(readFrom<readTo)
-			{
-				if(layoutSectorLength<=AUDIO_SECTOR_SIZE)
+				const uint64_t binOffset=readFrom-bin.byteOffsetInDisc+bin.bytesToSkip;
+				if(true==ReadBinaryBytes(bin,binOffset,wave.data()+curSize,static_cast<size_t>(readSize)))
 				{
-					auto readSize=(readTo-readFrom)&(~3);
-
-				#ifdef DEBUG_DISCIMG
-					std::cout << readFrom << " " << readTo << " " << readSize << " " << std::endl;
-				#endif
-
-					auto curSize=wave.size();
-					wave.resize(wave.size()+readSize);
-					for(auto i=curSize; i<wave.size(); ++i)
-					{
-						wave[i]=0;
-					}
-
-					// I thought DATA track is excluded by the above condition, but it looks to be wrong.
-					// To prevent noise from the data track, it needs to be checked here.
-					if(LAYOUT_AUDIO==layoutType)
-					{
-						std::ifstream ifp;
-						ifp.open(bin.fName,std::ios::binary);
-						if(ifp.is_open())
-						{
-							ifp.seekg(readFrom-bin.byteOffsetInDisc+bin.bytesToSkip,std::ios::beg);
-							ifp.read((char *)(wave.data()+curSize),readSize);
-							ifp.close();
-						}
-					}
+					ApplyChdAudioByteSwap(wave.data()+curSize,static_cast<size_t>(readSize));
 				}
-				else
+			}
+		}
+		else
+		{
+			const uint64_t numFrames=(readTo-readFrom)/layoutSectorLength;
+			uint64_t readSize=numFrames*AUDIO_SECTOR_SIZE;
+			readSize&=(~3ULL);
+			if(0==readSize || readSize>256u*1024u*1024u)
+			{
+				continue;
+			}
+			const size_t curPos=wave.size();
+			if(curPos+static_cast<size_t>(readSize)<curPos)
+			{
+				continue;
+			}
+			wave.resize(curPos+static_cast<size_t>(readSize));
+			memset(wave.data()+curPos,0,static_cast<size_t>(readSize));
+
+			if(LAYOUT_AUDIO==layoutType)
+			{
+				const uint64_t base_offset=readFrom-bin.byteOffsetInDisc+bin.bytesToSkip;
+				size_t out_pos=curPos;
+				for(uint64_t filePos=readFrom; filePos<readTo; filePos+=layoutSectorLength)
 				{
-					auto readSize=readTo-readFrom;
-					readSize/=layoutSectorLength;
-					readSize*=AUDIO_SECTOR_SIZE;
-					readSize&=(~3);
-
-					auto curPos=wave.size();
-					wave.resize(wave.size()+readSize);
-					for(auto i=curPos; i<wave.size(); ++i)
+					if(out_pos+AUDIO_SECTOR_SIZE>wave.size())
 					{
-						wave[i]=0;
+						break;
 					}
-
-					if(LAYOUT_AUDIO==layoutType)
+					const uint64_t sector_offset=base_offset+(filePos-readFrom);
+					if(true!=ReadBinaryBytes(bin,sector_offset,wave.data()+out_pos,AUDIO_SECTOR_SIZE))
 					{
-						std::ifstream ifp;
-						ifp.open(bin.fName,std::ios::binary);
-						if(ifp.is_open())
-						{
-							ifp.seekg(readFrom-bin.byteOffsetInDisc+bin.bytesToSkip,std::ios::beg);
-							for(auto filePos=readFrom; filePos<readTo; filePos+=layoutSectorLength)
-							{
-								ifp.read((char *)(wave.data()+curPos),AUDIO_SECTOR_SIZE);
-								if(AUDIO_SECTOR_SIZE<layoutSectorLength)
-								{
-									ifp.read(skipBuf,layoutSectorLength-AUDIO_SECTOR_SIZE);
-								}
-								curPos+=AUDIO_SECTOR_SIZE;
-							}
-							ifp.close();
-						}
+						break;
 					}
+					out_pos+=AUDIO_SECTOR_SIZE;
+				}
+				if(out_pos>curPos)
+				{
+					ApplyChdAudioByteSwap(wave.data()+curPos,out_pos-curPos);
 				}
 			}
 		}
