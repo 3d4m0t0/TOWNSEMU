@@ -1,604 +1,272 @@
-# FM TOWNS / Marty Emulator "Tsugaru"
-# FM TOWNS / Marty エミュレータ 「津軽」
-by CaptainYS
+# Tsugaru_QT — FM TOWNS / Marty エミュレータ ”津軽” (Qt)
 
-<http://www.ysflight.com>
+**版 Tsugaru20260522-qt 0.1.0-pre（プレリリース）**
 
-PEB01130@nifty.com
+CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/captainys/TOWNSEMU) の **Qt 6** フロントエンドです。
 
+### English
 
-# Link to the Releases
+**Tsugaru_QT — FM TOWNS / Marty Emulator ”津軽” (Qt frontend)**
 
-https://github.com/captainys/TOWNSEMU/releases/latest
+**Version Tsugaru20260522-qt 0.1.0-pre (pre-release)**
 
+A **Qt 6** frontend for CaptainYS's FM TOWNS / Marty emulator [Tsugaru](https://github.com/captainys/TOWNSEMU).
 
-# Introduction
-It is an emulator of legendary Fujitsu FM TOWNS computer including Marty.  The goal is to emulate model II MX, which was the last computer I pledged allegiance.  Also I am trying to find and document undocumented features of FM TOWNS system as much as possible while writing the emulator.
+## AI の利用について
 
-Have been tested on Windows 10 and macOS.  I think it runs on Linux, but I have a report that audio doesn't work on the natively-running Linux.  I can hear audio on my developing environment on Virtual Box.  I haven't been able to confirm the report on my side yet.
+本プロジェクトでは AI 支援 IDE [Cursor](https://cursor.com/) を利用し、生成されたコードやデザインパターンを必要に応じて取り入れています。採用した生成物は、いずれも制作者がレビュー・修正・統合しています。
 
+紹介プログラム経由の登録用リンク（**紹介リンク**）: [cursor.com/referral?code=TI3UQLE9PFH3](https://cursor.com/referral?code=TI3UQLE9PFH3)  
+このリンクから登録すると Cursor 側の紹介特典が適用される場合がありますが、Tsugaru_QT の開発・配布とは無関係です。
 
-伝説の名機富士通FM TOWNS/Martyのエミュレータです。目標はモデルII MXを再現することです。FM TOWNS II MXは僕が最後に忠誠を誓った機種でした。また、開発と並行してFM TOWNSのシステムで未公開の機能を見つけて記録に残すことも目標にしています。
+### English
 
-とりあえず、Windows 10とmacOSXで動きます。Linuxも対応したと思うんですが、Virtual Box上の開発環境だと普通に音が鳴るのですが、直接起動しているLinuxで音が出ないという報告があるのですが、まだ確認できてません。
+This project uses the AI-assisted IDE [Cursor](https://cursor.com/). Generated code and design patterns are incorporated where helpful; the maintainer reviews, revises, and integrates all adopted material.
 
+Referral registration link: [cursor.com/referral?code=TI3UQLE9PFH3](https://cursor.com/referral?code=TI3UQLE9PFH3). Cursor's referral program may apply at sign-up; this is unrelated to the development or distribution of Tsugaru_QT.
 
+---
 
+## 仕様
 
+`Tsugaru_CUI` からの主な差分は次のとおりです。
 
-# ROMS
-The ROM set is compatible with another FM TOWNS emulator UNZ.  You can get the best experience if you own an actual FM TOWNS hardware and extract ROM image from your TOWNS.  However, if you do not own your FM TOWNS hardware, you can use the following free version of the ROM.
+* 機能の追加・削除を行っています
+* **同一プロセス内コア** — `Tsugaru_QT` はエミュレータコアを同一プロセス内（VM スレッド + UI スレッド）で動かし、ネイティブな Qt メニューバー UI で操作します（`Tsugaru_GUI` のように CUI を子プロセスとして起動しません）
+* **CD イメージ** — `.chd` 形式に対応
+* **MIDI** — FluidSynth によるソフトウェア音源出力（Linux）
+* **メニューバー操作** — ゲームポート機器の切り替え、フルスクリーン、スプライト / FAST MODE 制御などをメニューから設定可能
+* **Wayland idle-inhibit** — 実行中の画面スリープ・スクリーンセーバーを抑止
+* **UI 多言語化 (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es（en と ja はバイナリ埋め込み、他は `share/townsqt/translations/` の JSON。`TOWNSQT_LANG` またはシステムロケールで選択）
 
-http://ysflight.com/FM/towns/FreeTOWNS/e.html
+### English
 
+Main differences from `Tsugaru_CUI`:
 
+* Features have been added and removed compared to the CUI build.
+* **In-process core** — `Tsugaru_QT` runs the emulator core in the same process (VM thread + UI thread) with a native Qt menu-bar UI; it does not spawn `Tsugaru_CUI` as a child process like `Tsugaru_GUI`.
+* **CD images** — `.chd` format support
+* **MIDI** — FluidSynth software synthesizer output (Linux)
+* **Menu-bar controls** — game-port device selection, fullscreen, sprite / FAST MODE and more, configurable from the menu
+* **Wayland idle-inhibit** — suppresses screen sleep / screensaver while running
+* **UI localization (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es (en and ja embedded in the binary; others load JSON from `share/townsqt/translations/`; select via `TOWNSQT_LANG` or system locale)
 
-ROMイメージはFM TOWNSエミュレータUNZと互換性があります。実機を所有している方は、実機から抜き出したROMイメージを使うのが最も高い再現性を出すことができますが、実機を所有していない場合は、以下のURLからフリーの互換ROMをダウンロードして使うことができます。
+---
 
-http://ysflight.com/FM/towns/FreeTOWNS/j.html
+## Requirements / 必要環境
 
+- Linux (X11 or Wayland), C++17 compiler, CMake ≥ 3.16
+- **Qt 6** (`Widgets`, `OpenGLWidgets`)
+- ALSA (`alsa-lib`) for audio and MIDI
+- OpenGL / GLU, X11
 
+### openSUSE
 
-# CD Image Consideration
-# CDイメージファイルについて
-
-Tsugaru supports .ISO, .CUE and .MDS file format for a CD image.  If the CD has an audio track, __.MDS is highly recommended.__  I do not recommend .CUE file since it is absolutely inappropriate from the preservation point of view.
-
-My .CUE interpreter is based on Alcohol 52%, which seems to agree with CD Manipulator, but there is no guarantee .CUE file made by other programs can run correctly with Tsugaru.
-
-.CUE file is TOTALLY INAPPROPRIATE for preservation because of the ambiguity in interpretation of PREGAP.  The following is the beginning of the .CUE file generated by Alcohol 52% 2.1.1:
-
-```
-FILE "TAITO_CHASE_H_Q.BIN" BINARY
-  TRACK 01 MODE1/2352
-    INDEX 01 00:00:00
-  TRACK 02 AUDIO
-    PREGAP 00:02:00
-    INDEX 01 00:58:00
-  TRACK 03 AUDIO
-    INDEX 01 02:11:05
-```
-
-and ImgBurn 2.5.8.0.
-
-```
-FILE "TAITO_CHASE_H_Q.BIN" BINARY
-  TRACK 01 MODE1/2352
-    INDEX 01 00:00:00
-  TRACK 02 AUDIO
-    PREGAP 00:02:00
-    INDEX 01 00:58:00
-  TRACK 03 AUDIO
-    INDEX 00 02:04:05
-    INDEX 01 02:09:05
+```bash
+sudo zypper install cmake gcc-c++ make git ccache \
+  qt6-base-devel qt6-opengl-devel \
+  alsa-lib-devel libX11-devel mesa-libGL-devel mesa-libGLU-devel python3
 ```
 
-from the same disc, TAITO Chase HQ (track 4 and the rest are omitted.)
+### Debian / Ubuntu
 
-As you can see, the starting time of track 3 from Alcohol 52% is 2:11:05 and ImgBurn 02:09:05.  DIFFERENT FOR THE SAME DISC!
-
-Alcohol 52%'s interpretation is this, PREGAP affects only the track that PREGAP keyword exists.  From the CD-Player point of view, the starting time of TRACK 2 needs to be added by 2 seconds to skip PREGAP.  The rest of the tracks are unaffected.
-
-However, ImgBurn's interpretation is this, PREGAP affects the all the tracks after PREGAP keyword.  For CD-Player, the starting time of TRACK 2 and the rest tracks needs to be added by 2 seconds.
-
-Tsugaru has no way of identifying which interpretation was used for generating .CUE file.
-
-I have not experienced such an ambiguity in .MDS/.MDF file format.  Therefore, .MDF is highly recommended.
-
-If you are on preservation, my recommendation is do not use .CUE file.  If you do, make sure .CUE file does not use PREGAP and POSTGAP.
-
-After some survey, looks like ImgBurn is better align with CDRWIN?  Also CD Manipulator does not PREGAP and POSTGAP, instead it uses INDEX 00, which does not have ambiguity.  Tsugaru will support .CUE file created by ImgBurn and CD Manipulator.  But, .CUE files created by other application may not run correctly on Tsugaru.
-
-
-
-
-津軽は、CDイメージフォーマットとして、.ISO, .CUE, .MDSフォーマットをサポートしますが、オーディオトラックがある場合、__.MDSフォーマットを推奨します。__.CUEフォーマットは、PREGAPの解釈が曖昧なため、保存という観点でまったくお勧めできません。ゲームの保存が目的ならば、今すぐ使用を停止するべきで、.MDSに置き換えるべきです。
-
-津軽の.CUEインタープリタはAlcohol 52%が生成する.CUEファイルを前提としています。どうもCD Manipulatorが出力する.CUEファイルも一致するようです。ですが、他のプログラムを使って生成した.CUEファイルでは津軽で正常に使用できない可能性があります。
-
-.CUEファイルがゲームの保存に不向きである理由は、次の例からわかります。下は、Alcohol 52% 2.1.1を使って生成した.CUEファイルです。
-
-```
-FILE "TAITO_CHASE_H_Q.BIN" BINARY
-  TRACK 01 MODE1/2352
-    INDEX 01 00:00:00
-  TRACK 02 AUDIO
-    PREGAP 00:02:00
-    INDEX 01 00:58:00
-  TRACK 03 AUDIO
-    INDEX 01 02:11:05
+```bash
+sudo apt-get install cmake g++ make git ccache \
+  qt6-base-dev qt6-base-dev-tools libgl1-mesa-dev libglu1-mesa-dev \
+  libasound2-dev libx11-dev python3
 ```
 
-そして、下はImgBurn 2.5.8.0で生成した.CUEファイルです。どちらもTAITO Chase H.Q.のディスクから生成したものです。なお、トラック4以降は省略しました。
+### Fedora
 
-```
-FILE "TAITO_CHASE_H_Q.BIN" BINARY
-  TRACK 01 MODE1/2352
-    INDEX 01 00:00:00
-  TRACK 02 AUDIO
-    PREGAP 00:02:00
-    INDEX 01 00:58:00
-  TRACK 03 AUDIO
-    INDEX 00 02:04:05
-    INDEX 01 02:09:05
+```bash
+sudo dnf install cmake gcc-c++ make git ccache \
+  qt6-qtbase-devel qt6-qtbase-gui \
+  alsa-lib-devel libX11-devel mesa-libGL-devel mesa-libGLU-devel python3
 ```
 
-見ればわかる通り、トラック3の開始時間は Alcohol 52% によると 2:11:05、ImgBurnによると02:09:05と出ています。同じディスクなのに！
+---
 
-Alcohol 52%の解釈では、PREGAPはそれが存在するトラックにのみ影響して、CDプレイヤーから見るとそのトラックの開始時間はINDEX 01の時間にPREGAPの2秒を加えた時間、それ以外のトラックは、INDEX 01の値そのままということのようです。
+## Build / ビルド
 
-しかし、ImgBurnの解釈では、PREGAPはそれが存在するトラック以降のすべてのトラックに影響するということのようです。例えば、トラック3の開始時間はINDEX 01の値にPREGAPの2秒を加えるとAlcohol 52%が出力する時間と一致します。
-
-どちらの解釈なのか、その情報は.CUEファイルのどこにも書いていないので、.CUEファイルから判定することができません。
-
-ですが、これまでのところ.MDS/.MDFファイルではそのような曖昧さに当たったことはありません。なので、.MDFファイルを使用することを推奨します。
-
-また、ゲームの保存、アーカイブを目的とするならば、今すぐ.CUEファイルの使用をやめて.MDS/.MDFファイルに置き換えることを勧めます。.CUEファイルをどうしても使う場合は、PREGAPとPOSTGAPキーワードを使わないアプリケーションでイメージを作成することを勧めます。
-
-どうもImgBurnを使う方がCDRWINと近いCUEファイルを生成するようで、またCD Manipulatorが出力するCUEファイルはPREGAP, POSTGAPキーワードを使わない(代わりにINDEX 00を使用)ようなので、このふたつのアプリケーションが出力したCUEファイルはサポートしますが、それ以外のプログラムが出力したCUEファイルでは正常に動作しない可能性があります。
-
-
-
-
-
-# LIMITATIONS
-The emulation is getting better.  Thanks to the great help from the users around the world, with conservative estimate Tsugaru can run more than 97% of the FM TOWNS commercial application titles.  Emulation state is in the Wiki (https://wiki3.jp/fmtowns/page/10).  Wiki is set up by WINDY.  (Thanks!)  Overall, I think it is safe to say more than 97% of FM TOWNS apps works.
-
-80486 emulation is, getting faster, but there is a room for improvement.  Will be improved down the road.
-
-Not-all instructions of Intel 80486 processor have been implemented yet.  Towns OS didn't use task registers.  I have no plan on adding support for those registers.  Since the emulator works as a debugger, debug registers won't be supported, either.
-
-If you compile in High-Fidelity Mode (cmake from srchf instead of src), it is able to start Windows 3.1, but only limited functionalities are supported.
-
-
-
-
-エミュレーションはかなりよくなってきて、世界中のユーザの皆さまのご協力により、少なく見積もってFM TOWNS用に発売されたソフトの97%以上が動作可能と推定しています。また、ユーザによる動作確認もWikiに上がってきています。(https://wiki3.jp/fmtowns/page/10) WikiはWINDYさんがセットアップしてくださいました。ありがとうございます。現状で、少なく見積もって97%以上のFM TOWNSアプリケーションを実行できると言えるようです。
-
-80486エミュレーションは速くなってきましたが、まだ改善の余地があります。少しずつスピードアップしていきます。
-
-80486のすべてのインストラクションをエミュレートできてません。なお、Towns OSはタスク機能は使ってなかったと思われるので多分サポートしません。また、エミュレータがデバッガとして機能するのでデバッグ機能もサポートしない予定です。
-
-High-Fidelity Modeでコンパイルすると(srcでなくsrchfにcmakeをかける)、Windows 3.1が起動できるようになりましたが、まだかなり機能限定です。
-
-
-
-
-# Source Code
-Open Source with 3-clause BSD License.
-
-
-
-
-# Build Instruction
-
-For Windows Visual C++:
-
-```
-git clone https://github.com/captainys/TOWNSEMU.git
-cd .\TOWNSEMU\gui\src
-git clone https://github.com/captainys/public.git
-cd ..
-mkdir build
-cd build
-cmake ../src
-cmake --build . --config Release --parallel
+```bash
+cd /path/to/TOWNSEMU
+cmake -S src -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel "$(nproc)" --target TownsQt
 ```
 
+Output binary: `build/townsqt/Tsugaru_QT`
 
-For macOS:
+If Qt 6 is not found, the `TownsQt` target is skipped (the rest of the project
+still builds). See also [`../../BUILD_LINUX.md`](../../BUILD_LINUX.md).
 
-```
-git clone https://github.com/captainys/TOWNSEMU.git
-cd TOWNSEMU/gui/src
-git clone https://github.com/captainys/public.git
-cd ..
-mkdir build
-cd build
-cmake ../src
-cmake --build . --config Release
-cp main_cui/Tsugaru_CUI.app/Contents/MacOS/Tsugaru_CUI main_gui/Tsugaru_GUI.app/Contents/MacOS/.
-main_gui/Tsugaru_GUI.app/Contents/MacOS/Tsugaru_GUI
-```
+---
 
+## Install / インストール
 
+```bash
+# to ~/.local (no root)
+./scripts/install-linux.sh --build --user
 
-
-# Starting the GUI
-In Windows and Linux, just start Tsugaru_GUI.  It internally uses Tsugaru_CUI, therefore two programs must be in the same directory.
-
-In macOS, start the app bundle Tsugaru_GUI.
-
-WindowsとLinuxではTsugaru_GUIを起動してください。中でTsugaru_CUIを使うので、同じディレクトリに両方のプログラムを置いてください。
-
-macOSでは、Tsugaru_GUIアプリケーションを実行してください。
-
-
-
-
-# Making a Portable Environment using Special Paths
-After 20251004, you can use special paths ```${progdir}``` and ```${profiledir}``` to specify files in the GUI.  You also can change the base directory, where options, recent files, and default profile are stored by the command-line option:
-```
--basedir directory_name
-```
-You can use ```${progdir}``` in the directory name given to the -basedir option.
-
-With these additions, you can set up a directory in a portable drive, save all Tsugaru executables, copy disc/disk/ROM images in the sub-directories, and write a launcher, like by a batch file or a script to start the executable as:
-```
-Tsugaru_GUI -basedir ${progdir}
-```
-(* In macOS, ```${progdir}``` points to Tsugaru_GUI.app/Contents/Resources, so make it like ```${progdir}/../..```)
-
-Then, you can set up your profiles all relative to the ```${profiledir}```.
-
-You can also select files and directories from the GUI, and select a menu, Make File/Dir Names Relative to ```${profiledir}```, in the File menu to make all files relative.
-
-
-20251014バージョン以降、特殊なパス名、```${progdir}```と```${profiledir}```をGUI環境で使うことができます。また、デフォルトプロファイル、オプション、最近使ったファイル等を保存するベースディレクトリを、次のコマンドオプションで指定することができるようになりました。
-```
--basedir directory_name
-```
-directory_nameには```${progdir}```のみ使用可能です。
-
-この機能により、ポータブルディスクドライブに津軽用のディレクトリを作成し、津軽の実行ファイルをそのディレクトリに、ディスクイメージ、ROMイメージ等をそのサブディレクトリにコピーして、簡単な起動ようスクリプトを書くことで、ポータブルな実行環境を作成することができます。起動スクリプトは、Tsugaru_GUIを次のように起動します。
-```
-Tsugaru_GUI -basedir ${progdir}
-```
-なお、macOS環境では、```${progdir}```は、Tsugaru_GUI.app/Contents/Resourcesを指すので、```${progdir}/../..```のように二つ上のディレクトリを指すようにすると良いでしょう。
-
-こうすることで、あとはすべてのファイルやディレクトリを```${profiledir}```からの相対パスで指定することができます。
-
-また、セットアップに関しては、普通にファイルセレクタでファイルを選択してから、ファイルメニューの、「プロファイルのファイル名を```${profiledir}```からの相対パスにする」を選ぶことで、選択したファイル名やディレクトリ名を相対パス化することができます。
-
-
-
-
-# Starting the Command-Line Program
-It starts from terminal/command prompt.  The basic options are:
-```
-main_cui ROM_FILE_PATH -CD CD_IMAGE_FILE -FD0 FD0_IMAGE_FILE
-```
-CD-image can be .ISO or .CUE or .MDS.  .MDS is recommended if the CD has audio tracks.  Floppy-disk image can be raw-binary or .D77 file.  You can look into scripts sub-directories for samples of other options.
-
-You can see the help by typing:
-```
-main_cui -HELP
+# system-wide to /usr (uses sudo)
+./scripts/install-linux.sh --system
 ```
 
-I add some command samples below.  Please see also command.md
-
-
-
-コマンドから起動します。
-```
-main_cui ROM_FILE_PATH -CD CD_IMAGE_FILE -FD0 FD0_IMAGE_FILE
-```
-CD-imageは.ISOと.CUEに対応。ディスクイメージは.D77か生イメージファイルに対応。scriptsサブディレクトリ内にバッチ実行などの例題があるので、そっちも参照。ヘルプを書く時間が無い。
-
-また、次のようにタイプするとヘルプを表示します。英語ですが。
-```
-main_cui -HELP
-```
-
-以下に起動コマンドの例をいくつか挙げます。command.mdファイルも参照してください。
-
-
-
-
-# Emulating Marty
-To emulate Marty, you need to own ROM images extracted from a Marty.
-
-In addition to specify the ROM location in the command parameter in CUI or text dialog box in GUI, you also need to select the machine type.  From CUI, add a parameter -TOWNSTYPE MARTY.  Or from GUI, select MARTY as Towns Type.
-
-If you do not specify the machine type, even with the Marty ROM, the virtual machine will start just like a full-spec FM TOWNS.
-
-Martyを再現するには、Martyから抜き出したROMイメージが必要です。
-
-MartyのROMイメージの場所をコマンドパラメータ、あるいはGUIのダイアログで指定する他に、マシンタイプをMartyに設定する必要があります。コマンドから指定する場合は  -TOWNSTYPE MARTY オプションを追加してください。GUIから指定する場合は、リストからMARTYを選んでください。
-
-マシンタイプを指定しない場合、MartyのROMを使っても、フルスペックのFM TOWNSのように起動してしまいます。
-
-
-
-
-
-# Command-Line Examples
-```
-.\Tsugaru_CUI.exe -HELP
-```
-Print help.
-
-ヘルプを表示します。
+Installed layout (prefix `/usr`):
 
 ```
-./Tsugaru_CUI E:/ROM_MX -CD E:/ISOImage/AFTER_BURNER.CUE -GAMEPORT0 KEY -SCALE 160
-```
-If FM TOWNS ROM image files are stored in ```E:/ROM_MX``` directory, boot from disc image ```E:/ISOImage/AfterburnerII/AFTER_BURNER.CUE```.  Game pad 0 is emulated by keyboard (A,S,Z,X,↑↓←→), and Window size is scaled up to 160%.
-
-If you have a physical game pad, you can use ```PHYS0```, ```PHYS1```, ```PHYS2```, or ```PHYS3``` in place for ```KEY```.  Or, in case your game pad reports direction button as the analog input, use ```ANA0```,```ANA1```, ```ANA2``` or ```ANA3```.
-
-FM TOWNSのROMイメージが```E:/ROM_MX```のとき、ディスクイメージ```E:/ISOImage/AFTER_BURNER.CUE```から起動します。ジョイパッド0はキーボードエミュレーション (A,S,Z,X,↑↓←→)、ウィンドウは160%にスケールアップされます。
-
-USBやBluetooth接続のゲームパッドがある場合は、`KEY`の代わりに`PHYS0`, `PHYS1`, `PHYS2`, または `PHYS3`を指定すると使えます。また、十字ボタンをハットスイッチではなくアナログレバーとして扱うゲームパッドの場合は、`ANA0`,`ANA1`,`ANA2`,`ANA3`を指定することで利用できます。
-
-```
-./Tsugaru_CUI E:/ROM_MX -CD E:/ISOImage/AUGUSTA.CUE -FD0 E:/ISOImage/AUGUSTAFD.bin -SCALE 160
-```
-IF FM TOWNS ROM image files are in ```E:/ROM_MX``` directory, boot from disc image ```E:/ISOImage/AUGUSTA.CUE``` and floppy-disk image ```E:/ISOImage/AUGUSTAFD.bin``` in drive A.  Window is scaled up to 160%.
-
-FM TOWNSのROMイメージが```E:/ROM_MX```のとき、CDイメージ```E:/ISOImage/AUGUSTA.CUE```とドライブAのフロッピーディスクイメージ```E:/ISOImage/AUGUSTAFD.bin```から起動します。ウィンドウは160%にスケールアップされます。
-
-```
-./Tsugaru_CUI E:/ROM_MX -CMOS ./CMOS.BIN -CD E:/ISOImage/TownsOSV2.1L20.cue
-```
-If FM TOWNS ROM image files are stored in E:/ROM_MX, and CMOS file (BIOS Settings in the DOS terminology) is ./CMOS.BIN, boot from disc image ```E:/ISOImage/TownsOSV2.1L20.cue```  If ```./CMOS.BIN``` does not exist, it is created when the program is closed by Q (Quit) command.  If the program is forced to close by window-close button, the file won't be created.
-
-FM TOWNSのROMイメージが```E:/ROM_MX```で、CMOSファイル(DOSで言うところのBIOS設定)が```./CMOS.BIN```のとき、ディスクイメージ```E:/ISOIMage/TownsOSV2.1L20.cue```からシステムを起動します。```./CMOS.BIN```が存在しない場合、コンソールコマンドのQ (Quit) コマンドで終了したとき、新たに```CMOS.BIN```を作成します。ウィンドウを閉じて強制終了した場合はファイルはできません。
-
-
-
-
-# Mouse Integration
-FM TOWNS uses a MSX mouse, which sends a displacement infornation in X- and Y-directions to the PC.  Therefore, mouse does not know where the cursor is.  To match the mouse cursor location in the host OS and guest VM, the emulator needs to know where the guest VM is thinking the mouse cursor is currently.
-
-I did reverse engineering and found the mouse-cursor locations for TBIOSes that come with V1.1 L10/L20/L30, V2.1 L10B/L20/L31.  Will add other versions of TownsOS and VINGBIOS hopefully.  Most likely I will forget updating version numbers here, but probably I'll add comments in the commit log.
-
-
-FM TOWNSはMSXマウスを使用します。MSXマウスはマウスの移動量のXYをPCに送信します。だから、マウスカーソルがPC上のどこにあるのか、マウスは知りません。ホストPCとゲストVMでマウス位置を一致させるためには、エミュレータが、VMが今マウスがどこにあると思っているか検出しなくてはなりません。
-
-このエミュレータでは、Towns OS V1.1 L10/L20/L30, V2.1 L10B/L20/L31付属のTBIOSについて解析して、対応しました。他のバージョンやVINGBIOSにも順に対応しますが、多分ここのREADMEには書くのを忘れるでしょう。が、GITのコミットコメントには多分書くと思うのでそっちを見てください。
-
-
-
-
-# VM<->Host File Transfer
-## Direct File Sharing - TGDRV
-You can share a directory of the host with the VM using a utility called TGDRV.COM
-
-When you start Tsugaru CUI, specify -SHAREDDIR \<dir\> option to specify a host directory to be shared with the VM.  When you start Tsugaru GUI, specify shared directories in "TGDRV" tab.  You can specify up to 8 directories in CUI, 4 directories in GUI.
-
-In the VM, insert the TsugaruUtil.D77, and run TGDRV.COM.  The sheard directory will appear as a virtual disk drive in the VM.  If you use a Towns OS installed on the hard-disk image, it would be convenient to copy TGDRV.COM to the virtual hard disk.
-
-Kanji and Katakana files also cannot be accessed.  In macOS and Linux environment, since MS-DOS capitalizes all the files, you cannot access filles with small-case letters.
-
-ユーティリティTGDRV.COMを使うことで、ホストPCのディレクトリを直接津軽上のVMと共有することができます。
-
-津軽CUIを起動するとき、-SHAREDDIR \<dir\>オプションを追加して、共有するディレクトリを指定してください。津軽GUIを使う場合は、"TGDRV"タブで共有ディレクトリを指定してください。CUIでは最大8箇所、GUIでは最大4か所のディレクトリを指定できます。
-
-津軽VM上ではディスクイメージ TsugaruUtil.D77 をセットして、TGDRV.COMを実行すると、共有ディレクトリがVM上の仮想ドライブとしてアクセスできるようになります。ハードディスクイメージを利用している場合は、ハードディスクイメージにTGDRV.COMをコピーしておくと便利と思います。
-
-漢字・カナを含むファイルもアクセスできません。macOSとLinuxでは、MS-DOSがすべてのファイル名を大文字にしてしまうため、ホスト上の小文字を含むファイルはアクセスできません。
-
-
-
-
-
-
-## Using XMODEM
-To transfer a file from the host to the VM, follow the following steps:
-
-1. In Tsugaru CUI, type ```XMODEMTOVM filename``` (```filename``` is the file that you want to send to the VM).
-2. Start a terminal program in the VM and start XMODEM transfer.  I have confirmed with a popular free text editor called WINK2, which has a terminal mode.
-
-To transfer a file from the VM to the host, follow the following steps:
-
-1. Start a terminal program in the VM and start XMODEM transfer.
-2. In Tsugaru CUI, type ```XMODEMFROMVM filename```.
-
-
-XMODEMを使ってホストからVMにファイルを転送するには、次のステップで操作してください:
-
-1. 津軽CUIモードで、```XMODEMTOVM filename``` (```filename```は転送するファイル名)とコマンドを入力。
-2. VM上でターミナルソフト (WINK2の通信モードなど) を起動してXMODEMのファイル転送を開始する。
-
-XMODEMを使ってVMからホストにファイルを転送するには、次のステップで操作してください:
-
-1. VM上でターミナルソフトを起動してXMODEMのファイル転送を開始する。
-2. 津軽CUIモードで、```XMODEMFROMVM filename```とコマンドを入力。
-
-
-## Using Tsugaru File Transfer Protocol (TFTP)
-XMODEM works, but it sends 1 byte at a time, and slow.  You can transfer a file much faster using TFTP by the following steps.  You need to use Tsugaru CUI.  You need to transfer FTCLIENT.EXP to the VM.   You can do it once with XMODEM or use a conventional disk-image tools such as EDITDISK.
-
-1. Type command ```VM2HOST vmfile hostfile``` or ```HOST2VM hostfile vmfile```.  These commands schedule file transfer.  If you want to transfer multiple files, type commands multiple times.
-2. In VM, start FTCLIENT.EXP (like ```run386 -nocrt FTCLIENT.EXP``` in the command mode)
-
-Then the files will be transferred.  FTCLIENT.EXP can be found in ```townsapp/exp``` subdirectory.
-
-XMODEMは機能しますが、1バイト単位でファイルを転送するので、遅いです。より高速にVMとホスト間でファイルを転送したい場合、次の手順で操作してください。CUIで実行する必要があります。FTCLIENT.EXPをVMに転送しておく必要がありますが、XMODEMを使うか、あるいはEDITDISKなどのディスクイメージツールを利用してください。
-
-1. コマンド ```VM2HOST vmfile hostfile```または```HOST2VM hostfile vmfile```をタイプする。これらのコマンドはファイル転送を予約する。複数ファイルを転送したい場合は、コマンドを複数回タイプする。
-2. VM上でFTCLIENT.EXPを実行する。(コマンドモードに降りて ```run386 -nocrt FTCLIENT.EXP```とタイプ)
-
-この手順で予約したファイルが転送されます。FTCLIENT.EXPは```townsapp/exp```サブディレクトリにあります。
-
-
-
-# Flight Joystick to Mouse Translation
-Wing Commander 1 and Strike Commander (not Strike Commander Plus) for FM TOWNS did not support analog joystick.  The player had choice between fly by mouse or fly by keyboard, which was a major frustration.  Especially, Wing Commander for FM TOWNS comes with Orchestra BGM by CDDA.  It was the BEST Wing Commander port of all.  Only thing missing was analog joystick.  Tsugaru offers a redemption.  With the option 
-```
--FLIGHTMOUSE joystickId centerX centerY scaleX scaleY zeroZoneInPercent
-```
-Tsugaru translates flight joystick input to mouse input.  It is also exposed in GUI.  It makes Wing Commander and Strike Commander so much more easy to fly.  joystickID is you know what it is.  centerX and centerY specifies screen coordinate (in 640x480 scale) where mouse cursor should be when the joystick is neutral.  scaleX and scaleY specifies how large a deflection in screen scale the mouse cursor should travel when the stick is moved all the way.  Actually majority of the analog joysticks doesn't deflect to 1.0.  Usually stops at 0.9 or so.  So, specifying larger scaleX and scaleY is recommended, or your fighter will maneuver real slow.  zeroZoneInPercent specifies zero zone (or dead zone) of the joyostick.
-
-To use it with Wing Commander or Strike Commander, you also need to enable application-specific augumentation for the program.
-
-
-FM TOWNS用Wing Commander 1、Strike Commanderはアナログジョイスティックをサポートしませんでした。プレイヤーはマウスかキーボードかどちらかで操縦しなくてはなりませんでした。とくにWing Commander 1はFM TOWNS版はCDDAによるオーケストラのBGMがついていて、他のどの移植版よりもこの一点で最高の移植と思うのですが、アナログスティック非対応だけが心残りでした。津軽はこの当時の恨みを晴らす機能を提供します。まさに江戸の恨みを青森で。コマンドオプション（GUIからも指定可)で、
-```
--FLIGHTMOUSE joystickId centerX centerY scaleX scaleY zeroZoneInPercent
-```
-joystickIdはそのまんまで、centerX,centerYはジョイスティックが中立位置のときマウス座標をどこに置くかで、scaleX,scaleYはジョイスティックの入力が1.0のときマウス座標をどれだけ動かすかの設定です。zeroZoneInPercentはジョイスティックの遊びをパーセントで指定します。なお、ジョイスティックは結構精一杯押したり引いたりしても値が1.0まで上がりません。scaleX,scaleYは大きめの値を指定しておいた方が楽です。
-
-なお、Wing CommanderまたはStrike Commanderで使用するには、このオプションに加えてApplication Specific Augumentationを有効にする必要があります。
-
-
-
-
-# Unit Tests
-You need bootable floppy disk images/CD-ROM images to run unit tests.  My guess is it is ok to redistribute Towns OS bootable floppy disk images, but to be safe I am keeping them to myself.
-
-If you have an ISO image (track 0 image) of Towns OS V1.1 L10 or Towns OS V2.1 L31, you can run two tests by:
-
-1. Configure the top-level CMakeLists.txt so that DISC_IMAGE_DIR points to the directory where you store your ISO images.
-2. CMake and build everything.
-3. Run either one of the following comman in the build directory.
-```
-    ctest -R MX_V21L31_GUI
-    ctest -R MX_V11L10_GUI
-```
-The tests are timing-sensitive, or the CPU needs to be reasonably fast.  If not, mouse-click may take place before wigets are ready, in which case, the test may not run all the way.
-
-ユニットテストを実行するには、起動可能なフロッピーディスクイメージまたはCD-ROMイメージが必要です。Towns OSでフォーマットした起動可能ディスクイメージは多分再配布しても良いと思いますが(多分富士通としては小さなソフトハウスなどがフロッピー版のソフトを販売するために使うことを想定していたのではないかと思うので)、一応、ディスクイメージは外に出してません。
-
-が、Towns OS V1.1 L10またはV2.1 L31のISOイメージ(トラック0のイメージ)があれば、GUIのテストだけ実行できます。
-
-1. 最上位のCMakeLists.txtを修正して、DISC_IMAGE_DIRがISOイメージの場所を指すようにする。
-2. CMakeを再度実行してからBuild。
-3. 次のコマンドを実行。
-```
-    ctest -R MX_V21L31_GUI
-    ctest -R MX_V11L10_GUI
+bin/Tsugaru_QT
+share/applications/townsqt.desktop
+share/icons/hicolor/*/apps/townsqt.png
+share/townsqt/translations/townsqt_*.json
 ```
 
-なお、タイミングに影響されるので遅いCPUだと多分途中から先に進まなくなって、テスト途中で止まる鴨しれません。
+---
 
+## First run / 初回起動
 
+Tsugaru_QT needs an FM TOWNS ROM set (compatible with the emulator UNZ; a free
+ROM set is available from <http://ysflight.com/FM/towns/FreeTOWNS/e.html>).
 
+Place the ROM files in:
 
-# Revisions
-Please see commit comments after this!
-
-### 2023/03/25
-- Can start Windows 3.1 if compiled in the High-Fidelity Mode!
-
-### 2021/05/06
-- Virtual Machine is pretty stable, I think.
-- Added tight-integration mode in the GUI module.
-
-### 2020/09/06
-- I lost track of what I added or improved.  But, I can say I clear-confirmed Wing Commander 1 and Strike Commander  :-)
-
-### 2020/07/11
-- YM2612 emulator for Tsugaru (Tsugaru-Ben) is becoming much better than earlier version.  Super DAISENRYAKU intro music and Emerald Dragon BGM sound very similar to actual YM2612.
-- I lost track of what changes I made since 6/15.  Please see git commit log!
-
-### 2020/06/15
-- Added separate timer for audio.  Super DAISENRYAKU BGM plays better.  Still need more work in YM2612 emulation.
-- Changed the internal clock frequency of YM2612 from 600KHz to 690KHz.  FM Towns Technical Databook [2] tells it is 600KHz, but somehow 690KHz is giving me more accurate timing.
-- Fixed CDC.  Was reporting number of tracks as binary.  It should be in BCD.  TOWNS ILLUSION runs again.  This time it needs to start from BIN/CUE.  It stopps in the middle if you start from ISO.
-- Speed up in CPU emulation.
-
-### 2020/06/12
-- Better CDDA emulation, preliminary support for electric volume registers, fixed BT MEM,R instruction.  Confirmed RAYXANBER can start game play!
-
-### 2020/06/07
-- Improvement in YM2612 emulation.  Still different, but getting similar.  (Struggling to make sense of envelope calculation.)
-- Fixed hard-disk read/write.  Now can install TownsOS in a hard-disk image, and boot from it.
-
-### 2020/05/26
-- Mouse Integration for Wing Commander.  Need -APP WINGCOMMANDER1 option.
-- Fixed CDC.  Was pushing status code 06 00 00 00 twice after MODE1 Read.
-- Added disk-access indicators.  Changed FDC timing.
-
-### 2020/05/23
-- Tested TownsOS boot and mouse integration with Freeware Collection 1-3, Free Software Collection 4-11.  Made corrections for Free Software Collection 4 Disc B and Free Software Collection 6.
-- Free Software Collection 4 Disc B uses Towns OS V2.1L10 (L10 with no mark).  DOS Extender that comes with Towns OS V2.1L10 blocks unless the CPU type identified by I/O port 0030H is 80386DX or 80386SX.  For this problem, I have added -PRETEND386DX option.
-
-### 2020/05/19
-- Sprite emulation should be pretty good.
-- Game pad can be emulated by keyboard (-GAMEPORT0 option.  Use arrow keys and Z,X,A,S)
-- Afterburner II (SEGA, ported by CRI) is playable!  Sample boot script is Afterburner2.py.
-
-### 2020/05/06
-- Preliminary support for SCSI Hard disks.  (Create a big binary filled with zeros and use -HD0 option.)
-
-### 2020/05/03
-- CPU core speed up.  Still not good enough for 486DX 66MHz.
-- Support 3-mode floppy disk read/write.
-- Very preliminary YM2612 support.
-- Added initial CMOS.
-
-### 2020/04/11
-- Started CPU instruction tests.  Already captured and fixed numerous bugs in CPU cores.
-- Fixed sprite.
-- Towns ILLUSION works all the way without corrupted image!!!!
-
-### 2020/04/10
-- At least the program doesn't crash or freeze when sprite is used.
-- Towns ILLUSION (Legendary DEMO that comes with Towns OS V1.1 L10) runs all the way, although the images are still corrupted.
-
-### 2020/04/09
-- Primitive support for RF5C68 PCM Sound Generator Playback.
-- Roughly 25% speed up.
-
-### Somewhere in between
-- Supported CDDA from BIN/CUE
-- Added a unit test for Towns OS GUI V1.1 L30
-
-### 2020/03/22
-- Added unit tests for Towns OS GUI V1.1 L10 and V2.1 L31.
-
-### 2020/03/16
-- Make it public.
-
-### 2020/03/04
-- Major progress!  My Towns can boot from ISO image of Towns OS V2.1 L20 and can move mouse cursor with keys.
-
-### 2020/02/26
-- Major progress!  My Towns can read from ISO image!
-
-### 2020/02/14
-- Succeeed in booting into Towns OS V2.1 L30 command mode, and then running a test program compiled by High-C!
-
-### 2020/01/17
-- First line of code!
-
-
-
-# Mystery
-- Interpretation of I/O 480H
-
-[2] pp. 91 tells that:
 ```
-I/O 0480H
-Bit 1: Select F8000H to FFFFFH mapping RAM or System-ROM (0:SysROM  1:RAM)
-Bit 0: RAM or CMOS (0:RAM  1:CMOS)
+~/.config/townsqt/roms/
 ```
-It doesn't tell where in the memory space Bit 0 is controlling.  From the memory map, it looks to be D0000 to DFFFF.  However, the boot ROM does not clear Bit 0 before memory test, which causes CMOS destruction upon restarting by ```REIPL.COM```.
 
-Only interpretation I can think of is:
+Then launch:
+
+```bash
+Tsugaru_QT
 ```
-Bit 1   Bit 0    F0000-FFFFF   D0000-DFFFF
-  0       0       SysROM        RAM
-  0       1       SysROM        CMOS
-  1       0       RAM           RAM
-  1       1       RAM           RAM
+
+You can also pass a CD/ROM directory and images on the command line — all
+`Tsugaru_CUI` options are accepted:
+
+```bash
+Tsugaru_QT /path/to/ROM_DIR -CD /path/to/game.cue -FREQ 16 -YESWAIT
 ```
-Eventually I'm going to write a test program and see the behavior on my actual FM Towns.
 
+---
 
-# References
-[1] Intel i486TM Microprocessor Programmer's Reference Manual, Intel, 1990
+## FluidSynth を使う場合
 
-[2] Noriaki Chiba, FM TOWNS Technical Databook, 3rd Edition, ASCII, 1994
+MIDI 出力は FluidSynth によるソフトウェア音源で再生できます。ビルド時の依存はなく、`libfluidsynth.so.3` を実行時に読み込むため、FluidSynth のランタイムと GM 音源の SoundFont をインストールするだけで使えます。
 
-[3] towns_cd.h, Linux for FM TOWNS source code.
+```bash
+# openSUSE
+sudo zypper install fluidsynth fluid-soundfont-gm
+# Debian / Ubuntu
+sudo apt-get install libfluidsynth3 fluid-soundfont-gm
+# Fedora
+sudo dnf install fluidsynth-libs fluid-soundfont-gm
+```
 
-[4] X86 Opcode and Instruction Reference Home, http://ref.x86asm.net/coder32.html (As of February 9 2020)
+設定ダイアログで MIDI 出力に FluidSynth を選択し、必要なら SoundFont を指定してください。SoundFont は次の順で検索されます。
 
-[5] Intel 80386 Programmre's Reference Manual, Intel, 1986
+1. 設定ダイアログで指定したパス
+2. 環境変数 `TOWNSQT_MIDI_SOUNDFONT`
+3. 環境変数 `FLUIDSYNTH_SOUNDFONT`
+4. `/usr/share/soundfonts/FluidR3_GM.sf2`、`/usr/share/sounds/sf2/FluidR3_GM.sf2`、`~/.soundfonts/default.sf2` などの一般的な場所
 
-[6] https://github.com/nabe-abk/free386/blob/master/doc-ja/dosext/coco_nsd.txt
+### English
 
-[7] http://www.ctyme.com/rbrown.htm
+MIDI output can be rendered in software with FluidSynth. There is no build-time dependency: `libfluidsynth.so.3` is loaded at runtime, so install the FluidSynth runtime package and a General MIDI SoundFont:
 
-[8] SEGA Genesis Software Manual
+```bash
+# openSUSE
+sudo zypper install fluidsynth fluid-soundfont-gm
+# Debian / Ubuntu
+sudo apt-get install libfluidsynth3 fluid-soundfont-gm
+# Fedora
+sudo dnf install fluidsynth-libs fluid-soundfont-gm
+```
 
-[9] http://www.mit.edu/afs/sipb.mit.edu/contrib/doc/specs/protocol/scsi-2/s2-r10l.txt (As of May 3 2020)
+Select FluidSynth as the MIDI output in Settings, and pick a SoundFont there if needed. The SoundFont is searched in this order:
 
-[10] List of Floppy Disk Formats, https://en.wikipedia.org/wiki/List_of_floppy_disk_formats, (As of May 23 2020)
+1. Path set in the Settings dialog
+2. `TOWNSQT_MIDI_SOUNDFONT` environment variable
+3. `FLUIDSYNTH_SOUNDFONT` environment variable
+4. Common locations such as `/usr/share/soundfonts/FluidR3_GM.sf2`, `/usr/share/sounds/sf2/FluidR3_GM.sf2`, `~/.soundfonts/default.sf2`
 
-[11] YM2608 OPNA Application Manual
+---
 
-[12] Source code of Artane's FM Towns emulator project https://github.com/Artanejp
+## Configuration files / 設定ファイル
+
+| Path | Purpose |
+|------|---------|
+| `~/.config/townsqt/townsqt.conf` | UI settings (QSettings INI) |
+| `~/.config/townsqt/cmos.bin` | CMOS RAM |
+| `~/.config/townsqt/roms/` | ROM images |
+| `~/.config/townsqt/hdd/` | SCSI hard-disk images |
+| `~/.config/townsqt/blank_fd/` | blank floppy images |
+
+UI language: `TOWNSQT_LANG` (e.g. `ja`, `en`, `de`, `fr`, `es`, `ko`,
+`zh_CN`, `zh_TW`) or the system locale. Extra translations directory:
+`TOWNSQT_TRANSLATIONS_DIR`.
+
+---
+
+## Troubleshooting / トラブルシュート
+
+- **`GL/glu.h: No such file`** — install the GLU dev package
+  (`mesa-libGLU-devel` / `libglu1-mesa-dev`).
+- **No audio** — install `alsa-lib-devel` / `libasound2-dev` and rebuild clean.
+- **No MIDI sound with FluidSynth** — install the FluidSynth runtime and a
+  GM SoundFont (see “FluidSynth を使う場合”), or set `TOWNSQT_MIDI_SOUNDFONT`.
+
+---
+
+## ライセンス
+
+### 系譜とドキュメント
+
+| 版 | 説明 | ドキュメント |
+|---|---|---|
+| [captainys/TOWNSEMU](https://github.com/captainys/TOWNSEMU)（Tsugaru） | FM TOWNS / Marty エミュレータ本体 | リポジトリルート [`readme.md`](../../readme.md)、[`LICENSE`](../../LICENSE) |
+| 本リポジトリ `src/townsqt/` | 上流 Tsugaru 向け Linux Qt 6 フロントエンド（`Tsugaru_QT`） | `README.md`（本ファイル） |
+
+ファイルによって適用されるライセンスが異なります。
+
+### TownsQt で新規追加したコード
+
+`src/townsqt/` および Linux 向けインストール規則（`src/cmake/TownsQtInstall.cmake`、`scripts/install-linux.sh` 等）、本フロントエンドで新規に追加したファイルは、上流 Tsugaru と同じ **3 条項 BSD ライセンス** です（[`LICENSE`](../../LICENSE) 参照）。
+
+### 上流 Tsugaru から引き継いだコード
+
+`src/towns/`、`src/cpu/`、`src/main_cui/` 等、オリジナル Tsugaru から引き継いだファイルは **CaptainYS（Soji Yamakawa）の 3 条項 BSD ライセンス** に従います（[`LICENSE`](../../LICENSE)、[`readme.md`](../../readme.md)「Source Code」節）。
+
+* 再配布時は著作権表示と免責条項を保持してください。
+* 著作権者名による製品の推奨・宣伝に、事前の書面による許可が必要です。
+* 本ソフトウェアは「現状のまま」提供され、いかなる保証もありません。
+
+### ROM イメージ
+
+ROM は **所有する実機から吸い出したもの** を使うのが最も正確です。実機をお持ちでない場合は、上流 readme に記載のフリー互換 ROM セット（<http://ysflight.com/FM/towns/FreeTOWNS/e.html>）が利用できます。Marty を再現するには Marty から抜き出した ROM が必要です（[`readme.md`](../../readme.md)「ROMS」「Marty」節）。
+
+`Tsugaru_QT` を使用する場合も、上記 ROM に関する条件は **同等に適用** されます。
+
+### 第三者ライブラリ
+
+* **miniaudio** (`third_party/miniaudio/`) — パブリックドメインまたは MIT No Attribution（miniaudio 同梱ヘッダの表記に従う）
+* **Wayland idle-inhibit protocol** (`src/townsqt/third_party/wayland-protocols/`) — MIT License
+
+各ライブラリの利用・再配布は、それぞれのライセンス条件に従ってください。
+
+### English
+
+**Lineage and documentation**
+
+| Version | Description | Documentation |
+|---|---|---|
+| [captainys/TOWNSEMU](https://github.com/captainys/TOWNSEMU) (Tsugaru) | FM TOWNS / Marty emulator core | Root [`readme.md`](../../readme.md), [`LICENSE`](../../LICENSE) |
+| This repo `src/townsqt/` | Linux Qt 6 frontend (`Tsugaru_QT`) | `README.md` (this file) |
+
+Different parts of the tree are covered by different licenses.
+
+**Newly added TownsQt code** — Files under `src/townsqt/` and Linux install rules added for this frontend are under the same **3-clause BSD License** as upstream Tsugaru ([`LICENSE`](../../LICENSE)).
+
+**Inherited Tsugaru code** — Core emulator sources (`src/towns/`, `src/cpu/`, `src/main_cui/`, etc.) remain under **CaptainYS (Soji Yamakawa)'s 3-clause BSD License** ([`LICENSE`](../../LICENSE), [`readme.md`](../../readme.md) “Source Code”).
+
+**ROM images** — ROMs extracted from hardware you own give the best fidelity. A free compatible ROM set is linked from upstream readme; Marty emulation requires Marty ROMs ([`readme.md`](../../readme.md) “ROMS”, “Marty”). The same conditions apply when using `Tsugaru_QT`.
+
+**Third-party libraries** — miniaudio (public domain or MIT No Attribution per its header); Wayland idle-inhibit protocol (MIT). Redistribute each component according to its own license terms.
