@@ -103,3 +103,7 @@ add_subdirectory(test386vm)
 
 #Serial to TCP Server Sample
 add_subdirectory(serversample)
+
+if(UNIX)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/TownsQtInstall.cmake")
+endif()

@@ -1,0 +1,1124 @@
+{
+  "translations": [
+    {
+      "context": "MainWindow",
+      "source": "About Tsugaru %1",
+      "translation": "Acerca de Tsugaru %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Starting…",
+      "translation": "Iniciando…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Restarting the emulator…",
+      "translation": "Reiniciando el emulador…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator restarted",
+      "translation": "Emulador reiniciado"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Operation",
+      "translation": "&Operación"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Reset",
+      "translation": "&Reiniciar"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Fast mode",
+      "translation": "Modo rápido"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Custom…",
+      "translation": "Personalizado…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CPU frequency",
+      "translation": "Frecuencia de CPU"
+    },
+    {
+      "context": "MainWindow",
+      "source": "MHz:",
+      "translation": "MHz:"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Game pads…",
+      "translation": "Mandos…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Normal",
+      "translation": "Normal"
+    },
+    {
+      "context": "MainWindow",
+      "source": "2x",
+      "translation": "2x"
+    },
+    {
+      "context": "MainWindow",
+      "source": "4x",
+      "translation": "4x"
+    },
+    {
+      "context": "MainWindow",
+      "source": "8x",
+      "translation": "8x"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Max",
+      "translation": "Máx."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Double",
+      "translation": "Doble"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Toggle &fullscreen",
+      "translation": "Alternar &pantalla completa"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Quit",
+      "translation": "&Salir"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Disk",
+      "translation": "&Disco"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Open CD image…",
+      "translation": "&Abrir imagen de CD…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Eject CD",
+      "translation": "&Expulsar CD"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open &recent files",
+      "translation": "Abrir archivos &recientes"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open FD image (%1)…",
+      "translation": "Abrir imagen FD (%1)…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Eject FD",
+      "translation": "Expulsar FD"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open recent files",
+      "translation": "Abrir archivos recientes"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Write protect",
+      "translation": "Protección contra escritura"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Create blank FD image",
+      "translation": "Crear imagen FD en blanco"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Tools",
+      "translation": "&Herramientas"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Settings…",
+      "translation": "&Configuración…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Drive access",
+      "translation": "Acceso a unidades"
+    },
+    {
+      "context": "MainWindow",
+      "source": "MIDI monitor",
+      "translation": "Monitor MIDI"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "Superposición de depuración"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Lamp status",
+      "translation": "Estado de indicadores"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration coords",
+      "translation": "Coords. de integración del ratón"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Help",
+      "translation": "A&yuda"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD-ROM speed  %1",
+      "translation": "Velocidad CD-ROM  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Sprite transfer  %1",
+      "translation": "Transferencia de sprites  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty emulator<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>",
+      "translation": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>Emulador FM TOWNS / Marty<br>para Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Original",
+      "translation": "Original"
+    },
+    {
+      "context": "MainWindow",
+      "source": "The selected model did not match the SYS ROM, so it was reset to the default.",
+      "translation": "El modelo seleccionado no coincidía con la SYS ROM, por lo que se restableció el predeterminado."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open CD image",
+      "translation": "Abrir imagen de CD"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)",
+      "translation": "Imágenes CD (*.cue *.iso *.bin *.mds *.chd);;Todos los archivos (*)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open FD image (%1)",
+      "translation": "Abrir imagen FD (%1)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)",
+      "translation": "Imágenes de disquete (*.d77 *.xdf *.hdm *.fdd *.bin);;Todos los archivos (*)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to create the FD image.",
+      "translation": "No se pudo crear la imagen FD."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Unsupported floppy-image extension.",
+      "translation": "Unsupported floppy-image extension."
+    },
+    {
+      "context": "MainWindow",
+      "source": "The file already exists. Overwrite it?",
+      "translation": "The file already exists. Overwrite it?"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Clear list",
+      "translation": "Borrar lista"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD ejected",
+      "translation": "CD expulsado"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD: %1",
+      "translation": "CD: %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FD%1 ejected",
+      "translation": "FD%1 expulsado"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FD%1: %2",
+      "translation": "FD%1: %2"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Host:%1,%2  Guest:%3  MOS:%4  TBIOS:%5  %6",
+      "translation": "Host:%1,%2  Guest:%3  MOS:%4  TBIOS:%5  %6"
+    },
+    {
+      "context": "MainWindow",
+      "source": "TownsQt — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5",
+      "translation": "TownsQt — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5"
+    },
+    {
+      "context": "MainWindow",
+      "source": "TownsQt",
+      "translation": "TownsQt"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator stopped",
+      "translation": "Emulador detenido"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Auto",
+      "translation": "Automático"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Settings",
+      "translation": "Configuración"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Model",
+      "translation": "Modelo"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Memory",
+      "translation": "Memoria"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " MB",
+      "translation": " MB"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CPU fidelity",
+      "translation": "Fidelidad de CPU"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MID",
+      "translation": "MID"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "HIGH",
+      "translation": "HIGH"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "pretend386DX",
+      "translation": "pretend386DX"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "80386FPU",
+      "translation": "80386FPU"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "FAST SCSI",
+      "translation": "FAST SCSI"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MIDI board",
+      "translation": "Tarjeta MIDI"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "App-specific settings",
+      "translation": "Ajustes específicos de app"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Changes are saved with Apply or OK; the emulator restarts so settings take effect.",
+      "translation": "Los cambios se guardan con Aplicar u OK; el emulador se reinicia para aplicarlos."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Machine",
+      "translation": "Máquina"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Game pad / mouse ports",
+      "translation": "Puertos de mando / ratón"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Max button hold time",
+      "translation": "Tiempo máx. de pulsación"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " ms",
+      "translation": " ms"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Any",
+      "translation": "Cualquiera"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Button 0",
+      "translation": "Botón 0"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Button 1",
+      "translation": "Botón 1"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Mouse movement speed",
+      "translation": "Velocidad del ratón"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Mouse coordinate range",
+      "translation": "Rango de coordenadas del ratón"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Consider VRAM offset",
+      "translation": "Considerar desplazamiento VRAM"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Differential mouse integration",
+      "translation": "Integración diferencial del ratón"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MinX",
+      "translation": "MinX"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MinY",
+      "translation": "MinY"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MaxX",
+      "translation": "MaxX"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MaxY",
+      "translation": "MaxY"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Changes take effect immediately when you press Apply or OK.",
+      "translation": "Los cambios se aplican de inmediato al pulsar Aplicar u OK."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Peripherals",
+      "translation": "Periféricos"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "x",
+      "translation": "x"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Window scale:",
+      "translation": "Escala de ventana:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Sprite transfer",
+      "translation": "Transferencia de sprites"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Normal",
+      "translation": "Normal"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Double",
+      "translation": "Doble"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Max",
+      "translation": "Máx."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Fit scale to window",
+      "translation": "Ajustar escala a la ventana"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Maintain aspect ratio",
+      "translation": "Mantener la relación de aspecto"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "15 kHz scan-line effect",
+      "translation": "Efecto de líneas de barrido 15 kHz"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Damper-wire line",
+      "translation": "Línea damper-wire"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "VSync in fullscreen",
+      "translation": "VSync a pantalla completa"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Display",
+      "translation": "Pantalla"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Volume",
+      "translation": "Volumen"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "FM",
+      "translation": "FM"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "PCM",
+      "translation": "PCM"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CDDA",
+      "translation": "CDDA"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MIDI",
+      "translation": "MIDI"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Use sinc interpolation for PCM resampling",
+      "translation": "Usar interpolación sinc para el remuestreo PCM"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "PCM LPF",
+      "translation": "PCM LPF"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " Hz",
+      "translation": " Hz"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Without sinc interpolation, linear interpolation is used.",
+      "translation": "Sin interpolación sinc se usa interpolación lineal."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Output device:",
+      "translation": "Dispositivo de salida:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Backend:",
+      "translation": "Backend:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MIDI output:",
+      "translation": "Salida MIDI:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "SoundFont:",
+      "translation": "SoundFont:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(not set)",
+      "translation": "(no establecido)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Browse…",
+      "translation": "Examinar…"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "SoundFont (.sf2) file for FluidSynth. If unset, environment variables and system defaults are searched.",
+      "translation": "Archivo SoundFont (.sf2) para FluidSynth. Si no se indica, se buscan variables de entorno y rutas del sistema."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Send MIDI via the ALSA sequencer. Use a patch bay (e.g. aconnect) to connect Tsugaru_QT’s output port to a destination.",
+      "translation": "Envíe MIDI por el secuenciador ALSA. Conecte el puerto de salida de Tsugaru_QT a un destino (p. ej. con aconnect)."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Audio",
+      "translation": "Audio"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Inhibit display idle",
+      "translation": "Inhibir inactividad de la pantalla"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
+      "translation": "Evita el apagado/atenuación automática de la pantalla en sesiones Wayland."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Instant mouse integration (test)",
+      "translation": "Integración instantánea del ratón (prueba)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
+      "translation": "Función de prueba que alinea al instante las coordenadas del ratón invitadas con el anfitrión.\nTras activarla, un periodo de calentamiento usa integración gradual antes del modo instantáneo."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Instant integration warm-up:",
+      "translation": "Calentamiento de integración instantánea:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " frames",
+      "translation": " fotogramas"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Set to 0 to skip warm-up and use instant integration from the start.",
+      "translation": "0 omite el calentamiento y usa integración instantánea desde el inicio."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Features",
+      "translation": "Funciones"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Standard settings (&D)",
+      "translation": "Configuración estándar (&D)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Default",
+      "translation": "Predeterminado"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "%1 (not found)",
+      "translation": "%1 (no encontrado)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Available only on sessions that support Wayland idle-inhibit.",
+      "translation": "Disponible solo en sesiones compatibles con Wayland idle-inhibit."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "FluidSynth (built-in)",
+      "translation": "FluidSynth (integrado)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(select destination)",
+      "translation": "(seleccionar destino)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(no MIDI outputs available)",
+      "translation": "(no hay salidas MIDI)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(unsupported)",
+      "translation": "(no compatible)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Select SoundFont",
+      "translation": "Seleccionar SoundFont"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "SoundFont (*.sf2);;All files (*)",
+      "translation": "SoundFont (*.sf2);;Todos los archivos (*)"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "Free compatible ROM",
+      "translation": "ROM compatible gratuita"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "Legacy · UX/UG unsupported",
+      "translation": "Legado · UX/UG no compatible"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "For 386DX · UX/UG unsupported",
+      "translation": "Para 386DX · UX/UG no compatible"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "386SX/DX compatible",
+      "translation": "Compatible 386SX/DX"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "Not found",
+      "translation": "No encontrado"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: not found",
+      "translation": "FMT_SYS.ROM: no encontrado"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: unknown (%1)",
+      "translation": "FMT_SYS.ROM: desconocido (%1)"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: %1 (%2)",
+      "translation": "FMT_SYS.ROM: %1 (%2)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "None",
+      "translation": "Ninguno"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Mouse",
+      "translation": "Ratón"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Keyboard",
+      "translation": "Teclado"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "CyberStick",
+      "translation": "CyberStick"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Mouse via keyboard",
+      "translation": "Ratón con teclado"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Mouse via numeric keypad",
+      "translation": "Ratón con teclado numérico"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Keyboard (CAPCOM CPSF)",
+      "translation": "Teclado (CAPCOM CPSF)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Keyboard (6-button pad)",
+      "translation": "Teclado (pad de 6 botones)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Keyboard (Libble Rabble)",
+      "translation": "Teclado (Libble Rabble)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Keyboard (Marty Pad)",
+      "translation": "Teclado (Marty Pad)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Gamepad #%1 (digital)",
+      "translation": "Mando #%1 (digital)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Mouse via gamepad #%1",
+      "translation": "Ratón con mando #%1"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Gamepad #%1 (CyberStick)",
+      "translation": "Mando #%1 (CyberStick)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Gamepad #%1 (CAPCOM CPSF)",
+      "translation": "Mando #%1 (CAPCOM CPSF)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Gamepad #%1 (6-button pad)",
+      "translation": "Mando #%1 (6 botones)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Gamepad #%1 (Marty Pad)",
+      "translation": "Mando #%1 (Marty Pad)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Gamepad #%1 (analog)",
+      "translation": "Mando #%1 (analógico)"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Mouse via analog #%1",
+      "translation": "Ratón con analógico #%1"
+    },
+    {
+      "context": "TownsQtGamePortOptions",
+      "source": "Gamepad #%1 (Libble Rabble)",
+      "translation": "Mando #%1 (Libble Rabble)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "1st gen 386DX (MODEL2 / 2F / 20F)",
+      "translation": "1.ª generación 386DX (MODEL2 / 2F / 20F)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "386SX (UX)",
+      "translation": "386SX (UX)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "386SX (UG)",
+      "translation": "386SX (UG)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "386DX (CX)",
+      "translation": "386DX (CX)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "386DX (HG)",
+      "translation": "386DX (HG)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "486SX (HR)",
+      "translation": "486SX (HR)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "486DX (UR / MA)",
+      "translation": "486DX (UR / MA)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "486DX high-res (MX / ME / MF)",
+      "translation": "486DX alta resolución (MX / ME / MF)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "Pentium (HC)",
+      "translation": "Pentium (HC)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "Marty",
+      "translation": "Marty"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80386DX (machine ID: MODEL2 / 2F / 20F)",
+      "translation": "80386DX (ID de máquina: MODEL2 / 2F / 20F)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "Standard memory map (386DX)",
+      "translation": "Mapa de memoria estándar (386DX)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "RAM up to 64 MB",
+      "translation": "RAM hasta 64 MB"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "FAST MODE not supported",
+      "translation": "FAST MODE no compatible"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "High-resolution CRTC not supported",
+      "translation": "CRTC de alta resolución no compatible"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80386SX",
+      "translation": "80386SX"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "386SX memory map (different ROM/VRAM layout)",
+      "translation": "Mapa de memoria 386SX (disposición ROM/VRAM distinta)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "RAM up to 10 MB",
+      "translation": "RAM hasta 10 MB"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80386SX (UG generation)",
+      "translation": "80386SX (generación UG)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "386SX memory map",
+      "translation": "Mapa de memoria 386SX"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "FAST MODE supported",
+      "translation": "FAST MODE compatible"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "UG and later SCSI / CPU peripheral I/O behavior",
+      "translation": "Comportamiento de E/S SCSI / periféricos de CPU desde UG"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80386DX (CX)",
+      "translation": "80386DX (CX)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "UG-generation SCSI extensions not supported",
+      "translation": "Extensiones SCSI de generación UG no compatibles"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80386DX (HG)",
+      "translation": "80386DX (HG)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80486SX",
+      "translation": "80486SX"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "Standard memory map (386DX family)",
+      "translation": "Mapa de memoria estándar (familia 386DX)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "FAST MODE / UG SCSI supported",
+      "translation": "FAST MODE / SCSI UG compatible"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "High-resolution CRTC not supported (pre-MX)",
+      "translation": "CRTC de alta resolución no compatible (antes de MX)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80486DX (UR / MA)",
+      "translation": "80486DX (UR / MA)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "Standard memory map",
+      "translation": "Mapa de memoria estándar"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80486DX (MX / ME / MF)",
+      "translation": "80486DX (MX / ME / MF)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "High-resolution CRTC / display output registers",
+      "translation": "CRTC de alta resolución / registros de salida de imagen"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "CD-ROM 2x speed supported",
+      "translation": "Velocidad CD-ROM 2x compatible"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "Pentium (HC, machine ID report)",
+      "translation": "Pentium (HC, informe de ID de máquina)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "Same high-resolution and CD features as MX generation",
+      "translation": "Las mismas funciones de alta resolución y CD que la generación MX"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "FM Towns Marty",
+      "translation": "FM Towns Marty"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "80386SX + Marty-specific ROM mapping",
+      "translation": "80386SX + asignación ROM específica de Marty"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "No SCSI (I/O disabled)",
+      "translation": "Sin SCSI (E/S deshabilitada)"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "EX-ROM image required",
+      "translation": "Se requiere imagen EX-ROM"
+    },
+    {
+      "context": "TownsQtModelProfile",
+      "source": "RAM limited up to before the OS ROM",
+      "translation": "RAM limitada hasta antes de la ROM del OS"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Recover mouse",
+      "translation": "Recover mouse"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Restart mouse-integration warm-up when the guest cursor is lost.",
+      "translation": "Restart mouse-integration warm-up when the guest cursor is lost."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator is not running.",
+      "translation": "Emulator is not running."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Recover mouse requires Instant mouse integration (and not differential).",
+      "translation": "Recover mouse requires Instant mouse integration (and not differential)."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration warm-up restarted.",
+      "translation": "Mouse integration warm-up restarted."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Hard disk drive settings…",
+      "translation": "Hard disk drive settings…"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Hard disk drive settings",
+      "translation": "Hard disk drive settings"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "HD%1",
+      "translation": "HD%1"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "No image",
+      "translation": "No image"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Create",
+      "translation": "Create"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Browse…",
+      "translation": "Browse…"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Remove",
+      "translation": "Remove"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Images are stored under %1 by default.",
+      "translation": "Images are stored under %1 by default."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Create hard disk image",
+      "translation": "Create hard disk image"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Size in MB (%1–%2):",
+      "translation": "Size in MB (%1–%2):"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Failed to create the hard disk directory.",
+      "translation": "Failed to create the hard disk directory."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Hard disk images (*.hd *.hdi *.hdm *.bin);;All files (*)",
+      "translation": "Hard disk images (*.hd *.hdi *.hdm *.bin);;All files (*)"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "The file already exists. Overwrite it?",
+      "translation": "The file already exists. Overwrite it?"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Failed to create the hard disk image.",
+      "translation": "Failed to create the hard disk image."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Select hard disk image",
+      "translation": "Select hard disk image"
+    }
+  ]
+}

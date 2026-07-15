@@ -357,6 +357,8 @@ void TownsARGV::PrintHelp(void) const
 
 	std::cout << "-VERBOSE\n";
 	std::cout << "  Additional console output.\n";
+	std::cout << "  Also enables leftover device debug (gamepad, CRTC-HST, RS232 Tx echo).\n";
+	std::cout << "  Equivalent to setting environment variable TSUGARU_DEBUG=1.\n";
 }
 
 void TownsARGV::PrintApplicationList(void) const
@@ -459,6 +461,7 @@ bool TownsARGV::AnalyzeCommandParameter(int argc,char *argv[])
 		else if("-VERBOSE"==ARG)
 		{
 			verbose=true;
+			cpputil::EnableDebugLog();
 		}
 		else if("-APP"==ARG)
 		{

@@ -270,15 +270,15 @@ QString SysRomCompatNote(TownsQtSysRomProfile profile)
 	switch(profile)
 	{
 	case TownsQtSysRomProfile::FreeDx:
-		return QCoreApplication::translate("TownsQtRomAvailability","無料互換 ROM");
+		return QCoreApplication::translate("TownsQtRomAvailability","Free compatible ROM");
 	case TownsQtSysRomProfile::PreV2Legacy:
-		return QCoreApplication::translate("TownsQtRomAvailability","レガシー・UX/UG 非対応");
+		return QCoreApplication::translate("TownsQtRomAvailability","Legacy · UX/UG unsupported");
 	case TownsQtSysRomProfile::ModernDxOnly:
-		return QCoreApplication::translate("TownsQtRomAvailability","386DX 向け・UX/UG 非対応");
+		return QCoreApplication::translate("TownsQtRomAvailability","For 386DX · UX/UG unsupported");
 	case TownsQtSysRomProfile::ModernUnified:
-		return QCoreApplication::translate("TownsQtRomAvailability","386SX/DX 両対応");
+		return QCoreApplication::translate("TownsQtRomAvailability","386SX/DX compatible");
 	default:
-		return QCoreApplication::translate("TownsQtRomAvailability","未検出");
+		return QCoreApplication::translate("TownsQtRomAvailability","Not found");
 	}
 }
 
@@ -412,13 +412,13 @@ QString TownsQtRomAvailability::SysRomSummary(const QString &rom_dir)
 	const QString compat=SysRomCompatNote(profile);
 	if(kSysRomSize!=sys_rom.size())
 	{
-		return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: 未検出");
+		return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: not found");
 	}
 	const QString version=ExtractSysRomVersionLabel(sys_rom);
 	if(version.isEmpty())
 	{
-		return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: 不明（%1）").arg(compat);
+		return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: unknown (%1)").arg(compat);
 	}
-	return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: %1（%2）")
+	return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: %1 (%2)")
 	    .arg(version,compat);
 }

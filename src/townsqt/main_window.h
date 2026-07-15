@@ -53,8 +53,11 @@ private Q_SLOTS:
 	void clearRecentCdList();
 	void clearRecentFdList(int drive);
 	void syncFdWriteProtectMenuChecks();
+	void syncFdDriveMenus();
+	void syncEjectMenus();
 	void openSettingsDialog();
 	void applySettings(const SettingsDialog::Values &values);
+	void recoverMouseIntegration();
 	void toggleFullScreen();
 	void showAboutDialog();
 
@@ -106,6 +109,7 @@ private:
 	void applyMouseDebugVisibility();
 	void updateDriveAccessDebugDisplay();
 	void applyDriveAccessVisibility();
+	DriveAccessPresence currentDriveAccessPresence() const;
 	void updateOpenCdMenuLabel();
 	void updateOpenFdMenuLabel(int drive);
 	bool queryDifferentialMouseIntegration() const;
@@ -124,12 +128,15 @@ private:
 	QTimer poll_timer_;
 	QString cd_path_;
 	QString fd_path_[2];
+	bool fd_drive_available_[2]={true,true};
 
 	QMenu *disk_menu_=nullptr;
 	QMenu *cd_recent_menu_=nullptr;
 	QAction *open_cd_action_=nullptr;
+	QAction *eject_cd_action_=nullptr;
 	QMenu *fd_recent_menu_[2]={nullptr,nullptr};
 	QAction *open_fd_action_[2]={nullptr,nullptr};
+	QAction *eject_fd_action_[2]={nullptr,nullptr};
 	QAction *fd_write_protect_[2]={nullptr,nullptr};
 	bool syncing_fd_write_protect_menu_=false;
 

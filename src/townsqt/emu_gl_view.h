@@ -1,6 +1,7 @@
 #pragma once
 
 #include "outside_world.h"
+#include "townsqt_drive_access_overlay.h"
 
 #include <QOpenGLBuffer>
 #include <QOpenGLFunctions>
@@ -26,7 +27,8 @@ public:
 	void setMaintainAspect(bool enabled);
 	void setStretchToFill(bool enabled);
 	void setSwapIntervalPreference(int interval);
-	void setDriveAccessIndicators(const Outside_World::StatusBarInfo &info);
+	void setDriveAccessIndicators(const Outside_World::StatusBarInfo &info,
+	                              const DriveAccessPresence &presence);
 	void setDriveAccessOverlayEnabled(bool enabled);
 	void setDriveAccessOverlayVisible(bool visible);
 
@@ -64,4 +66,5 @@ private:
 	bool drive_access_overlay_enabled_=true;
 	bool drive_access_overlay_visible_=false;
 	Outside_World::StatusBarInfo drive_access_{};
+	DriveAccessPresence drive_access_presence_{};
 };

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -122,7 +123,11 @@ void YsGamePadInitialize(void)
 
 		if(0<=cache[gamepadId].fd)
 		{
-			printf("xyz %d\n",gamepadId);
+			const char *dbg=getenv("TSUGARU_DEBUG");
+			if(NULL!=dbg && '\0'!=dbg[0] && '0'!=dbg[0])
+			{
+				printf("xyz %d\n",gamepadId);
+			}
 			Update(&cache[gamepadId]);
 			cache[gamepadId].reading.dirs[0].upDownLeftRight[0]=0;
 			cache[gamepadId].reading.dirs[0].upDownLeftRight[1]=0;

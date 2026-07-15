@@ -24,6 +24,8 @@ add_executable(${TARGET_NAME}
 	main_window.cpp
 	settings_dialog.h
 	settings_dialog.cpp
+	hdd_settings_dialog.h
+	hdd_settings_dialog.cpp
 	townsqt_model_profile.h
 	townsqt_model_profile.cpp
 	townsqt_rom_availability.h
@@ -52,15 +54,22 @@ add_executable(${TARGET_NAME}
 	townsqt_paths.cpp
 	townsqt_settings.cpp
 	townsqt_settings.h
+	townsqt_version.h
+	townsqt_i18n.h
+	townsqt_i18n.cpp
 	qt_sync_sound.cpp
 	qt_miniaudio_impl.cpp
 	townsqt_wayland_idle_inhibit.h
 	townsqt_wayland_idle_inhibit.cpp
 	townsqt_icons.qrc
+	townsqt_i18n.qrc
 )
 
 # Binary name matches original convention: Tsugaru_CUI / Tsugaru_GUI → Tsugaru_QT
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "Tsugaru_QT")
+
+# m88-qt style: en/ja embedded; other locales from share/townsqt/translations/
+message(STATUS "TownsQt: JSON i18n (TOWNSQT_LANG / share/townsqt/translations)")
 
 if(WIN32)
 	target_sources(${TARGET_NAME} PRIVATE

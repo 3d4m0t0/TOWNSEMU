@@ -19,6 +19,11 @@ QString TownsQtPaths::blankFdDir()
 	return configDir()+QStringLiteral("/blank_fd");
 }
 
+QString TownsQtPaths::hddDir()
+{
+	return configDir()+QStringLiteral("/hdd");
+}
+
 QString TownsQtPaths::cmosFilePath()
 {
 	return configDir()+QStringLiteral("/cmos.bin");
@@ -41,6 +46,10 @@ bool TownsQtPaths::ensureLayout()
 		return false;
 	}
 	if(true!=dir.mkpath(blankFdDir()))
+	{
+		return false;
+	}
+	if(true!=dir.mkpath(hddDir()))
 	{
 		return false;
 	}

@@ -24,15 +24,15 @@ QString LabelFromId(const std::string &id)
 {
 	if("NONE"==id)
 	{
-		return Translated("なし");
+		return Translated("None");
 	}
 	if("MOUSE"==id)
 	{
-		return Translated("マウス");
+		return Translated("Mouse");
 	}
 	if("KEY"==id)
 	{
-		return Translated("キーボード");
+		return Translated("Keyboard");
 	}
 	if("CYBERSTICK"==id)
 	{
@@ -40,31 +40,31 @@ QString LabelFromId(const std::string &id)
 	}
 	if("KEYMOUSE"==id)
 	{
-		return Translated("キーボードでマウス");
+		return Translated("Mouse via keyboard");
 	}
 	if("NUMPADMOUSE"==id)
 	{
-		return Translated("テンキーでマウス");
+		return Translated("Mouse via numeric keypad");
 	}
 	if("KEYCAPCOM"==id)
 	{
-		return Translated("キーボード (CAPCOM CPSF)");
+		return Translated("Keyboard (CAPCOM CPSF)");
 	}
 	if("KEYPAD6"==id)
 	{
-		return Translated("キーボード (6ボタンパッド)");
+		return Translated("Keyboard (6-button pad)");
 	}
 	if("KEYLIBBLE"==id)
 	{
-		return Translated("キーボード (Libble Rabble)");
+		return Translated("Keyboard (Libble Rabble)");
 	}
 	if("KEYMARTY"==id)
 	{
-		return Translated("キーボード (Marty Pad)");
+		return Translated("Keyboard (Marty Pad)");
 	}
 
 	auto phys_label=[&](int index){
-		return Translated("ゲームパッド #%1 (デジタル)").arg(index);
+		return Translated("Gamepad #%1 (digital)").arg(index);
 	};
 	if(id.size()>=5 && 0==id.compare(0,4,"PHYS") && std::isdigit(static_cast<unsigned char>(id[4])))
 	{
@@ -75,23 +75,23 @@ QString LabelFromId(const std::string &id)
 		}
 		if("MOUSE"==id.substr(5))
 		{
-			return Translated("ゲームパッド #%1 でマウス").arg(index);
+			return Translated("Mouse via gamepad #%1").arg(index);
 		}
 		if("CYB"==id.substr(5))
 		{
-			return Translated("ゲームパッド #%1 (CyberStick)").arg(index);
+			return Translated("Gamepad #%1 (CyberStick)").arg(index);
 		}
 		if("CPSF"==id.substr(5))
 		{
-			return Translated("ゲームパッド #%1 (CAPCOM CPSF)").arg(index);
+			return Translated("Gamepad #%1 (CAPCOM CPSF)").arg(index);
 		}
 		if("PAD6"==id.substr(5))
 		{
-			return Translated("ゲームパッド #%1 (6ボタンパッド)").arg(index);
+			return Translated("Gamepad #%1 (6-button pad)").arg(index);
 		}
 		if("MARTY"==id.substr(5))
 		{
-			return Translated("ゲームパッド #%1 (Marty Pad)").arg(index);
+			return Translated("Gamepad #%1 (Marty Pad)").arg(index);
 		}
 	}
 	if(id.size()>=4 && 0==id.compare(0,3,"ANA") && std::isdigit(static_cast<unsigned char>(id[3])))
@@ -99,16 +99,16 @@ QString LabelFromId(const std::string &id)
 		const int index=id[3]-'0';
 		if(4==id.size())
 		{
-			return Translated("ゲームパッド #%1 (アナログ)").arg(index);
+			return Translated("Gamepad #%1 (analog)").arg(index);
 		}
 		if("MOUSE"==id.substr(4))
 		{
-			return Translated("アナログ #%1 でマウス").arg(index);
+			return Translated("Mouse via analog #%1").arg(index);
 		}
 	}
 	if(id.size()>=7 && 0==id.compare(0,6,"LIBBLE") && std::isdigit(static_cast<unsigned char>(id[6])))
 	{
-		return Translated("ゲームパッド #%1 (Libble Rabble)").arg(id[6]-'0');
+		return Translated("Gamepad #%1 (Libble Rabble)").arg(id[6]-'0');
 	}
 
 	return QString::fromStdString(id);
@@ -164,7 +164,7 @@ QString LabelForEmu(unsigned int emu)
 {
 	if(TOWNS_GAMEPORTEMU_ERROR==emu || TOWNS_GAMEPORTEMU_NUM_DEVICES<=emu)
 	{
-		return Translated("なし");
+		return Translated("None");
 	}
 	return LabelFromId(TownsGamePortEmuToStr(emu));
 }

@@ -1,97 +1,124 @@
 #include "townsqt_model_profile.h"
 
+#include <QCoreApplication>
+
 #include <algorithm>
 
 namespace
 {
+QString Tr(const char *text)
+{
+	return QCoreApplication::translate("TownsQtModelProfile",text);
+}
+
 const char *kBulletsGen1[]={
-    "80386DX（マシンID: MODEL2 / 2F / 20F）",
-    "標準メモリマップ（386DX）",
-    "RAM 最大 64 MB",
-    "FAST MODE 非対応",
-    "高解像度 CRTC 非対応",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386DX (machine ID: MODEL2 / 2F / 20F)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE not supported"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC not supported"),
     nullptr,
 };
 const char *kBulletsUx[]={
-    "80386SX",
-    "386SX 用メモリマップ（ROM/VRAM の配置が異なる）",
-    "RAM 最大 10 MB",
-    "FAST MODE 非対応",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386SX"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX memory map (different ROM/VRAM layout)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 10 MB"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE not supported"),
     nullptr,
 };
 const char *kBulletsUg[]={
-    "80386SX（UG 世代）",
-    "386SX 用メモリマップ",
-    "RAM 最大 10 MB",
-    "FAST MODE 対応",
-    "UG 以降の SCSI / CPU 周辺 I/O 挙動",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386SX (UG generation)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX memory map"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 10 MB"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE supported"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","UG and later SCSI / CPU peripheral I/O behavior"),
     nullptr,
 };
 const char *kBulletsCx[]={
-    "80386DX（CX）",
-    "標準メモリマップ（386DX）",
-    "RAM 最大 64 MB",
-    "FAST MODE 対応",
-    "UG 世代 SCSI 拡張は非対応",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386DX (CX)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE supported"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","UG-generation SCSI extensions not supported"),
     nullptr,
 };
 const char *kBulletsHg[]={
-    "80386DX（HG）",
-    "標準メモリマップ（386DX）",
-    "RAM 最大 64 MB",
-    "FAST MODE 対応",
-    "UG 以降 SCSI / CPU 周辺 I/O 挙動",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386DX (HG)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE supported"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","UG and later SCSI / CPU peripheral I/O behavior"),
     nullptr,
 };
 const char *kBulletsHr[]={
-    "80486SX",
-    "標準メモリマップ（386DX 系）",
-    "RAM 最大 64 MB",
-    "FAST MODE / UG SCSI 対応",
-    "高解像度 CRTC 非対応（MX 未満）",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80486SX"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX family)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE / UG SCSI supported"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC not supported (pre-MX)"),
     nullptr,
 };
 const char *kBulletsUrMa[]={
-    "80486DX（UR / MA）",
-    "標準メモリマップ",
-    "RAM 最大 64 MB",
-    "FAST MODE / UG SCSI 対応",
-    "高解像度 CRTC 非対応（MX 未満）",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80486DX (UR / MA)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE / UG SCSI supported"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC not supported (pre-MX)"),
     nullptr,
 };
 const char *kBulletsMxGen[]={
-    "80486DX（MX / ME / MF）",
-    "高解像度 CRTC / 画像出力レジスタ対応",
-    "CD-ROM 2 倍速対応",
-    "RAM 最大 64 MB",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80486DX (MX / ME / MF)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC / display output registers"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","CD-ROM 2x speed supported"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
     nullptr,
 };
 const char *kBulletsHc[]={
-    "Pentium（HC、マシンID 報告）",
-    "MX 世代と同様の高解像度・CD 機能",
-    "RAM 最大 64 MB",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","Pentium (HC, machine ID report)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","Same high-resolution and CD features as MX generation"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
     nullptr,
 };
 const char *kBulletsMarty[]={
-    "FM Towns Marty",
-    "80386SX + Marty 専用 ROM マッピング",
-    "SCSI 非搭載（I/O 無効）",
-    "EX-ROM イメージが必要",
-    "RAM は OS ROM 手前まで",
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","FM Towns Marty"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386SX + Marty-specific ROM mapping"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","No SCSI (I/O disabled)"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","EX-ROM image required"),
+    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM limited up to before the OS ROM"),
     nullptr,
 };
 
 const TownsQtModelGroup kModelGroups[]={
-    {"gen1", "初代 386DX（MODEL2 / 2F / 20F）", TOWNSTYPE_1F_2F, kBulletsGen1, 64, false, false, false},
-    {"ux", "386SX（UX）", TOWNSTYPE_2_UX, kBulletsUx, 10, false, false, true},
-    {"ug", "386SX（UG）", TOWNSTYPE_2_UG, kBulletsUg, 10, true, false, true},
-    {"cx", "386DX（CX）", TOWNSTYPE_2_CX, kBulletsCx, 64, true, false, false},
-    {"hg", "386DX（HG）", TOWNSTYPE_2_HG, kBulletsHg, 64, true, false, false},
-    {"hr", "486SX（HR）", TOWNSTYPE_2_HR, kBulletsHr, 64, true, false, false},
-    {"ur_ma", "486DX（UR / MA）", TOWNSTYPE_2_UR, kBulletsUrMa, 64, true, false, false},
-    {"mx_gen", "486DX 高解像度（MX / ME / MF）", TOWNSTYPE_2_MX, kBulletsMxGen, 64, true, true, false},
-    {"hc", "Pentium（HC）", TOWNSTYPE_2_HC, kBulletsHc, 64, true, true, false},
-    {"marty", "Marty", TOWNSTYPE_MARTY, kBulletsMarty, 6, false, false, false},
+    {"gen1",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","1st gen 386DX (MODEL2 / 2F / 20F)"),
+     TOWNSTYPE_1F_2F,kBulletsGen1,64,false,false,false},
+    {"ux",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX (UX)"),
+     TOWNSTYPE_2_UX,kBulletsUx,10,false,false,true},
+    {"ug",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX (UG)"),
+     TOWNSTYPE_2_UG,kBulletsUg,10,true,false,true},
+    {"cx",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","386DX (CX)"),
+     TOWNSTYPE_2_CX,kBulletsCx,64,true,false,false},
+    {"hg",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","386DX (HG)"),
+     TOWNSTYPE_2_HG,kBulletsHg,64,true,false,false},
+    {"hr",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","486SX (HR)"),
+     TOWNSTYPE_2_HR,kBulletsHr,64,true,false,false},
+    {"ur_ma",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","486DX (UR / MA)"),
+     TOWNSTYPE_2_UR,kBulletsUrMa,64,true,false,false},
+    {"mx_gen",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","486DX high-res (MX / ME / MF)"),
+     TOWNSTYPE_2_MX,kBulletsMxGen,64,true,true,false},
+    {"hc",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","Pentium (HC)"),
+     TOWNSTYPE_2_HC,kBulletsHc,64,true,true,false},
+    {"marty",
+     QT_TRANSLATE_NOOP("TownsQtModelProfile","Marty"),
+     TOWNSTYPE_MARTY,kBulletsMarty,6,false,false,false},
 };
 
 constexpr int kDefaultModelGroupIndex=7;
@@ -106,7 +133,7 @@ QString BulletsToHtml(const char *const *bullets)
 			html+=QStringLiteral("<br>");
 		}
 		html+=QStringLiteral("&#183; ")
-		    +QString::fromUtf8(bullets[i]).toHtmlEscaped();
+		    +Tr(bullets[i]).toHtmlEscaped();
 	}
 	return html;
 }
@@ -121,7 +148,7 @@ const TownsQtModelGroup &TownsQtModelGroupAt(int index)
 {
 	static const TownsQtModelGroup kFallback={
 	    "mx_gen",
-	    "486DX 高解像度（MX / ME / MF）",
+	    QT_TRANSLATE_NOOP("TownsQtModelProfile","486DX high-res (MX / ME / MF)"),
 	    TOWNSTYPE_2_MX,
 	    kBulletsMxGen,
 	    64,
@@ -177,6 +204,11 @@ int TownsQtModelGroupIndexForTownsType(unsigned int towns_type)
 unsigned int TownsQtModelGroupTownsType(int index)
 {
 	return TownsQtModelGroupAt(index).towns_type;
+}
+
+QString TownsQtModelGroupLabel(int index)
+{
+	return Tr(TownsQtModelGroupAt(index).label);
 }
 
 QString TownsQtModelGroupDescription(int index)

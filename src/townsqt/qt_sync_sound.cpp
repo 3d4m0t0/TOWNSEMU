@@ -274,7 +274,7 @@ void QtSyncSoundConnection::Start(void)
 	const size_t ring_frames=static_cast<size_t>(sample_rate_)*kRingMs/1000;
 	if(true!=spsc_.Init(ring_frames))
 	{
-		std::fprintf(stderr,"TownsQt: SPSC ring init failed.\n");
+		std::fprintf(stderr,"Tsugaru_QT: SPSC ring init failed.\n");
 		return;
 	}
 
@@ -308,7 +308,7 @@ void QtSyncSoundConnection::Start(void)
 	{
 		if(true!=TownsQtMiniaudioDevices::InitContext(backend_name,&stack_context))
 		{
-			std::fprintf(stderr,"TownsQt: miniaudio context init failed (backend=%s).\n",
+			std::fprintf(stderr,"Tsugaru_QT: miniaudio context init failed (backend=%s).\n",
 			             backend_name[0] ? backend_name : "auto");
 			delete dev;
 			return;
@@ -321,7 +321,7 @@ void QtSyncSoundConnection::Start(void)
 		{
 			if(true!=TownsQtMiniaudioDevices::ResolvePlaybackIdInContext(context_,device_name,&chosen_id))
 			{
-				std::fprintf(stderr,"TownsQt: audio device not found: %s (backend=%s)\n",
+				std::fprintf(stderr,"Tsugaru_QT: audio device not found: %s (backend=%s)\n",
 				             device_name,backend_name);
 				ma_context_uninit(context_);
 				delete context_;
@@ -340,7 +340,7 @@ void QtSyncSoundConnection::Start(void)
 	    ma_device_init(nullptr,&config,dev);
 	if(MA_SUCCESS!=init_result)
 	{
-		std::fprintf(stderr,"TownsQt: miniaudio device init failed.\n");
+		std::fprintf(stderr,"Tsugaru_QT: miniaudio device init failed.\n");
 		if(context_active_ && nullptr!=context_)
 		{
 			ma_context_uninit(context_);
@@ -354,7 +354,7 @@ void QtSyncSoundConnection::Start(void)
 
 	if(MA_SUCCESS!=ma_device_start(dev))
 	{
-		std::fprintf(stderr,"TownsQt: miniaudio device start failed.\n");
+		std::fprintf(stderr,"Tsugaru_QT: miniaudio device start failed.\n");
 		ma_device_uninit(dev);
 		if(context_active_ && nullptr!=context_)
 		{
@@ -377,7 +377,7 @@ void QtSyncSoundConnection::Start(void)
 	played_frames_.store(0,std::memory_order_relaxed);
 	primed_frames_remaining_=primed;
 
-	std::printf("TownsQt: sync audio started (%u Hz, backend=%s, ring %d ms, period %d frames).\n",
+	std::printf("Tsugaru_QT: sync audio started (%u Hz, backend=%s, ring %d ms, period %d frames).\n",
 	            dev->sampleRate,
 	            backend_name[0] ? backend_name : "auto",
 	            kRingMs,period_frames_);

@@ -143,9 +143,11 @@ void EmuGlView::setDriveAccessOverlayVisible(bool visible)
 	update();
 }
 
-void EmuGlView::setDriveAccessIndicators(const Outside_World::StatusBarInfo &info)
+void EmuGlView::setDriveAccessIndicators(const Outside_World::StatusBarInfo &info,
+                                         const DriveAccessPresence &presence)
 {
 	drive_access_=info;
+	drive_access_presence_=presence;
 	drive_access_valid_=true;
 }
 
@@ -173,19 +175,19 @@ bool EmuGlView::buildShaderProgram()
 	program_.removeAllShaders();
 	if(!program_.addShaderFromSourceCode(QOpenGLShader::Vertex,vs))
 	{
-		std::fprintf(stderr,"TownsQt GL vertex shader: %s\n",program_.log().toUtf8().constData());
+		std::fprintf(stderr,"Tsugaru_QT: GL vertex shader: %s\n",program_.log().toUtf8().constData());
 		return false;
 	}
 	if(!program_.addShaderFromSourceCode(QOpenGLShader::Fragment,fs))
 	{
-		std::fprintf(stderr,"TownsQt GL fragment shader: %s\n",program_.log().toUtf8().constData());
+		std::fprintf(stderr,"Tsugaru_QT: GL fragment shader: %s\n",program_.log().toUtf8().constData());
 		return false;
 	}
 	program_.bindAttributeLocation("aVert",0);
 	program_.bindAttributeLocation("aTex",1);
 	if(!program_.link())
 	{
-		std::fprintf(stderr,"TownsQt GL program link: %s\n",program_.log().toUtf8().constData());
+		std::fprintf(stderr,"Tsugaru_QT: GL program link: %s\n",program_.log().toUtf8().constData());
 		return false;
 	}
 	return true;
@@ -203,11 +205,11 @@ void EmuGlView::initializeGL()
 		const int interval=context()->format().swapInterval();
 		if(0<interval)
 		{
-			std::fprintf(stderr,"TownsQt: display VSync enabled (swap interval %d).\n",interval);
+			std::fprintf(stderr,"Tsugaru_QT: display VSync enabled (swap interval %d).\n",interval);
 		}
 		else
 		{
-			std::fprintf(stderr,"TownsQt: display VSync requested but swap interval is 0 (compositor may still vsync).\n");
+			std::fprintf(stderr,"Tsugaru_QT: display VSync requested but swap interval is 0 (compositor may still vsync).\n");
 		}
 	}
 
@@ -373,16 +375,18 @@ void EmuGlView::paintGL()
 
 	if(true==drive_access_overlay_enabled_ &&
 	   true==drive_access_overlay_visible_ &&
-	   true==drive_access_valid_)
+	   true==drive_access_valid_ &&
+	   0<drive_access_presence_.IconCount())
 	{
 		QPainter painter(this);
 		painter.setRenderHint(QPainter::SmoothPixmapTransform,false);
 		constexpr int kMargin=2;
 		DrawDriveAccessOverlay(
 		    painter,
-		    DriveAccessOverlayOriginX(width()),
+		    DriveAccessOverlayOriginX(width(),drive_access_presence_),
 		    height()-kDriveAccessIconSize-kMargin,
-		    drive_access_);
+		    drive_access_,
+		    drive_access_presence_);
 		painter.end();
 	}
 }

@@ -1129,12 +1129,12 @@ bool LoadSoundFontLocked(void)
 					base=p+1;
 				}
 			}
-			std::fprintf(stderr,"TownsEMU MIDI: loaded SoundFont %s\n",base);
+			std::fprintf(stderr,"Tsugaru_QT: loaded SoundFont %s\n",base);
 			return true;
 		}
 	}
 	std::fprintf(stderr,
-	    "TownsEMU MIDI: FluidSynth is active but no SoundFont was found. "
+	    "Tsugaru_QT: FluidSynth is active but no SoundFont was found. "
 	    "Set TOWNSQT_MIDI_SOUNDFONT or install a .sf2 file.\n");
 	return false;
 }
@@ -1153,7 +1153,7 @@ void StartStandaloneAudioDriverLocked(void)
 	g_audio_driver=g_api.new_fluid_audio_driver(g_settings,g_synth);
 	if(nullptr==g_audio_driver)
 	{
-		std::fprintf(stderr,"TownsEMU MIDI: FluidSynth ALSA audio driver failed to start.\n");
+		std::fprintf(stderr,"Tsugaru_QT: FluidSynth ALSA audio driver failed to start.\n");
 	}
 }
 
@@ -1298,7 +1298,7 @@ bool MidiFluidSynthHost::TryInitialize(void)
 	ApplyMasterVolumeLocked();
 	g_active=true;
 	std::fprintf(stderr,
-	    "TownsEMU MIDI: using FluidSynth (%s).\n",
+	    "Tsugaru_QT: using FluidSynth (%s).\n",
 	    BackendName());
 	return true;
 }

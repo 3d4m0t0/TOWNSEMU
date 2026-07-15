@@ -1,4 +1,5 @@
 #include "settings_dialog.h"
+#include "hdd_settings_dialog.h"
 #include "townsqt_app_profile.h"
 #include "townsqt_gameport_options.h"
 #include "townsqt_miniaudio_devices.h"
@@ -124,7 +125,7 @@ void PopulateSoundBackendCombo(QComboBox *combo)
 		return;
 	}
 	combo->clear();
-	combo->addItem(QCoreApplication::translate("SettingsDialog","自動"),QString());
+	combo->addItem(QCoreApplication::translate("SettingsDialog","Auto"),QString());
 	combo->addItem(QStringLiteral("PulseAudio"),QStringLiteral("pulse"));
 	combo->addItem(QStringLiteral("ALSA"),QStringLiteral("alsa"));
 	combo->addItem(QStringLiteral("JACK"),QStringLiteral("jack"));
@@ -169,6 +170,10 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.mouseMaxX=TownsStartParameters::DEFAULT_MOUSE_MAXX;
 	v.mouseMaxY=TownsStartParameters::DEFAULT_MOUSE_MAXY;
 	v.appSpecificSetting=TOWNS_APPSPECIFIC_NONE;
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		v.hdd[slot]=Values::HddSlot{};
+	}
 	return v;
 }
 
@@ -181,7 +186,7 @@ SettingsDialog::SettingsDialog(const Values &initial,const QString &romDir,QWidg
 	  sys_rom_profile_(TownsQtRomAvailability::ClassifySysRom(rom_dir_)),
 	  marty_model_index_(TownsQtModelGroupMartyIndex())
 {
-	setWindowTitle(tr("設定"));
+	setWindowTitle(tr("Settings"));
 	QFont dlg_font=font();
 	if(0<dlg_font.pointSize())
 	{
@@ -274,7 +279,7 @@ void SettingsDialog::buildUi()
 		auto *model_header_layout=new QHBoxLayout(model_header_widget);
 		model_header_layout->setContentsMargins(0,0,0,0);
 		model_header_layout->setSpacing(8);
-		auto *model_caption=new QLabel(tr("モデル"),model_header_widget);
+		auto *model_caption=new QLabel(tr("Model"),model_header_widget);
 		sys_rom_info_label_=new QLabel(model_header_widget);
 		sys_rom_info_label_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 		sys_rom_info_label_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
@@ -294,7 +299,7 @@ void SettingsDialog::buildUi()
 		for(int i=0; i<TownsQtModelGroupCount(); ++i)
 		{
 			model_group_->addItem(
-			    QString::fromUtf8(TownsQtModelGroupAt(i).label),
+			    TownsQtModelGroupLabel(i),
 			    i);
 		}
 		main_grid->addWidget(model_group_,1,0);
@@ -308,7 +313,7 @@ void SettingsDialog::buildUi()
 		auto *mem_layout=new QHBoxLayout(mem_widget);
 		mem_layout->setContentsMargins(0,0,0,0);
 		mem_layout->setSpacing(8);
-		mem_label_=new QLabel(tr("メモリ"),mem_widget);
+		mem_label_=new QLabel(tr("Memory"),mem_widget);
 		mem_size_mb_=new QSpinBox(mem_widget);
 		mem_size_mb_->setRange(1,64);
 		mem_size_mb_->setSuffix(tr(" MB"));
@@ -326,7 +331,7 @@ void SettingsDialog::buildUi()
 		model_description_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
 		main_grid->addWidget(model_description_,2,0,1,1);
 
-		fidelity_box_=new QGroupBox(tr("CPUの再現性"),page);
+		fidelity_box_=new QGroupBox(tr("CPU fidelity"),page);
 		ShrinkGroupBox(fidelity_box_);
 		fidelity_box_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
 		auto *fidelity_layout=new QHBoxLayout(fidelity_box_);
@@ -354,21 +359,25 @@ void SettingsDialog::buildUi()
 		CompactGrid(opt_grid);
 		opt_grid->setColumnStretch(0,1);
 		opt_grid->setColumnStretch(1,1);
+		opt_grid->setColumnStretch(2,0);
 		pretend_386_=new QCheckBox(tr("pretend386DX"),opt_grid_widget_);
 		use_fpu_=new QCheckBox(tr("80386FPU"),opt_grid_widget_);
 		fast_scsi_=new QCheckBox(tr("FAST SCSI"),opt_grid_widget_);
-		midi_board_=new QCheckBox(tr("MIDI ボード"),opt_grid_widget_);
+		midi_board_=new QCheckBox(tr("MIDI board"),opt_grid_widget_);
+		hdd_settings_button_=new QPushButton(tr("Hard disk drive settings…"),opt_grid_widget_);
 		opt_grid->addWidget(pretend_386_,0,0);
-		opt_grid->addWidget(use_fpu_,0,1);
-		opt_grid->addWidget(fast_scsi_,1,0);
+		opt_grid->addWidget(fast_scsi_,0,1);
+		opt_grid->addWidget(hdd_settings_button_,0,2);
+		opt_grid->addWidget(use_fpu_,1,0);
 		opt_grid->addWidget(midi_board_,1,1);
 		v->addWidget(opt_grid_widget_);
 		connect(midi_board_,&QCheckBox::toggled,this,&SettingsDialog::updateAudioTabMidiSection);
+		connect(hdd_settings_button_,&QPushButton::clicked,this,&SettingsDialog::openHddSettingsDialog);
 		v->addWidget(MakeHorizontalSeparator(page));
 
 		auto *app_row=new QHBoxLayout();
 		app_row->setSpacing(8);
-		app_row->addWidget(new QLabel(tr("アプリ別特殊設定"),page));
+		app_row->addWidget(new QLabel(tr("App-specific settings"),page));
 		app_specific_=new QComboBox(page);
 		app_specific_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
 		for(int i=0; i<TownsQtAppProfileCount(); ++i)
@@ -389,9 +398,9 @@ void SettingsDialog::buildUi()
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
-		    tr("変更は［適用］または［OK］で保存され、設定を反映するためエミュレータが再起動されます。")));
+		    tr("Changes are saved with Apply or OK; the emulator restarts so settings take effect.")));
 		machine_page_=page;
-		tabs_->addTab(page,tr("マシン"));
+		tabs_->addTab(page,tr("Machine"));
 	}
 
 	{
@@ -404,8 +413,8 @@ void SettingsDialog::buildUi()
 		joystick_grid->setVerticalSpacing(4);
 		joystick_grid->setColumnStretch(0,4);
 		joystick_grid->setColumnStretch(1,1);
-		joystick_grid->addWidget(new QLabel(tr("ジョイパッド／マウス端子"),page),0,0);
-		joystick_grid->addWidget(new QLabel(tr("最大ボタン押下時間"),page),0,1);
+		joystick_grid->addWidget(new QLabel(tr("Game pad / mouse ports"),page),0,0);
+		joystick_grid->addWidget(new QLabel(tr("Max button hold time"),page),0,1);
 
 		gameport0_=new QComboBox(page);
 		gameport1_=new QComboBox(page);
@@ -420,7 +429,7 @@ void SettingsDialog::buildUi()
 		{
 			spin->setRange(0,9999);
 			spin->setSuffix(tr(" ms"));
-			spin->setSpecialValueText(tr("任意"));
+			spin->setSpecialValueText(tr("Any"));
 		}
 
 		auto *port0_row=new QHBoxLayout();
@@ -431,7 +440,7 @@ void SettingsDialog::buildUi()
 
 		auto *hold0_row=new QHBoxLayout();
 		hold0_row->setSpacing(8);
-		hold0_row->addWidget(new QLabel(tr("ボタン0"),page));
+		hold0_row->addWidget(new QLabel(tr("Button 0"),page));
 		hold0_row->addWidget(max_button_hold0_);
 		joystick_grid->addLayout(hold0_row,1,1);
 
@@ -443,13 +452,13 @@ void SettingsDialog::buildUi()
 
 		auto *hold1_row=new QHBoxLayout();
 		hold1_row->setSpacing(8);
-		hold1_row->addWidget(new QLabel(tr("ボタン1"),page));
+		hold1_row->addWidget(new QLabel(tr("Button 1"),page));
 		hold1_row->addWidget(max_button_hold1_);
 		joystick_grid->addLayout(hold1_row,2,1);
 
 		v->addLayout(joystick_grid);
 
-		auto *speed_box=new QGroupBox(tr("マウス移動速度"),page);
+		auto *speed_box=new QGroupBox(tr("Mouse movement speed"),page);
 		ShrinkGroupBox(speed_box);
 		auto *speed_layout=new QHBoxLayout(speed_box);
 		CompactGroupBoxLayout(speed_layout);
@@ -468,12 +477,12 @@ void SettingsDialog::buildUi()
 		});
 		v->addWidget(speed_box);
 
-		auto *range_box=new QGroupBox(tr("マウス座標範囲"),page);
+		auto *range_box=new QGroupBox(tr("Mouse coordinate range"),page);
 		ShrinkGroupBox(range_box);
 		auto *range_layout=new QGridLayout(range_box);
 		CompactGrid(range_layout);
-		mouse_vram_offset_=new QCheckBox(tr("VRAM オフセット考慮"),range_box);
-		diff_mouse_integration_=new QCheckBox(tr("差分マウス統合"),range_box);
+		mouse_vram_offset_=new QCheckBox(tr("Consider VRAM offset"),range_box);
+		diff_mouse_integration_=new QCheckBox(tr("Differential mouse integration"),range_box);
 		mouse_min_x_=new QSpinBox(range_box);
 		mouse_min_y_=new QSpinBox(range_box);
 		mouse_max_x_=new QSpinBox(range_box);
@@ -497,9 +506,9 @@ void SettingsDialog::buildUi()
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
-		    tr("変更は［適用］または［OK］ですべて即時に反映されます。")));
+		    tr("Changes take effect immediately when you press Apply or OK.")));
 		peripheral_page_=page;
-		tabs_->addTab(page,tr("周辺機器"));
+		tabs_->addTab(page,tr("Peripherals"));
 	}
 
 	{
@@ -512,14 +521,14 @@ void SettingsDialog::buildUi()
 		display_scale_=new QSpinBox(page);
 		display_scale_->setRange(1,8);
 		display_scale_->setSuffix(tr("x"));
-		scale_row->addWidget(new QLabel(tr("ウインドウ倍率:"),page));
+		scale_row->addWidget(new QLabel(tr("Window scale:"),page));
 		scale_row->addWidget(display_scale_);
 		scale_row->addSpacing(16);
-		scale_row->addWidget(new QLabel(tr("スプライト転送"),page));
+		scale_row->addWidget(new QLabel(tr("Sprite transfer"),page));
 		sprite_group_=new QButtonGroup(page);
-		auto *sprite_standard=new QRadioButton(tr("標準"),page);
-		auto *sprite_double=new QRadioButton(tr("倍速"),page);
-		auto *sprite_max=new QRadioButton(tr("最大"),page);
+		auto *sprite_standard=new QRadioButton(tr("Normal"),page);
+		auto *sprite_double=new QRadioButton(tr("Double"),page);
+		auto *sprite_max=new QRadioButton(tr("Max"),page);
 		sprite_group_->addButton(sprite_standard,0);
 		sprite_group_->addButton(sprite_double,1);
 		sprite_group_->addButton(sprite_max,2);
@@ -531,11 +540,11 @@ void SettingsDialog::buildUi()
 
 		auto *video_grid=new QGridLayout();
 		CompactGrid(video_grid);
-		auto_scale_=new QCheckBox(tr("ウィンドウに合わせて倍率調整"),page);
-		maintain_aspect_=new QCheckBox(tr("縦横比維持"),page);
-		scanline_15k_=new QCheckBox(tr("15kHz 走査線効果"),page);
-		damper_wire_=new QCheckBox(tr("ダンパーワイヤー線"),page);
-		fullscreen_vsync_=new QCheckBox(tr("全画面時 Vsync同期"),page);
+		auto_scale_=new QCheckBox(tr("Fit scale to window"),page);
+		maintain_aspect_=new QCheckBox(tr("Maintain aspect ratio"),page);
+		scanline_15k_=new QCheckBox(tr("15 kHz scan-line effect"),page);
+		damper_wire_=new QCheckBox(tr("Damper-wire line"),page);
+		fullscreen_vsync_=new QCheckBox(tr("VSync in fullscreen"),page);
 		video_grid->addWidget(auto_scale_,0,0);
 		video_grid->addWidget(maintain_aspect_,0,1);
 		video_grid->addWidget(scanline_15k_,1,0);
@@ -547,9 +556,9 @@ void SettingsDialog::buildUi()
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
-		    tr("変更は［適用］または［OK］ですべて即時に反映されます。")));
+		    tr("Changes take effect immediately when you press Apply or OK.")));
 		video_page_=page;
-		tabs_->addTab(page,tr("映像"));
+		tabs_->addTab(page,tr("Display"));
 	}
 
 	{
@@ -579,7 +588,7 @@ void SettingsDialog::buildUi()
 			});
 		};
 
-		auto *volume_heading=new QLabel(tr("音量"),page);
+		auto *volume_heading=new QLabel(tr("Volume"),page);
 		volume_heading->setAlignment(Qt::AlignCenter);
 		v->addWidget(volume_heading);
 		make_volume_row(tr("FM"),fm_volume_slider_,fm_volume_value_);
@@ -589,7 +598,7 @@ void SettingsDialog::buildUi()
 
 		auto *pcm_grid=new QGridLayout();
 		CompactGrid(pcm_grid);
-		pcm_resample_sinc_=new QCheckBox(tr("PCMリサンプルでsinc補間を使う"),page);
+		pcm_resample_sinc_=new QCheckBox(tr("Use sinc interpolation for PCM resampling"),page);
 		pcm_lpf_enabled_=new QCheckBox(tr("PCM LPF"),page);
 		pcm_lpf_cutoff_=new QSpinBox(page);
 		pcm_lpf_cutoff_->setRange(200,20000);
@@ -604,7 +613,7 @@ void SettingsDialog::buildUi()
 		pcm_grid->addWidget(pcm_resample_sinc_,0,0);
 		pcm_grid->addLayout(lpf_row,0,1);
 		pcm_grid->addWidget(
-		    MakeIndentedNote(page,tr("sinc補間を使わない場合は線形補間を使用します。")),
+		    MakeIndentedNote(page,tr("Without sinc interpolation, linear interpolation is used.")),
 		    1,0,1,2);
 		pcm_grid->setColumnStretch(0,1);
 		pcm_grid->setColumnStretch(1,1);
@@ -619,9 +628,9 @@ void SettingsDialog::buildUi()
 
 		auto *device_row=new QHBoxLayout();
 		device_row->setSpacing(8);
-		device_row->addWidget(new QLabel(tr("出力デバイス:"),page));
+		device_row->addWidget(new QLabel(tr("Output device:"),page));
 		device_row->addWidget(sound_device_,1);
-		device_row->addWidget(new QLabel(tr("バックエンド:"),page));
+		device_row->addWidget(new QLabel(tr("Backend:"),page));
 		device_row->addWidget(sound_backend_);
 		v->addLayout(device_row);
 		connect(sound_backend_,qOverload<int>(&QComboBox::currentIndexChanged),this,&SettingsDialog::onAudioBackendChanged);
@@ -629,7 +638,7 @@ void SettingsDialog::buildUi()
 
 		auto *midi_output_row=new QHBoxLayout();
 		midi_output_row->setSpacing(8);
-		midi_output_row->addWidget(new QLabel(tr("MIDI出力:"),page));
+		midi_output_row->addWidget(new QLabel(tr("MIDI output:"),page));
 		midi_output_=new QComboBox(page);
 		midi_output_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
 		midi_output_row->addWidget(midi_output_,1);
@@ -641,32 +650,31 @@ void SettingsDialog::buildUi()
 		sf_layout->setSpacing(3);
 		auto *sf_row=new QHBoxLayout();
 		sf_row->setSpacing(8);
-		sf_row->addWidget(new QLabel(tr("サウンドフォント:"),midi_fluidsynth_panel_));
+		sf_row->addWidget(new QLabel(tr("SoundFont:"),midi_fluidsynth_panel_));
 		midi_soundfont_edit_=new QLineEdit(midi_fluidsynth_panel_);
 		midi_soundfont_edit_->setReadOnly(true);
-		midi_soundfont_edit_->setPlaceholderText(tr("（未指定）"));
-		midi_soundfont_browse_=new QPushButton(tr("参照…"),midi_fluidsynth_panel_);
+		midi_soundfont_edit_->setPlaceholderText(tr("(not set)"));
+		midi_soundfont_browse_=new QPushButton(tr("Browse…"),midi_fluidsynth_panel_);
 		sf_row->addWidget(midi_soundfont_edit_,1);
 		sf_row->addWidget(midi_soundfont_browse_);
 		sf_layout->addLayout(sf_row);
 		sf_layout->addWidget(MakeIndentedNote(
 		    midi_fluidsynth_panel_,
-		    tr("FluidSynth で使用する SoundFont（.sf2）ファイルを指定します。未指定の場合は環境変数やシステム既定のパスを探します。")));
+		    tr("SoundFont (.sf2) file for FluidSynth. If unset, environment variables and system defaults are searched.")));
 		v->addWidget(midi_fluidsynth_panel_);
 		connect(midi_soundfont_browse_,&QPushButton::clicked,this,&SettingsDialog::browseMidiSoundFont);
 
 		midi_alsa_note_=MakeIndentedNote(
 		    page,
-		    tr("ALSA シーケンサで MIDI を出力します。外部シンセやソフトウェア音源へ接続するには、"
-		       "パッチベイ（aconnect 等）で TownsEMU の出力ポートを宛先ポートに接続してください。"));
+		    tr("Send MIDI via the ALSA sequencer. Use a patch bay (e.g. aconnect) to connect Tsugaru_QT’s output port to a destination."));
 		midi_alsa_note_->setVisible(false);
 		v->addWidget(midi_alsa_note_);
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
-		    tr("変更は［適用］または［OK］ですべて即時に反映されます。")));
+		    tr("Changes take effect immediately when you press Apply or OK.")));
 		audio_page_=page;
-		tabs_->addTab(page,tr("音声"));
+		tabs_->addTab(page,tr("Audio"));
 	}
 
 	{
@@ -674,31 +682,31 @@ void SettingsDialog::buildUi()
 		auto *v=new QVBoxLayout(page);
 		CompactVBox(v);
 
-		idle_inhibit_=new QCheckBox(tr("ディスプレイのアイドルを抑制"),page);
+		idle_inhibit_=new QCheckBox(tr("Inhibit display idle"),page);
 		v->addWidget(idle_inhibit_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Wayland セッションで画面の自動消灯や暗転を防ぎます。")));
+		    tr("Prevents automatic screen blanking/dimming on Wayland sessions.")));
 
-		snap_mouse_integration_=new QCheckBox(tr("マウス即時統合（テスト）"),page);
+		snap_mouse_integration_=new QCheckBox(tr("Instant mouse integration (test)"),page);
 		v->addWidget(snap_mouse_integration_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("ゲストのマウス座標をホストに即座に合わせるテスト機能です。\n"
-		       "有効にした直後はウォームアップ期間、段階的統合を行ってから即時統合に切り替わります。")));
+		    tr("Test feature that snaps the guest mouse coordinates to the host immediately.\n"
+		       "After enabling, a warm-up period uses gradual integration before switching to instant snapping.")));
 
 		auto *warmup_row=new QHBoxLayout();
 		warmup_row->setContentsMargins(22,0,0,0);
-		warmup_row->addWidget(new QLabel(tr("即時統合ウォームアップ:"),page));
+		warmup_row->addWidget(new QLabel(tr("Instant integration warm-up:"),page));
 		snap_mouse_warmup_=new QSpinBox(page);
 		snap_mouse_warmup_->setRange(0,600);
-		snap_mouse_warmup_->setSuffix(tr(" フレーム"));
+		snap_mouse_warmup_->setSuffix(tr(" frames"));
 		warmup_row->addWidget(snap_mouse_warmup_);
 		warmup_row->addStretch();
 		v->addLayout(warmup_row);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("0 にするとウォームアップなしで、最初から即時統合します。")));
+		    tr("Set to 0 to skip warm-up and use instant integration from the start.")));
 		connect(snap_mouse_integration_,&QCheckBox::toggled,snap_mouse_warmup_,&QWidget::setEnabled);
 
 		auto *separator=new QFrame(page);
@@ -708,9 +716,9 @@ void SettingsDialog::buildUi()
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
-		    tr("変更は［適用］または［OK］ですべて即時に反映されます。")));
+		    tr("Changes take effect immediately when you press Apply or OK.")));
 		function_page_=page;
-		tabs_->addTab(page,tr("機能"));
+		tabs_->addTab(page,tr("Features"));
 	}
 
 	auto *buttons=new QDialogButtonBox(
@@ -727,7 +735,7 @@ void SettingsDialog::buildUi()
 	connect(buttons,&QDialogButtonBox::rejected,this,&QDialog::reject);
 
 	auto *button_row=new QHBoxLayout();
-	auto *defaults_button=new QPushButton(tr("標準設定(&D)"),this);
+	auto *defaults_button=new QPushButton(tr("Standard settings (&D)"),this);
 	connect(defaults_button,&QPushButton::clicked,this,&SettingsDialog::resetCurrentTabToDefaults);
 	button_row->addWidget(defaults_button);
 	button_row->addStretch();
@@ -810,14 +818,14 @@ void SettingsDialog::populateSoundDeviceCombo(const QString &backend,const QStri
 	if(auto_backend)
 	{
 		sound_device_->clear();
-		sound_device_->addItem(tr("既定"),QString());
+		sound_device_->addItem(tr("Default"),QString());
 		sound_device_->setCurrentIndex(0);
 		return;
 	}
 
 	const QString keep=select_device.isNull() ? sound_device_->currentData().toString() : select_device;
 	sound_device_->clear();
-	sound_device_->addItem(tr("既定"),QString());
+	sound_device_->addItem(tr("Default"),QString());
 	for(const auto &dev : TownsQtMiniaudioDevices::ListPlayback(backend_utf8.constData()))
 	{
 		const QString display=QString::fromUtf8(dev.name.c_str());
@@ -838,7 +846,7 @@ void SettingsDialog::populateSoundDeviceCombo(const QString &backend,const QStri
 	}
 	if(idx<0 && !keep.isEmpty())
 	{
-		sound_device_->addItem(tr("%1 (見つかりません)").arg(keep),keep);
+		sound_device_->addItem(tr("%1 (not found)").arg(keep),keep);
 		idx=sound_device_->count()-1;
 	}
 	sound_device_->setCurrentIndex(0<=idx ? idx : 0);
@@ -861,7 +869,7 @@ void SettingsDialog::updateFunctionTab()
 	if(!idle_ok)
 	{
 		idle_inhibit_->setToolTip(
-		    tr("Wayland の idle-inhibit に対応したセッションでのみ利用できます。"));
+		    tr("Available only on sessions that support Wayland idle-inhibit."));
 	}
 	else
 	{
@@ -891,11 +899,11 @@ void SettingsDialog::populateMidiOutputCombo(const QString &select_id)
 	const MidiBackendProbe::Kind backend=MidiBackendProbe::PreferredBackend();
 	if(MidiBackendProbe::Kind::FluidSynth==backend)
 	{
-		midi_output_->addItem(tr("FluidSynth（内蔵）"),QStringLiteral("fluidsynth"));
+		midi_output_->addItem(tr("FluidSynth (built-in)"),QStringLiteral("fluidsynth"));
 	}
 	else if(MidiBackendProbe::Kind::AlsaSeq==backend)
 	{
-		midi_output_->addItem(tr("（接続先を選択）"),QString());
+		midi_output_->addItem(tr("(select destination)"),QString());
 		for(const auto &entry : ListAlsaMidiOutputDestinations())
 		{
 			midi_output_->addItem(
@@ -905,7 +913,7 @@ void SettingsDialog::populateMidiOutputCombo(const QString &select_id)
 	}
 	else
 	{
-		midi_output_->addItem(tr("（利用可能な MIDI 出力なし）"),QString());
+		midi_output_->addItem(tr("(no MIDI outputs available)"),QString());
 		midi_output_->setEnabled(false);
 		return;
 	}
@@ -920,7 +928,7 @@ void SettingsDialog::populateMidiOutputCombo(const QString &select_id)
 		midi_output_->setCurrentIndex(0);
 	}
 #else
-	midi_output_->addItem(tr("（非対応）"),QString());
+	midi_output_->addItem(tr("(unsupported)"),QString());
 	midi_output_->setEnabled(false);
 #endif
 }
@@ -996,9 +1004,9 @@ void SettingsDialog::browseMidiSoundFont()
 	        : QFileInfo(midi_soundfont_path_).absolutePath();
 	const QString path=QFileDialog::getOpenFileName(
 	    this,
-	    tr("SoundFont を選択"),
+	    tr("Select SoundFont"),
 	    start_dir,
-	    tr("SoundFont (*.sf2);;すべてのファイル (*)"));
+	    tr("SoundFont (*.sf2);;All files (*)"));
 	if(path.isEmpty())
 	{
 		return;
@@ -1110,6 +1118,10 @@ void SettingsDialog::updateMachineTabControls()
 	if(nullptr!=midi_board_)
 	{
 		midi_board_->setEnabled(editable);
+	}
+	if(nullptr!=hdd_settings_button_)
+	{
+		hdd_settings_button_->setEnabled(editable);
 	}
 	if(nullptr!=opt_grid_widget_)
 	{
@@ -1458,6 +1470,10 @@ void SettingsDialog::applyToValues(Values &out) const
 		const int index=app_specific_->currentIndex();
 		out.appSpecificSetting=TownsQtAppProfileApp(index);
 	}
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		out.hdd[slot]=values_.hdd[slot];
+	}
 }
 
 void SettingsDialog::resetCurrentTabToDefaults()
@@ -1496,6 +1512,10 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		if(nullptr!=midi_board_)
 		{
 			midi_board_->setChecked(default_values_.midiBoard);
+		}
+		for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+		{
+			values_.hdd[slot]=default_values_.hdd[slot];
 		}
 		if(nullptr!=model_group_)
 		{
@@ -1642,4 +1662,37 @@ void SettingsDialog::resetCurrentTabToDefaults()
 	}
 	loading_=false;
 	markDirty();
+}
+
+void SettingsDialog::openHddSettingsDialog()
+{
+	HddSettingsDialog::Slot slots[TownsQtSettings::kHddSlotCount];
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		slots[slot].enabled=values_.hdd[slot].enabled;
+		slots[slot].path=values_.hdd[slot].path;
+	}
+
+	HddSettingsDialog dlg(slots,this);
+	if(QDialog::Accepted!=dlg.exec())
+	{
+		return;
+	}
+
+	dlg.copySlotsTo(slots);
+	bool changed=false;
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		if(values_.hdd[slot].enabled!=slots[slot].enabled ||
+		   values_.hdd[slot].path!=slots[slot].path)
+		{
+			changed=true;
+		}
+		values_.hdd[slot].enabled=slots[slot].enabled;
+		values_.hdd[slot].path=slots[slot].path;
+	}
+	if(changed)
+	{
+		markDirty();
+	}
 }

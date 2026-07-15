@@ -10,7 +10,7 @@ const TownsQtAppProfileEntry kEntries[]={
     {
         TOWNS_APPSPECIFIC_NONE,
         "NONE",
-        "なし",
+        "None",
         "タイトル別の補正を行いません",
     },
     {
@@ -151,7 +151,7 @@ int TownsQtAppProfileCount()
 const TownsQtAppProfileEntry &TownsQtAppProfileAt(int index)
 {
 	static const TownsQtAppProfileEntry kFallback={
-	    TOWNS_APPSPECIFIC_NONE,"NONE","なし","タイトル別の補正を行いません"};
+	    TOWNS_APPSPECIFIC_NONE,"NONE","None","タイトル別の補正を行いません"};
 	if(index<0 || index>=TownsQtAppProfileCount())
 	{
 		return kFallback;

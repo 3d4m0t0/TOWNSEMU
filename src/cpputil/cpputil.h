@@ -451,6 +451,12 @@ std::string ExpandFileName(std::string src,const std::map <std::string,std::stri
 inline void Toggle(bool &flag){flag=(flag==false);}
 
 inline std::string BoolToOnOffStr(bool flag){return (flag ? "ON" : "OFF");}
+
+/*! Leftover device debug (gamepad discovery, CRTC-HST write, RS232 Tx echo).
+    Enabled by TSUGARU_DEBUG=1, or by -VERBOSE (which sets that env var).
+*/
+bool DebugLogEnabled(void);
+void EnableDebugLog(void);
 };
 
 

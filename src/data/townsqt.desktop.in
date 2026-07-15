@@ -1,0 +1,26 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Tsugaru
+GenericName=FM TOWNS Emulator
+Comment=FM TOWNS / Marty emulator (Qt)
+GenericName[ja]=FM TOWNS エミュレータ
+GenericName[zh_CN]=FM TOWNS 模拟器
+GenericName[zh_TW]=FM TOWNS 模擬器
+GenericName[ko]=FM TOWNS 에뮬레이터
+GenericName[de]=FM-TOWNS-Emulator
+GenericName[fr]=Émulateur FM TOWNS
+GenericName[es]=Emulador FM TOWNS
+Comment[ja]=FM TOWNS / Marty エミュレータ (Qt)
+Comment[zh_CN]=FM TOWNS / Marty 模拟器 (Qt)
+Comment[zh_TW]=FM TOWNS / Marty 模擬器 (Qt)
+Comment[ko]=FM TOWNS / Marty 에뮬레이터 (Qt)
+Comment[de]=FM TOWNS / Marty-Emulator (Qt)
+Comment[fr]=Émulateur FM TOWNS / Marty (Qt)
+Comment[es]=Emulador FM TOWNS / Marty (Qt)
+Exec=Tsugaru_QT %f
+Icon=townsqt
+Terminal=false
+Categories=Game;Emulator;
+Keywords=emulator;fmtowns;marty;tsugaru;towns;
+StartupNotify=true

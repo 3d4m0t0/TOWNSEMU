@@ -1,0 +1,272 @@
+# Tsugaru_QT — FM TOWNS / Marty エミュレータ ”津軽” (Qt)
+
+**版 Tsugaru20260522-qt 0.1.0-pre（プレリリース）**
+
+CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/captainys/TOWNSEMU) の **Qt 6** フロントエンドです。
+
+### English
+
+**Tsugaru_QT — FM TOWNS / Marty Emulator ”津軽” (Qt frontend)**
+
+**Version Tsugaru20260522-qt 0.1.0-pre (pre-release)**
+
+A **Qt 6** frontend for CaptainYS's FM TOWNS / Marty emulator [Tsugaru](https://github.com/captainys/TOWNSEMU).
+
+## AI の利用について
+
+本プロジェクトでは AI 支援 IDE [Cursor](https://cursor.com/) を利用し、生成されたコードやデザインパターンを必要に応じて取り入れています。採用した生成物は、いずれも制作者がレビュー・修正・統合しています。
+
+紹介プログラム経由の登録用リンク（**紹介リンク**）: [cursor.com/referral?code=TI3UQLE9PFH3](https://cursor.com/referral?code=TI3UQLE9PFH3)  
+このリンクから登録すると Cursor 側の紹介特典が適用される場合がありますが、Tsugaru_QT の開発・配布とは無関係です。
+
+### English
+
+This project uses the AI-assisted IDE [Cursor](https://cursor.com/). Generated code and design patterns are incorporated where helpful; the maintainer reviews, revises, and integrates all adopted material.
+
+Referral registration link: [cursor.com/referral?code=TI3UQLE9PFH3](https://cursor.com/referral?code=TI3UQLE9PFH3). Cursor's referral program may apply at sign-up; this is unrelated to the development or distribution of Tsugaru_QT.
+
+---
+
+## 仕様
+
+`Tsugaru_CUI` からの主な差分は次のとおりです。
+
+* 機能の追加・削除を行っています
+* **同一プロセス内コア** — `Tsugaru_QT` はエミュレータコアを同一プロセス内（VM スレッド + UI スレッド）で動かし、ネイティブな Qt メニューバー UI で操作します（`Tsugaru_GUI` のように CUI を子プロセスとして起動しません）
+* **CD イメージ** — `.chd` 形式に対応
+* **MIDI** — FluidSynth によるソフトウェア音源出力（Linux）
+* **メニューバー操作** — ゲームポート機器の切り替え、フルスクリーン、スプライト / FAST MODE 制御などをメニューから設定可能
+* **Wayland idle-inhibit** — 実行中の画面スリープ・スクリーンセーバーを抑止
+* **UI 多言語化 (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es（en と ja はバイナリ埋め込み、他は `share/townsqt/translations/` の JSON。`TOWNSQT_LANG` またはシステムロケールで選択）
+
+### English
+
+Main differences from `Tsugaru_CUI`:
+
+* Features have been added and removed compared to the CUI build.
+* **In-process core** — `Tsugaru_QT` runs the emulator core in the same process (VM thread + UI thread) with a native Qt menu-bar UI; it does not spawn `Tsugaru_CUI` as a child process like `Tsugaru_GUI`.
+* **CD images** — `.chd` format support
+* **MIDI** — FluidSynth software synthesizer output (Linux)
+* **Menu-bar controls** — game-port device selection, fullscreen, sprite / FAST MODE and more, configurable from the menu
+* **Wayland idle-inhibit** — suppresses screen sleep / screensaver while running
+* **UI localization (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es (en and ja embedded in the binary; others load JSON from `share/townsqt/translations/`; select via `TOWNSQT_LANG` or system locale)
+
+---
+
+## Requirements / 必要環境
+
+- Linux (X11 or Wayland), C++17 compiler, CMake ≥ 3.16
+- **Qt 6** (`Widgets`, `OpenGLWidgets`)
+- ALSA (`alsa-lib`) for audio and MIDI
+- OpenGL / GLU, X11
+
+### openSUSE
+
+```bash
+sudo zypper install cmake gcc-c++ make git ccache \
+  qt6-base-devel qt6-opengl-devel \
+  alsa-lib-devel libX11-devel mesa-libGL-devel mesa-libGLU-devel python3
+```
+
+### Debian / Ubuntu
+
+```bash
+sudo apt-get install cmake g++ make git ccache \
+  qt6-base-dev qt6-base-dev-tools libgl1-mesa-dev libglu1-mesa-dev \
+  libasound2-dev libx11-dev python3
+```
+
+### Fedora
+
+```bash
+sudo dnf install cmake gcc-c++ make git ccache \
+  qt6-qtbase-devel qt6-qtbase-gui \
+  alsa-lib-devel libX11-devel mesa-libGL-devel mesa-libGLU-devel python3
+```
+
+---
+
+## Build / ビルド
+
+```bash
+cd /path/to/TOWNSEMU
+cmake -S src -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel "$(nproc)" --target TownsQt
+```
+
+Output binary: `build/townsqt/Tsugaru_QT`
+
+If Qt 6 is not found, the `TownsQt` target is skipped (the rest of the project
+still builds). See also [`../../BUILD_LINUX.md`](../../BUILD_LINUX.md).
+
+---
+
+## Install / インストール
+
+```bash
+# to ~/.local (no root)
+./scripts/install-linux.sh --build --user
+
+# system-wide to /usr (uses sudo)
+./scripts/install-linux.sh --system
+```
+
+Installed layout (prefix `/usr`):
+
+```
+bin/Tsugaru_QT
+share/applications/townsqt.desktop
+share/icons/hicolor/*/apps/townsqt.png
+share/townsqt/translations/townsqt_*.json
+```
+
+---
+
+## First run / 初回起動
+
+Tsugaru_QT needs an FM TOWNS ROM set (compatible with the emulator UNZ; a free
+ROM set is available from <http://ysflight.com/FM/towns/FreeTOWNS/e.html>).
+
+Place the ROM files in:
+
+```
+~/.config/townsqt/roms/
+```
+
+Then launch:
+
+```bash
+Tsugaru_QT
+```
+
+You can also pass a CD/ROM directory and images on the command line — all
+`Tsugaru_CUI` options are accepted:
+
+```bash
+Tsugaru_QT /path/to/ROM_DIR -CD /path/to/game.cue -FREQ 16 -YESWAIT
+```
+
+---
+
+## FluidSynth を使う場合
+
+MIDI 出力は FluidSynth によるソフトウェア音源で再生できます。ビルド時の依存はなく、`libfluidsynth.so.3` を実行時に読み込むため、FluidSynth のランタイムと GM 音源の SoundFont をインストールするだけで使えます。
+
+```bash
+# openSUSE
+sudo zypper install fluidsynth fluid-soundfont-gm
+# Debian / Ubuntu
+sudo apt-get install libfluidsynth3 fluid-soundfont-gm
+# Fedora
+sudo dnf install fluidsynth-libs fluid-soundfont-gm
+```
+
+設定ダイアログで MIDI 出力に FluidSynth を選択し、必要なら SoundFont を指定してください。SoundFont は次の順で検索されます。
+
+1. 設定ダイアログで指定したパス
+2. 環境変数 `TOWNSQT_MIDI_SOUNDFONT`
+3. 環境変数 `FLUIDSYNTH_SOUNDFONT`
+4. `/usr/share/soundfonts/FluidR3_GM.sf2`、`/usr/share/sounds/sf2/FluidR3_GM.sf2`、`~/.soundfonts/default.sf2` などの一般的な場所
+
+### English
+
+MIDI output can be rendered in software with FluidSynth. There is no build-time dependency: `libfluidsynth.so.3` is loaded at runtime, so install the FluidSynth runtime package and a General MIDI SoundFont:
+
+```bash
+# openSUSE
+sudo zypper install fluidsynth fluid-soundfont-gm
+# Debian / Ubuntu
+sudo apt-get install libfluidsynth3 fluid-soundfont-gm
+# Fedora
+sudo dnf install fluidsynth-libs fluid-soundfont-gm
+```
+
+Select FluidSynth as the MIDI output in Settings, and pick a SoundFont there if needed. The SoundFont is searched in this order:
+
+1. Path set in the Settings dialog
+2. `TOWNSQT_MIDI_SOUNDFONT` environment variable
+3. `FLUIDSYNTH_SOUNDFONT` environment variable
+4. Common locations such as `/usr/share/soundfonts/FluidR3_GM.sf2`, `/usr/share/sounds/sf2/FluidR3_GM.sf2`, `~/.soundfonts/default.sf2`
+
+---
+
+## Configuration files / 設定ファイル
+
+| Path | Purpose |
+|------|---------|
+| `~/.config/townsqt/townsqt.conf` | UI settings (QSettings INI) |
+| `~/.config/townsqt/cmos.bin` | CMOS RAM |
+| `~/.config/townsqt/roms/` | ROM images |
+| `~/.config/townsqt/hdd/` | SCSI hard-disk images |
+| `~/.config/townsqt/blank_fd/` | blank floppy images |
+
+UI language: `TOWNSQT_LANG` (e.g. `ja`, `en`, `de`, `fr`, `es`, `ko`,
+`zh_CN`, `zh_TW`) or the system locale. Extra translations directory:
+`TOWNSQT_TRANSLATIONS_DIR`.
+
+---
+
+## Troubleshooting / トラブルシュート
+
+- **`GL/glu.h: No such file`** — install the GLU dev package
+  (`mesa-libGLU-devel` / `libglu1-mesa-dev`).
+- **No audio** — install `alsa-lib-devel` / `libasound2-dev` and rebuild clean.
+- **No MIDI sound with FluidSynth** — install the FluidSynth runtime and a
+  GM SoundFont (see “FluidSynth を使う場合”), or set `TOWNSQT_MIDI_SOUNDFONT`.
+
+---
+
+## ライセンス
+
+### 系譜とドキュメント
+
+| 版 | 説明 | ドキュメント |
+|---|---|---|
+| [captainys/TOWNSEMU](https://github.com/captainys/TOWNSEMU)（Tsugaru） | FM TOWNS / Marty エミュレータ本体 | リポジトリルート [`readme.md`](../../readme.md)、[`LICENSE`](../../LICENSE) |
+| 本リポジトリ `src/townsqt/` | 上流 Tsugaru 向け Linux Qt 6 フロントエンド（`Tsugaru_QT`） | `README.md`（本ファイル） |
+
+ファイルによって適用されるライセンスが異なります。
+
+### TownsQt で新規追加したコード
+
+`src/townsqt/` および Linux 向けインストール規則（`src/cmake/TownsQtInstall.cmake`、`scripts/install-linux.sh` 等）、本フロントエンドで新規に追加したファイルは、上流 Tsugaru と同じ **3 条項 BSD ライセンス** です（[`LICENSE`](../../LICENSE) 参照）。
+
+### 上流 Tsugaru から引き継いだコード
+
+`src/towns/`、`src/cpu/`、`src/main_cui/` 等、オリジナル Tsugaru から引き継いだファイルは **CaptainYS（Soji Yamakawa）の 3 条項 BSD ライセンス** に従います（[`LICENSE`](../../LICENSE)、[`readme.md`](../../readme.md)「Source Code」節）。
+
+* 再配布時は著作権表示と免責条項を保持してください。
+* 著作権者名による製品の推奨・宣伝に、事前の書面による許可が必要です。
+* 本ソフトウェアは「現状のまま」提供され、いかなる保証もありません。
+
+### ROM イメージ
+
+ROM は **所有する実機から吸い出したもの** を使うのが最も正確です。実機をお持ちでない場合は、上流 readme に記載のフリー互換 ROM セット（<http://ysflight.com/FM/towns/FreeTOWNS/e.html>）が利用できます。Marty を再現するには Marty から抜き出した ROM が必要です（[`readme.md`](../../readme.md)「ROMS」「Marty」節）。
+
+`Tsugaru_QT` を使用する場合も、上記 ROM に関する条件は **同等に適用** されます。
+
+### 第三者ライブラリ
+
+* **miniaudio** (`third_party/miniaudio/`) — パブリックドメインまたは MIT No Attribution（miniaudio 同梱ヘッダの表記に従う）
+* **Wayland idle-inhibit protocol** (`src/townsqt/third_party/wayland-protocols/`) — MIT License
+
+各ライブラリの利用・再配布は、それぞれのライセンス条件に従ってください。
+
+### English
+
+**Lineage and documentation**
+
+| Version | Description | Documentation |
+|---|---|---|
+| [captainys/TOWNSEMU](https://github.com/captainys/TOWNSEMU) (Tsugaru) | FM TOWNS / Marty emulator core | Root [`readme.md`](../../readme.md), [`LICENSE`](../../LICENSE) |
+| This repo `src/townsqt/` | Linux Qt 6 frontend (`Tsugaru_QT`) | `README.md` (this file) |
+
+Different parts of the tree are covered by different licenses.
+
+**Newly added TownsQt code** — Files under `src/townsqt/` and Linux install rules added for this frontend are under the same **3-clause BSD License** as upstream Tsugaru ([`LICENSE`](../../LICENSE)).
+
+**Inherited Tsugaru code** — Core emulator sources (`src/towns/`, `src/cpu/`, `src/main_cui/`, etc.) remain under **CaptainYS (Soji Yamakawa)'s 3-clause BSD License** ([`LICENSE`](../../LICENSE), [`readme.md`](../../readme.md) “Source Code”).
+
+**ROM images** — ROMs extracted from hardware you own give the best fidelity. A free compatible ROM set is linked from upstream readme; Marty emulation requires Marty ROMs ([`readme.md`](../../readme.md) “ROMS”, “Marty”). The same conditions apply when using `Tsugaru_QT`.
+
+**Third-party libraries** — miniaudio (public domain or MIT No Attribution per its header); Wayland idle-inhibit protocol (MIT). Redistribute each component according to its own license terms.

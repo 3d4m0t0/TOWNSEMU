@@ -8,12 +8,15 @@
 #include "towns.h"
 #include "townsdef.h"
 #include "qt_sync_sound.h"
+#include "townsqt_paths.h"
+#include "townsqt_model_profile.h"
 #include "townsqt_settings.h"
 #include "townsdef.h"
 #include "townsthread.h"
 
 #include "fssimplewindow_connection.h"
 
+#include <QDir>
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
@@ -24,6 +27,138 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+
+namespace
+{
+const QStringList &FdImageSuffixPriority()
+{
+	static const QStringList suffixes{
+	    QStringLiteral("d77"),
+	    QStringLiteral("d88"),
+	    QStringLiteral("rdd"),
+	    QStringLiteral("xdf"),
+	    QStringLiteral("hdm"),
+	    QStringLiteral("fdd")};
+	return suffixes;
+}
+
+int FirstMediaTagPosition(const QString &stem)
+{
+	const int parenthesis=stem.indexOf(QLatin1Char('('));
+	const int bracket=stem.indexOf(QLatin1Char('['));
+	if(parenthesis<0)
+	{
+		return bracket;
+	}
+	if(bracket<0)
+	{
+		return parenthesis;
+	}
+	return std::min(parenthesis,bracket);
+}
+
+QString MediaTitle(const QString &stem)
+{
+	const int tag_pos=FirstMediaTagPosition(stem);
+	return (tag_pos<0 ? stem : stem.left(tag_pos)).trimmed();
+}
+
+int MatchingFdStemRank(const QString &stem,const QString &title)
+{
+	if(!stem.startsWith(title,Qt::CaseInsensitive))
+	{
+		return -1;
+	}
+	const QString remainder=stem.mid(title.size()).trimmed();
+	if(0==remainder.compare(QStringLiteral("(USER)"),Qt::CaseInsensitive) ||
+	   0==remainder.compare(QStringLiteral("[USER]"),Qt::CaseInsensitive))
+	{
+		return 0;
+	}
+	if(remainder.isEmpty())
+	{
+		return 1;
+	}
+	if((remainder.startsWith(QLatin1Char('(')) && remainder.endsWith(QLatin1Char(')'))) ||
+	   (remainder.startsWith(QLatin1Char('[')) && remainder.endsWith(QLatin1Char(']'))))
+	{
+		return 2;
+	}
+	return -1;
+}
+
+QString MatchingAutoFdImage(const QString &cd_path)
+{
+	const QFileInfo cd_info(cd_path);
+	const QString cd_stem=cd_info.completeBaseName();
+	if(cd_stem.isEmpty())
+	{
+		return {};
+	}
+
+	// First priority: an exact CD-basename match in TownsQt's blank-FD directory.
+	const QFileInfoList blank_files=QDir(TownsQtPaths::blankFdDir()).entryInfoList(
+	    QDir::Files|QDir::Readable,
+	    QDir::Name|QDir::IgnoreCase);
+	for(const QString &suffix : FdImageSuffixPriority())
+	{
+		for(const QFileInfo &file : blank_files)
+		{
+			if(0==file.completeBaseName().compare(cd_stem,Qt::CaseInsensitive) &&
+			   0==file.suffix().compare(suffix,Qt::CaseInsensitive))
+			{
+				return file.absoluteFilePath();
+			}
+		}
+	}
+
+	// Fallback beside the CD image.  Tags are optional on either side:
+	// Game(CD).cue, Game[CD].cue, or Game.cue can match
+	// Game(USER).d77, Game[USER].d77, or Game.d77.
+	const QString title=MediaTitle(cd_stem);
+	if(title.isEmpty())
+	{
+		return {};
+	}
+
+	const QFileInfoList sibling_files=cd_info.dir().entryInfoList(
+	    QDir::Files|QDir::Readable,
+	    QDir::Name|QDir::IgnoreCase);
+	for(const QString &suffix : FdImageSuffixPriority())
+	{
+		QString best_match;
+		int best_rank=3;
+		for(const QFileInfo &file : sibling_files)
+		{
+			if(0!=file.suffix().compare(suffix,Qt::CaseInsensitive))
+			{
+				continue;
+			}
+			if(file.absoluteFilePath()==cd_info.absoluteFilePath())
+			{
+				continue;
+			}
+			const QString fd_stem=file.completeBaseName();
+			const int rank=MatchingFdStemRank(fd_stem,title);
+			if(rank<0 || best_rank<=rank)
+			{
+				continue;
+			}
+			best_match=file.absoluteFilePath();
+			best_rank=rank;
+			if(0==rank)
+			{
+				break;
+			}
+		}
+		if(!best_match.isEmpty())
+		{
+			return best_match;
+		}
+	}
+	return {};
+}
+}
 
 struct EmulatorController::Impl
 {
@@ -111,6 +246,10 @@ void EmulatorController::run()
 		    TownsQtSettings::mouseMaxY());
 		applyCpuFastMode(TownsQtSettings::cpuFastModeEnabled());
 		setCdSpeed(TownsQtSettings::cdSpeed());
+		applyDisplayOptions(
+		    TownsQtSettings::damperWireLine(),
+		    TownsQtSettings::scanLineEffectIn15KHz(),
+		    TownsQtSettings::spriteTransferMode());
 		if(nullptr!=towns_)
 		{
 			last_fast_mode_lamp_revision_=towns_->var.fastModeLampRevision.load(std::memory_order_acquire);
@@ -136,19 +275,42 @@ void EmulatorController::run()
 			QMetaObject::invokeMethod(this,"onVmFinished",Qt::QueuedConnection);
 		});
 
+		const bool explicit_fd0=(""!=argv_.fdImgFName[0]);
+		QString startup_cd_path=QString::fromStdString(argv_.cdImgFName);
+		if(startup_cd_path.isEmpty())
+		{
+			const QString saved_cd=TownsQtSettings::lastCdImagePath();
+			if(QFile::exists(saved_cd))
+			{
+				startup_cd_path=saved_cd;
+			}
+		}
+		const QString startup_auto_fd0=
+		    explicit_fd0 ? QString{} : MatchingAutoFdImage(startup_cd_path);
+
 		if(""==argv_.cdImgFName)
 		{
 			const QString saved_cd=TownsQtSettings::lastCdImagePath();
 			if(!saved_cd.isEmpty() && QFile::exists(saved_cd))
 			{
-				QTimer::singleShot(0,this,[this,saved_cd]{
-					loadCdImage(saved_cd);
+				QTimer::singleShot(0,this,[this,saved_cd,explicit_fd0]{
+					loadCdImageInternal(saved_cd,!explicit_fd0);
 				});
 			}
+		}
+		else if(!startup_auto_fd0.isEmpty())
+		{
+			QTimer::singleShot(0,this,[this,startup_auto_fd0]{
+				loadFdImage(0,startup_auto_fd0);
+			});
 		}
 		for(int drive=0; drive<2; ++drive)
 		{
 			if(""!=argv_.fdImgFName[drive])
+			{
+				continue;
+			}
+			if(0==drive && !startup_auto_fd0.isEmpty())
 			{
 				continue;
 			}
@@ -255,6 +417,11 @@ void EmulatorController::resetMachine()
 
 void EmulatorController::loadCdImage(const QString &path)
 {
+	loadCdImageInternal(path,true);
+}
+
+void EmulatorController::loadCdImageInternal(const QString &path,bool auto_mount_fd0)
+{
 	if(path.isEmpty() || nullptr==impl_->outside_world)
 	{
 		return;
@@ -270,6 +437,15 @@ void EmulatorController::loadCdImage(const QString &path)
 	cmd+=usePath.toUtf8().constData();
 	cmd+='\"';
 	impl_->cmdThread.EnqueueCommand(*impl_->outside_world,cmd);
+
+	if(auto_mount_fd0)
+	{
+		const QString matching_fd=MatchingAutoFdImage(usePath);
+		if(!matching_fd.isEmpty())
+		{
+			loadFdImage(0,matching_fd);
+		}
+	}
 }
 
 void EmulatorController::ejectCd()
@@ -287,6 +463,10 @@ void EmulatorController::loadFdImage(int drive,const QString &path)
 {
 	drive=std::clamp(drive,0,1);
 	if(path.isEmpty() || nullptr==impl_->outside_world)
+	{
+		return;
+	}
+	if(true!=fdDriveAvailable(drive))
 	{
 		return;
 	}
@@ -363,6 +543,50 @@ bool EmulatorController::fdWriteProtected(int drive)
 		return false;
 	}
 	return TownsQtSettings::fdWriteProtect(drive);
+}
+
+bool EmulatorController::QueryFdDriveAvailable(int drive,const FMTownsCommon *towns)
+{
+	drive=std::clamp(drive,0,1);
+	if(0==drive)
+	{
+		return true;
+	}
+	if(TownsQtModelGroupIsMarty(TownsQtSettings::modelGroupIndex()))
+	{
+		return false;
+	}
+
+	const unsigned int cmos_index=
+	    (TOWNSIO_CMOS_SINGLE_DRIVE_MODE-TOWNSIO_CMOS_BASE)/2;
+	if(cmos_index>=TOWNS_CMOS_SIZE)
+	{
+		return true;
+	}
+
+	if(nullptr!=towns)
+	{
+		// Non-zero = Towns CMOS single-drive mode (FD1 unavailable).
+		return 0==towns->physMem.state.CMOSRAM[cmos_index];
+	}
+
+	// Emulator not running yet: peek saved CMOS (default is dual-drive).
+	QFile cmos_file(TownsQtPaths::cmosFilePath());
+	if(!cmos_file.open(QIODevice::ReadOnly))
+	{
+		return true;
+	}
+	const QByteArray cmos=cmos_file.read(static_cast<int>(cmos_index)+1);
+	if(cmos.size()<=static_cast<int>(cmos_index))
+	{
+		return true;
+	}
+	return 0==static_cast<unsigned char>(cmos.at(static_cast<int>(cmos_index)));
+}
+
+bool EmulatorController::fdDriveAvailable(int drive) const
+{
+	return QueryFdDriveAvailable(drive,towns_);
 }
 
 void EmulatorController::applyMidiBoard(bool enabled)
@@ -590,6 +814,20 @@ bool EmulatorController::snapMouseIntegration() const
 	return TownsQtSettings::snapMouseIntegration();
 }
 
+void EmulatorController::resetSnapMouseWarmup()
+{
+	if(nullptr==impl_->outside_world)
+	{
+		return;
+	}
+	if(true!=impl_->outside_world->snapMouseIntegration ||
+	   true==impl_->outside_world->differentialMouseIntegration)
+	{
+		return;
+	}
+	impl_->outside_world->ResetSnapMouseWarmup();
+}
+
 void EmulatorController::applyDisplayOptions(bool damperWireLine,bool scanLineEffectIn15KHz,int spriteTransferMode)
 {
 	spriteTransferMode=std::clamp(spriteTransferMode,0,2);
@@ -719,6 +957,18 @@ QVariantMap EmulatorController::guestMouseCoords() const
 	result[QStringLiteral("mos_work")]=static_cast<uint>(ow.debugMosWorkPhysAddr);
 	result[QStringLiteral("tbios_off")]=static_cast<uint>(ow.debugTbiosMouseInfoOffset);
 	result[QStringLiteral("snap_warmup")]=ow.debugSnapWarmupRemaining;
+	result[QStringLiteral("raw_x")]=ow.debugRawHostMx;
+	result[QStringLiteral("raw_y")]=ow.debugRawHostMy;
+	result[QStringLiteral("ctrl_x")]=ow.debugCtrlMx;
+	result[QStringLiteral("ctrl_y")]=ow.debugCtrlMy;
+	result[QStringLiteral("org_x")]=ow.debugOriginX;
+	result[QStringLiteral("org_y")]=ow.debugOriginY;
+	result[QStringLiteral("zoom_x")]=ow.debugZoom2xX;
+	result[QStringLiteral("zoom_y")]=ow.debugZoom2xY;
+	result[QStringLiteral("page")]=ow.debugMousePage;
+	result[QStringLiteral("hw_defined")]=ow.debugHwCursorDefined;
+	result[QStringLiteral("hw_x")]=ow.debugHwCursorX;
+	result[QStringLiteral("hw_y")]=ow.debugHwCursorY;
 	return result;
 }
 

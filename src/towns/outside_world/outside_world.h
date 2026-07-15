@@ -173,6 +173,13 @@ public:
 	int debugGuestMx=0,debugGuestMy=0;
 	int debugMosMx=0,debugMosMy=0;
 	int debugTbiosMx=0,debugTbiosMy=0;
+	int debugRawHostMx=0,debugRawHostMy=0;
+	int debugCtrlMx=0,debugCtrlMy=0;
+	int debugOriginX=0,debugOriginY=0;
+	int debugZoom2xX=2,debugZoom2xY=2;
+	int debugMousePage=0;
+	int debugHwCursorX=0,debugHwCursorY=0;
+	bool debugHwCursorDefined=false;
 	unsigned int debugMosWorkPhysAddr=0;
 	unsigned int debugTbiosMouseInfoOffset=0;
 	bool debugGuestValid=false;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "outside_world.h"
+#include "townsqt_drive_access_overlay.h"
 
 #include <QImage>
 #include <QPixmap>
@@ -39,7 +40,8 @@ public:
 	/*! Host mouse position in emulator image coordinates (0..emu_w-1). */
 	QPoint hostMouseEmuCoords() const;
 
-	void updateDriveAccessIndicators(const Outside_World::StatusBarInfo &info);
+	void updateDriveAccessIndicators(const Outside_World::StatusBarInfo &info,
+	                                 const DriveAccessPresence &presence);
 	void setDriveAccessOverlayEnabled(bool enabled);
 
 	/*! True when view_pos lies inside the scaled emulator picture (not letterbox). */
@@ -97,6 +99,7 @@ private:
 	bool has_view_mouse_pos_=false;
 	QPoint last_view_mouse_pos_;
 	Outside_World::StatusBarInfo drive_access_{};
+	DriveAccessPresence drive_access_presence_{};
 	bool drive_access_valid_=false;
 	bool drive_access_overlay_enabled_=true;
 	bool drive_access_overlay_visible_=false;

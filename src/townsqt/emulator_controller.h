@@ -33,7 +33,10 @@ public Q_SLOTS:
 	void loadFdImage(int drive,const QString &path);
 	void ejectFd(int drive);
 	void setFdWriteProtect(int drive,bool write_protect);
-	bool fdWriteProtected(int drive);
+	Q_INVOKABLE bool fdWriteProtected(int drive);
+	Q_INVOKABLE bool fdDriveAvailable(int drive) const;
+	/*! FD0 always (non-Marty); FD1 disabled in CMOS single-drive mode. */
+	static bool QueryFdDriveAvailable(int drive,const FMTownsCommon *towns);
 	void pollWindow();
 	Q_INVOKABLE QVariantMap guestMouseCoords() const;
 	Q_INVOKABLE bool fastModeLamp() const;
@@ -61,6 +64,7 @@ public Q_SLOTS:
 	Q_INVOKABLE void setSnapMouseIntegration(bool enabled);
 	Q_INVOKABLE void applySnapMouseSettings(bool enabled,int warmup_frames);
 	Q_INVOKABLE bool snapMouseIntegration() const;
+	Q_INVOKABLE void resetSnapMouseWarmup();
 
 Q_SIGNALS:
 	void frameReady();
@@ -104,4 +108,5 @@ private:
 
 	void presentDueFrames();
 	void updateStats();
+	void loadCdImageInternal(const QString &path,bool auto_mount_fd0);
 };

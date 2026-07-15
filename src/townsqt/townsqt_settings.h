@@ -8,6 +8,8 @@ namespace TownsQtSettings
 QString lastCdImagePath();
 void setLastCdImagePath(const QString &path);
 void clearLastCdImagePath();
+QString workingDirectory();
+void setWorkingDirectory(const QString &directory);
 
 constexpr int kRecentFileHistoryMax=8;
 QStringList recentCdImagePaths();
@@ -158,4 +160,11 @@ void setSnapMouseIntegration(bool enabled);
 
 int snapMouseWarmupFrames();
 void setSnapMouseWarmupFrames(int frames);
+
+/*! Hard-disk images for SCSI IDs 0..6 (TownsStartParameters::MAX_NUM_SCSI_DEVICES). */
+constexpr int kHddSlotCount=7;
+bool hddEnabled(int slot);
+void setHddEnabled(int slot,bool enabled);
+QString hddImagePath(int slot);
+void setHddImagePath(int slot,const QString &path);
 }

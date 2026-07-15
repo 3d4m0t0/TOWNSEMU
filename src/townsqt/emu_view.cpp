@@ -201,25 +201,33 @@ void EmuView::setDriveAccessOverlayVisible(bool visible)
 	}
 }
 
-void EmuView::updateDriveAccessIndicators(const Outside_World::StatusBarInfo &info)
+void EmuView::updateDriveAccessIndicators(const Outside_World::StatusBarInfo &info,
+                                          const DriveAccessPresence &presence)
 {
-	if(true==drive_access_valid_ && true==DriveAccessStatusEqual(drive_access_,info))
+	if(true==drive_access_valid_ &&
+	   true==DriveAccessStatusEqual(drive_access_,info) &&
+	   true==DriveAccessPresenceEqual(drive_access_presence_,presence))
 	{
 		return;
 	}
 	drive_access_=info;
+	drive_access_presence_=presence;
 	drive_access_valid_=true;
 	if(nullptr!=gl_view_)
 	{
-		gl_view_->setDriveAccessIndicators(info);
+		gl_view_->setDriveAccessIndicators(info,presence);
 	}
-	if(true==drive_access_overlay_enabled_)
+	if(true==drive_access_overlay_enabled_ && 0<presence.IconCount())
 	{
 		setDriveAccessOverlayVisible(true);
 		if(nullptr!=drive_access_hide_timer_)
 		{
 			drive_access_hide_timer_->start(kDriveAccessOverlayHideMs);
 		}
+	}
+	else if(0>=presence.IconCount())
+	{
+		setDriveAccessOverlayVisible(false);
 	}
 	update();
 	if(nullptr!=gl_view_)
@@ -232,16 +240,18 @@ void EmuView::paintDriveAccessOverlay(QPainter &painter)
 {
 	if(true!=drive_access_overlay_enabled_ ||
 	   true!=drive_access_overlay_visible_ ||
-	   true!=drive_access_valid_)
+	   true!=drive_access_valid_ ||
+	   0>=drive_access_presence_.IconCount())
 	{
 		return;
 	}
 	constexpr int kMargin=2;
 	DrawDriveAccessOverlay(
 	    painter,
-	    DriveAccessOverlayOriginX(width()),
+	    DriveAccessOverlayOriginX(width(),drive_access_presence_),
 	    height()-kDriveAccessIconSize-kMargin,
-	    drive_access_);
+	    drive_access_,
+	    drive_access_presence_);
 }
 
 void EmuView::pollMousePosition()
@@ -314,14 +324,14 @@ void EmuView::decideRenderBackend()
 	{
 		use_gl_=true;
 		vsync_timer_->stop();
-		std::fprintf(stderr,"TownsQt: OpenGL display backend enabled.\n");
+		std::fprintf(stderr,"Tsugaru_QT: OpenGL display backend enabled.\n");
 	}
 	else
 	{
 		use_gl_=false;
 		gl_view_->hide();
 		startSoftwareVsync();
-		std::fprintf(stderr,"TownsQt: OpenGL unavailable, using software rendering.\n");
+		std::fprintf(stderr,"Tsugaru_QT: OpenGL unavailable, using software rendering.\n");
 	}
 }
 
@@ -339,7 +349,7 @@ void EmuView::startSoftwareVsync()
 	const int interval_ms=std::max(1,static_cast<int>(std::lround(1000.0/hz)));
 	vsync_timer_->setInterval(interval_ms);
 	vsync_timer_->start();
-	std::fprintf(stderr,"TownsQt: software display VSync ~%.1f Hz (%d ms).\n",hz,interval_ms);
+	std::fprintf(stderr,"Tsugaru_QT: software display VSync ~%.1f Hz (%d ms).\n",hz,interval_ms);
 }
 
 void EmuView::onSoftwareVsyncTick()

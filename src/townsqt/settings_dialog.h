@@ -6,6 +6,7 @@
 #include "townsdef.h"
 
 #include "townsqt_rom_availability.h"
+#include "townsqt_settings.h"
 
 class QGroupBox;
 class QButtonGroup;
@@ -25,6 +26,12 @@ class SettingsDialog : public QDialog
 public:
 	struct Values
 	{
+		struct HddSlot
+		{
+			bool enabled=false;
+			QString path;
+		};
+
 		int cpuFrequencyMhz=33;
 		int memSizeInMB=4;
 		bool cpuHighFidelity=false;
@@ -66,6 +73,7 @@ public:
 		int mouseMaxX=1023;
 		int mouseMaxY=767;
 		unsigned int appSpecificSetting=TOWNS_APPSPECIFIC_NONE;
+		HddSlot hdd[TownsQtSettings::kHddSlotCount];
 	};
 
 	explicit SettingsDialog(const Values &initial,const QString &romDir=QString(),QWidget *parent=nullptr);
@@ -87,6 +95,7 @@ private Q_SLOTS:
 	void updateAudioTabMidiSection();
 	void browseMidiSoundFont();
 	void populateMidiOutputCombo(const QString &select_id=QString());
+	void openHddSettingsDialog();
 
 private:
 	void buildUi();
@@ -128,6 +137,7 @@ private:
 	QCheckBox *use_fpu_=nullptr;
 	QCheckBox *fast_scsi_=nullptr;
 	QCheckBox *midi_board_=nullptr;
+	QPushButton *hdd_settings_button_=nullptr;
 	QComboBox *model_group_=nullptr;
 	QLabel *sys_rom_info_label_=nullptr;
 	QLabel *model_description_=nullptr;

@@ -14,6 +14,7 @@
 namespace
 {
 constexpr char kLastCdImageKey[]="media/last_cd_image";
+constexpr char kWorkingDirectoryKey[]="media/working_directory";
 constexpr char kRecentCdImagesKey[]="media/recent_cd_images";
 constexpr char kLastFdImageKey[]="media/last_fd_image";
 constexpr char kRecentFdImagesKey[]="media/recent_fd_images";
@@ -64,6 +65,9 @@ constexpr char kDriveAccessDebugKey[]="debug/drive_access_lamps";
 constexpr char kMidiMonitorKey[]="debug/midi_monitor";
 constexpr char kSnapMouseIntegrationKey[]="function/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesKey[]="function/snap_mouse_warmup_frames";
+constexpr char kHddEnabledKeyPrefix[]="hdd/";
+constexpr char kHddPathKeySuffix[]="/path";
+constexpr char kHddEnabledKeySuffix[]="/enabled";
 constexpr char kSnapMouseIntegrationLegacyKey[]="debug/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesLegacyKey[]="debug/snap_mouse_warmup_frames";
 constexpr int kSnapMouseWarmupFramesDefault=60;
@@ -682,7 +686,13 @@ void TownsQtSettings::setLastCdImagePath(const QString &path)
 	else
 	{
 		const QString canonical=QFileInfo(path).canonicalFilePath();
-		settings.setValue(QString::fromLatin1(kLastCdImageKey),canonical.isEmpty() ? path : canonical);
+		const QString use_path=canonical.isEmpty() ? path : canonical;
+		settings.setValue(QString::fromLatin1(kLastCdImageKey),use_path);
+		const QString directory=QFileInfo(use_path).absolutePath();
+		const QString canonical_directory=QFileInfo(directory).canonicalFilePath();
+		settings.setValue(
+		    QString::fromLatin1(kWorkingDirectoryKey),
+		    canonical_directory.isEmpty() ? directory : canonical_directory);
 	}
 	settings.sync();
 }
@@ -690,6 +700,41 @@ void TownsQtSettings::setLastCdImagePath(const QString &path)
 void TownsQtSettings::clearLastCdImagePath()
 {
 	setLastCdImagePath(QString());
+}
+
+QString TownsQtSettings::workingDirectory()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	const QString directory=
+	    settings.value(QString::fromLatin1(kWorkingDirectoryKey)).toString();
+	if(QFileInfo(directory).isDir())
+	{
+		return directory;
+	}
+
+	// Compatibility with configurations created before working_directory existed.
+	const QString last_cd=
+	    settings.value(QString::fromLatin1(kLastCdImageKey)).toString();
+	if(last_cd.isEmpty())
+	{
+		return {};
+	}
+	const QString last_cd_directory=QFileInfo(last_cd).absolutePath();
+	return QFileInfo(last_cd_directory).isDir() ? last_cd_directory : QString{};
+}
+
+void TownsQtSettings::setWorkingDirectory(const QString &directory)
+{
+	if(directory.isEmpty() || !QFileInfo(directory).isDir())
+	{
+		return;
+	}
+	const QString canonical=QFileInfo(directory).canonicalFilePath();
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(
+	    QString::fromLatin1(kWorkingDirectoryKey),
+	    canonical.isEmpty() ? QFileInfo(directory).absoluteFilePath() : canonical);
+	settings.sync();
 }
 
 QStringList TownsQtSettings::recentCdImagePaths()
@@ -1137,5 +1182,51 @@ void TownsQtSettings::setSnapMouseWarmupFrames(int frames)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kSnapMouseWarmupFramesKey),std::clamp(frames,0,600));
+	settings.sync();
+}
+
+namespace
+{
+int ClampHddSlot(int slot)
+{
+	return std::clamp(slot,0,TownsQtSettings::kHddSlotCount-1);
+}
+
+QString HddEnabledKey(int slot)
+{
+	return QString::fromLatin1(kHddEnabledKeyPrefix)+QString::number(ClampHddSlot(slot))+
+	       QString::fromLatin1(kHddEnabledKeySuffix);
+}
+
+QString HddPathKey(int slot)
+{
+	return QString::fromLatin1(kHddEnabledKeyPrefix)+QString::number(ClampHddSlot(slot))+
+	       QString::fromLatin1(kHddPathKeySuffix);
+}
+}
+
+bool TownsQtSettings::hddEnabled(int slot)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(HddEnabledKey(slot),false).toBool();
+}
+
+void TownsQtSettings::setHddEnabled(int slot,bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(HddEnabledKey(slot),enabled);
+	settings.sync();
+}
+
+QString TownsQtSettings::hddImagePath(int slot)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(HddPathKey(slot)).toString();
+}
+
+void TownsQtSettings::setHddImagePath(int slot,const QString &path)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(HddPathKey(slot),path);
 	settings.sync();
 }

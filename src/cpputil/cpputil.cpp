@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 << LICENSE */
 #include <fstream>
+#include <stdlib.h>
 
 #ifdef _WIN32
 	#include <direct.h>
@@ -1241,4 +1242,19 @@ std::string cpputil::ExpandFileName(std::string src,const std::map <std::string,
 	}
 	expandedName+=pending;
 	return expandedName;
+}
+
+bool cpputil::DebugLogEnabled(void)
+{
+	const char *e=getenv("TSUGARU_DEBUG");
+	return nullptr!=e && '\0'!=e[0] && '0'!=e[0];
+}
+
+void cpputil::EnableDebugLog(void)
+{
+#if defined(_WIN32)
+	_putenv("TSUGARU_DEBUG=1");
+#else
+	setenv("TSUGARU_DEBUG","1",1);
+#endif
 }

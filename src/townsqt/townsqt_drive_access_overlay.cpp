@@ -20,6 +20,47 @@ void DrawIcon16(QPainter &painter,int x,int y,const unsigned char *idle,const un
 }
 }
 
+int DriveAccessPresence::IconCount() const
+{
+	int count=0;
+	if(cd)
+	{
+		++count;
+	}
+	for(bool enabled : fd)
+	{
+		if(enabled)
+		{
+			++count;
+		}
+	}
+	for(bool enabled : hdd)
+	{
+		if(enabled)
+		{
+			++count;
+		}
+	}
+	return count;
+}
+
+bool DriveAccessPresenceEqual(const DriveAccessPresence &a,const DriveAccessPresence &b)
+{
+	if(a.cd!=b.cd)
+	{
+		return false;
+	}
+	if(0!=std::memcmp(a.fd,b.fd,sizeof(a.fd)))
+	{
+		return false;
+	}
+	if(0!=std::memcmp(a.hdd,b.hdd,sizeof(a.hdd)))
+	{
+		return false;
+	}
+	return true;
+}
+
 bool DriveAccessStatusEqual(const Outside_World::StatusBarInfo &a,const Outside_World::StatusBarInfo &b)
 {
 	if(a.cdAccessLamp!=b.cdAccessLamp)
@@ -37,23 +78,52 @@ bool DriveAccessStatusEqual(const Outside_World::StatusBarInfo &a,const Outside_
 	return true;
 }
 
-int DriveAccessOverlayOriginX(int area_width)
+int DriveAccessOverlayWidth(const DriveAccessPresence &presence)
+{
+	return presence.IconCount()*kDriveAccessIconSize;
+}
+
+int DriveAccessOverlayOriginX(int area_width,const DriveAccessPresence &presence)
 {
 	constexpr int kMargin=2;
-	const int centered=(area_width-kDriveAccessOverlayWidth)/2;
+	const int width=DriveAccessOverlayWidth(presence);
+	if(width<=0)
+	{
+		return kMargin;
+	}
+	const int centered=(area_width-width)/2;
 	return std::max(kMargin,centered);
 }
 
-void DrawDriveAccessOverlay(QPainter &painter,int origin_x,int origin_y,const Outside_World::StatusBarInfo &info)
+void DrawDriveAccessOverlay(QPainter &painter,
+                            int origin_x,
+                            int origin_y,
+                            const Outside_World::StatusBarInfo &info,
+                            const DriveAccessPresence &presence)
 {
 	constexpr int kIcon=16;
-	DrawIcon16(painter,origin_x+0*kIcon,origin_y,CD_IDLE,CD_BUSY,info.cdAccessLamp);
+	int slot=0;
+	if(presence.cd)
+	{
+		DrawIcon16(painter,origin_x+slot*kIcon,origin_y,CD_IDLE,CD_BUSY,info.cdAccessLamp);
+		++slot;
+	}
 	for(int fd=0; fd<2; ++fd)
 	{
-		DrawIcon16(painter,origin_x+(1+fd)*kIcon,origin_y,FD_IDLE,FD_BUSY,info.fdAccessLamp[fd]);
+		if(!presence.fd[fd])
+		{
+			continue;
+		}
+		DrawIcon16(painter,origin_x+slot*kIcon,origin_y,FD_IDLE,FD_BUSY,info.fdAccessLamp[fd]);
+		++slot;
 	}
 	for(int hdd=0; hdd<6; ++hdd)
 	{
-		DrawIcon16(painter,origin_x+(3+hdd)*kIcon,origin_y,HDD_IDLE,HDD_BUSY,info.scsiAccessLamp[hdd]);
+		if(!presence.hdd[hdd])
+		{
+			continue;
+		}
+		DrawIcon16(painter,origin_x+slot*kIcon,origin_y,HDD_IDLE,HDD_BUSY,info.scsiAccessLamp[hdd]);
+		++slot;
 	}
 }

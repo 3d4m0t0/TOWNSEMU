@@ -33,7 +33,7 @@ void ProbeBackend(void)
 		g_backend=LinuxMidiBackend::AlsaSeq;
 		return;
 	}
-	std::fprintf(stderr,"TownsEMU MIDI: no host backend available (FluidSynth / ALSA sequencer).\n");
+	std::fprintf(stderr,"Tsugaru_QT: no host backend available (FluidSynth / ALSA sequencer).\n");
 	g_backend=LinuxMidiBackend::Null;
 }
 

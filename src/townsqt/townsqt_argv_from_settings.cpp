@@ -82,10 +82,33 @@ void ApplyDefaultCmosPath(TownsARGV &argv)
 	argv.CMOSFName=TownsQtPaths::cmosFilePath().toStdString();
 }
 
+void ApplyHardDiskFromSettings(TownsARGV &argv)
+{
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		if(TownsStartParameters::SCSIIMAGE_NONE!=argv.scsiImg[slot].imageType)
+		{
+			continue;
+		}
+		if(!TownsQtSettings::hddEnabled(slot))
+		{
+			continue;
+		}
+		const QString path=TownsQtSettings::hddImagePath(slot);
+		if(path.isEmpty())
+		{
+			continue;
+		}
+		argv.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_HARDDISK;
+		argv.scsiImg[slot].imgFName=path.toStdString();
+	}
+}
+
 void Apply(TownsARGV &argv)
 {
 	ApplyMachineFromSettings(argv);
 	ApplySessionSettings(argv);
+	ApplyHardDiskFromSettings(argv);
 	ApplyDefaultCmosPath(argv);
 }
 }

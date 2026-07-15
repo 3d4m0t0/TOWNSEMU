@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/i18n">
+    <file alias="townsqt_en.json">translations/townsqt_en.json</file>
+    <file alias="townsqt_ja.json">translations/townsqt_ja.json</file>
+  </qresource>
+</RCC>

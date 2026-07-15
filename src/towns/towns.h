@@ -665,6 +665,13 @@ public:
 	*/
 	bool GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) const;
 
+	/*! Apply the same host→guest transform ControlMouse uses (origin/zoom/VRAM/app tweaks). */
+	void TransformHostMouseForIntegration(int hostMouseX,int hostMouseY,
+	                                      int &outX,int &outY,
+	                                      int &originX,int &originY,
+	                                      int &zoom2xX,int &zoom2xY,
+	                                      int &page) const;
+
 
 	/*! After constructing FMTownsCommon class, call this function to specify where to look
 	    for the ROM images.

@@ -113,10 +113,10 @@ bool MidiAlsaSeqHost::TryInitialize(void)
 	{
 		return false;
 	}
-	snd_seq_set_client_name(g_seq,"TownsEMU");
+	snd_seq_set_client_name(g_seq,"Tsugaru_QT");
 	g_active=true;
 	g_next_port=0;
-	std::fprintf(stderr,"TownsEMU MIDI: using ALSA sequencer.\n");
+	std::fprintf(stderr,"Tsugaru_QT: using ALSA sequencer.\n");
 	return true;
 }
 

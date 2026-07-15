@@ -13,10 +13,12 @@
 #include "townsparam.h"
 #include "i486.h"
 #include "townsqt_argv_from_settings.h"
+#include "townsqt_i18n.h"
 #include "townsqt_model_profile.h"
 #include "townsqt_paths.h"
 #include "townsqt_rom_availability.h"
 #include "townsqt_settings.h"
+#include "townsqt_version.h"
 
 #if defined(__linux__)
 #include "linux/midi_fluidsynth_host.h"
@@ -247,6 +249,26 @@ bool ArgvHasExplicitMidiFlag(int argc,char *argv[])
 	return false;
 }
 
+bool ArgvHasExplicitFastScsiFlag(int argc,char *argv[])
+{
+	for(int i=1; i<argc; ++i)
+	{
+		std::string arg=argv[i];
+		for(auto &c : arg)
+		{
+			if('a'<=c && c<='z')
+			{
+				c=static_cast<char>(c+'A'-'a');
+			}
+		}
+		if("-FASTSCSI"==arg || "-SLOWSCSI"==arg || "-NORMALSCSI"==arg)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void TownsQtConfigureOpenGL()
 {
 	QSurfaceFormat fmt;
@@ -282,7 +304,7 @@ int main(int argc,char *argv[])
 {
 	if(sizeof(void *)<8)
 	{
-		fprintf(stderr,"TownsQt requires a 64-bit CPU.\n");
+		fprintf(stderr,"Tsugaru_QT: requires a 64-bit CPU.\n");
 		return 1;
 	}
 
@@ -296,7 +318,9 @@ int main(int argc,char *argv[])
 
 	QApplication app(argc,argv);
 	app.setApplicationName(QStringLiteral("TownsQt"));
+	app.setApplicationVersion(QStringLiteral(TOWNSQT_VERSION));
 	app.setOrganizationName(QStringLiteral("TOWNSEMU"));
+	TownsQtInstallTranslators(app);
 	{
 		QIcon icon;
 		icon.addFile(QStringLiteral(":/icons/tsugaru_16.png"));
@@ -310,7 +334,7 @@ int main(int argc,char *argv[])
 
 	if(true!=TownsQtPaths::ensureLayout())
 	{
-		fprintf(stderr,"TownsQt: failed to create config directory.\n");
+		fprintf(stderr,"Tsugaru_QT: failed to create config directory.\n");
 		return 1;
 	}
 
@@ -323,7 +347,7 @@ int main(int argc,char *argv[])
 	if(townsArgv.ROMPath.empty())
 	{
 		townsArgv.ROMPath=TownsQtPaths::romsDir().toStdString();
-		std::printf("[TownsQt] Default ROM directory: %s\n",townsArgv.ROMPath.c_str());
+		std::printf("Tsugaru_QT: Default ROM directory: %s\n",townsArgv.ROMPath.c_str());
 	}
 
 	townsArgv.interactive=false;
@@ -346,7 +370,7 @@ int main(int argc,char *argv[])
 			townsArgv.townsType=TownsQtSettings::townsType();
 			std::fprintf(
 			    stderr,
-			    "[TownsQt] Saved model is incompatible with SYS ROM; using default model.\n");
+			    "Tsugaru_QT: Saved model is incompatible with SYS ROM; using default model.\n");
 		}
 	}
 	else
@@ -441,15 +465,25 @@ int main(int argc,char *argv[])
 		townsArgv.nMidiCards=TownsQtSettings::midiBoard() ? 1 : 0;
 	}
 
+	if(true!=ArgvHasExplicitFastScsiFlag(argc,argv))
+	{
+		townsArgv.fastSCSI=TownsQtSettings::fastScsi();
+	}
+	else
+	{
+		TownsQtSettings::setFastScsi(townsArgv.fastSCSI);
+	}
+
 	townsArgv.fmVol=TownsQtSettings::fmChipVolume();
 	townsArgv.pcmVol=TownsQtSettings::pcmChipVolume();
 	townsArgv.alwaysBootToFASTMode=TownsQtSettings::cpuFastModeEnabled();
 
 	TownsQtArgvFromSettings::ApplySessionSettings(townsArgv);
+	TownsQtArgvFromSettings::ApplyHardDiskFromSettings(townsArgv);
 	TownsQtArgvFromSettings::ApplyDefaultCmosPath(townsArgv);
 	if(!townsArgv.CMOSFName.empty())
 	{
-		std::printf("[TownsQt] CMOS file: %s\n",townsArgv.CMOSFName.c_str());
+		std::printf("Tsugaru_QT: CMOS file: %s\n",townsArgv.CMOSFName.c_str());
 	}
 
 	MainWindow window(townsArgv,TownsQtSettings::displayScale());

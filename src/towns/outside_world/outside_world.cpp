@@ -1406,12 +1406,38 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 	debugMosWorkPhysAddr=towns.state.MOS_work_physicalAddr;
 	debugTbiosMouseInfoOffset=towns.state.TBIOS_mouseInfoOffset;
 
+	debugRawHostMx=towns.var.lastKnownMouseX;
+	debugRawHostMy=towns.var.lastKnownMouseY;
+	towns.TransformHostMouseForIntegration(
+	    debugRawHostMx,debugRawHostMy,
+	    debugCtrlMx,debugCtrlMy,
+	    debugOriginX,debugOriginY,
+	    debugZoom2xX,debugZoom2xY,
+	    debugMousePage);
+
+	debugHwCursorDefined=false;
+	debugHwCursorX=0;
+	debugHwCursorY=0;
+	if(true==towns.crtc.state.highResCRTCEnabled && true==towns.crtc.state.highResCrtcMouse.defined)
+	{
+		debugHwCursorDefined=true;
+		debugHwCursorX=towns.crtc.state.highResCrtcMouse.X;
+		debugHwCursorY=towns.crtc.state.highResCrtcMouse.Y;
+	}
+
 	debugMosMx=0;
 	debugMosMy=0;
 	if(0!=towns.state.MOS_work_physicalAddr)
 	{
-		debugMosMx=(int)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+0x56);
-		debugMosMy=(int)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+0x58);
+		unsigned int mos_x_off=0x56;
+		unsigned int mos_y_off=0x58;
+		if(TBIOS_V31L22A==towns.state.tbiosVersion)
+		{
+			mos_x_off=0x52;
+			mos_y_off=0x54;
+		}
+		debugMosMx=(int)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+mos_x_off);
+		debugMosMy=(int)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+mos_y_off);
 	}
 
 	debugTbiosMx=0;

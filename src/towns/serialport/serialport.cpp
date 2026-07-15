@@ -121,14 +121,17 @@ void TownsSerialPort::DefaultClient::XMODEM_TO_VM_TransferNextBlock(uint32_t pac
 	{
 	case FILETFR_NONE:
 	default:
-		// Just echo
-		std::cout << "Tx from VM:" << cpputil::Ubtox(data);
-		if(isprint(data))
+		// Just echo (debug only: -VERBOSE or TSUGARU_DEBUG=1)
+		if(true==cpputil::DebugLogEnabled())
 		{
-			char c=data;
-			std::cout << '[' << c << ']';
+			std::cout << "Tx from VM:" << cpputil::Ubtox(data);
+			if(isprint(data))
+			{
+				char c=data;
+				std::cout << '[' << c << ']';
+			}
+			std::cout << std::endl;
 		}
-		std::cout << std::endl;
 		toVMPtr=toVM.size();
 		toVM.push_back(data);
 		if(0x0D==data)

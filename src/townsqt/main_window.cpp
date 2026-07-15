@@ -8,6 +8,7 @@
 #include "townsqt_rom_availability.h"
 #include "townsqt_app_profile.h"
 #include "townsqt_settings.h"
+#include "townsqt_version.h"
 #include "townsqt_wayland_idle_inhibit.h"
 
 #if defined(__linux__)
@@ -32,6 +33,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFile>
+#include <QSaveFile>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QCursor>
@@ -63,7 +65,7 @@ QString TsugaruQuotedName()
 
 QString AboutTsugaruTitleText()
 {
-	return QCoreApplication::translate("MainWindow","Tsugaru %1 について")
+	return QCoreApplication::translate("MainWindow","About Tsugaru %1")
 	    .arg(TsugaruQuotedName());
 }
 
@@ -79,38 +81,46 @@ void AddMenuWidget(QMenu *menu,QWidget *widget)
 	menu->addAction(action);
 }
 
-QString CreateBlankFdImagePath()
+bool CreateBlankFdImage(const QString &path)
 {
 	if(true!=TownsQtPaths::ensureLayout())
 	{
-		return {};
+		return false;
 	}
-	const QString file_name=QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"))
-	                      +QStringLiteral(".d77");
-	const QString path=TownsQtPaths::blankFdDir()+QStringLiteral("/")+file_name;
 
 	// Towns 2HD 1232KB blank (same template as CUI -GENFD).
 	const auto raw=Get1232KBFloppyDiskImage();
-	D77File d77;
-	if(true!=d77.SetRawBinary(raw))
+	std::vector<unsigned char> image;
+	const QString suffix=QFileInfo(path).suffix().toLower();
+	if(QStringLiteral("d77")==suffix)
 	{
-		return {};
+		D77File d77;
+		if(true!=d77.SetRawBinary(raw))
+		{
+			return false;
+		}
+		image=d77.MakeD77Image();
 	}
-	const auto image=d77.MakeD77Image();
+	else
+	{
+		image=raw;
+	}
 	if(image.empty())
 	{
-		return {};
+		return false;
 	}
-	QFile file(path);
+
+	QSaveFile file(path);
 	if(!file.open(QIODevice::WriteOnly))
 	{
-		return {};
+		return false;
 	}
 	if(image.size()!=static_cast<size_t>(file.write(reinterpret_cast<const char *>(image.data()),static_cast<qint64>(image.size()))))
 	{
-		return {};
+		file.cancelWriting();
+		return false;
 	}
-	return path;
+	return file.commit();
 }
 
 bool MachineSettingsNeedRestart(const SettingsDialog::Values &values)
@@ -139,6 +149,14 @@ bool MachineSettingsNeedRestart(const SettingsDialog::Values &values)
 	{
 		return true;
 	}
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		if(values.hdd[slot].enabled!=TownsQtSettings::hddEnabled(slot) ||
+		   values.hdd[slot].path!=TownsQtSettings::hddImagePath(slot))
+		{
+			return true;
+		}
+	}
 	return false;
 }
 }
@@ -166,7 +184,7 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	drive_debug_label_->setMinimumWidth(320);
 	statusBar()->addPermanentWidget(drive_debug_label_);
 	mouse_debug_label_=new QLabel(statusBar());
-	mouse_debug_label_->setMinimumWidth(520);
+	mouse_debug_label_->setMinimumWidth(900);
 	statusBar()->addPermanentWidget(mouse_debug_label_);
 	applyDriveAccessVisibility();
 	applyMouseDebugVisibility();
@@ -250,6 +268,13 @@ void MainWindow::startEmulator()
 	poll_timer_.setInterval(static_cast<int>((TOWNS_RENDERING_FREQUENCY*1000ULL+999999999ULL)/1000000000ULL));
 	poll_timer_.start();
 	emu_thread_->start();
+	// CMOS is applied after the VM thread starts; refresh FD1 menu enable state then.
+	QTimer::singleShot(500,this,[this]{
+		if(nullptr!=emu_thread_ && emu_thread_->isRunning())
+		{
+			syncFdDriveMenus();
+		}
+	});
 }
 
 void MainWindow::scheduleRestartEmulator()
@@ -260,7 +285,7 @@ void MainWindow::scheduleRestartEmulator()
 		return;
 	}
 	emu_restarting_=true;
-	statusBar()->showMessage(tr("エミュレータを再起動しています…"));
+	statusBar()->showMessage(tr("Restarting the emulator…"));
 	stopEmulatorAsync([this]{
 		TownsQtArgvFromSettings::Apply(argv_);
 		startEmulator();
@@ -271,7 +296,7 @@ void MainWindow::scheduleRestartEmulator()
 			scheduleRestartEmulator();
 			return;
 		}
-		statusBar()->showMessage(tr("エミュレータを再起動しました"),5000);
+		statusBar()->showMessage(tr("Emulator restarted"),5000);
 	});
 }
 
@@ -294,9 +319,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupMenuBar()
 {
-	auto *operationMenu=menuBar()->addMenu(tr("操作(&O)"));
+	auto *operationMenu=menuBar()->addMenu(tr("&Operation"));
 
-	auto *resetAction=operationMenu->addAction(tr("リセット(&R)"));
+	auto *resetAction=operationMenu->addAction(tr("&Reset"));
 	resetAction->setShortcut(QKeySequence(Qt::Key_F12));
 	resetAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	connect(resetAction,&QAction::triggered,this,[this]{
@@ -308,7 +333,7 @@ void MainWindow::setupMenuBar()
 
 	operationMenu->addSeparator();
 
-	fast_mode_action_=operationMenu->addAction(tr("高速モード"));
+	fast_mode_action_=operationMenu->addAction(tr("Fast mode"));
 	fast_mode_action_->setCheckable(true);
 	fast_mode_action_->setChecked(TownsQtSettings::cpuFastModeEnabled());
 	connect(fast_mode_action_,&QAction::toggled,this,[this](bool enabled){
@@ -333,7 +358,7 @@ void MainWindow::setupMenuBar()
 			setCpuFrequencyMhz(mhz);
 		});
 	}
-	cpu_clock_custom_action_=operationMenu->addAction(tr("任意…"));
+	cpu_clock_custom_action_=operationMenu->addAction(tr("Custom…"));
 	cpu_clock_custom_action_->setCheckable(true);
 	cpu_clock_custom_action_->setChecked(!IsCpuFrequencyPreset(current_mhz));
 	cpu_clock_group_->addAction(cpu_clock_custom_action_);
@@ -343,7 +368,7 @@ void MainWindow::setupMenuBar()
 		bool ok=false;
 		const int mhz=QInputDialog::getInt(
 		    this,
-		    tr("CPU 周波数"),
+		    tr("CPU frequency"),
 		    tr("MHz:"),
 		    initial_mhz,
 		    1,
@@ -359,7 +384,7 @@ void MainWindow::setupMenuBar()
 
 	operationMenu->addSeparator();
 
-	gameport_menu_=operationMenu->addMenu(tr("ジョイパッド…"));
+	gameport_menu_=operationMenu->addMenu(tr("Game pads…"));
 	gameport0_group_=new QActionGroup(this);
 	gameport0_menu_=gameport_menu_->addMenu(QString());
 	gameport1_group_=new QActionGroup(this);
@@ -385,7 +410,8 @@ void MainWindow::setupMenuBar()
 	cdrom_speed_group_=new QActionGroup(this);
 	cdrom_speed_group_->setExclusive(true);
 	const struct {int speed; const char *label;} cd_presets[]={
-	    {0,"標準"},{2,"2倍"},{4,"4倍"},{8,"8倍"},{16,"最大"},
+	    {0,QT_TR_NOOP("Normal")},{2,QT_TR_NOOP("2x")},{4,QT_TR_NOOP("4x")},
+	    {8,QT_TR_NOOP("8x")},{16,QT_TR_NOOP("Max")},
 	};
 	for(const auto &preset : cd_presets)
 	{
@@ -403,7 +429,7 @@ void MainWindow::setupMenuBar()
 	sprite_dma_group_=new QActionGroup(this);
 	sprite_dma_group_->setExclusive(true);
 	const struct {int mode; const char *label;} sprite_presets[]={
-	    {0,"標準"},{1,"倍速"},{2,"最大"},
+	    {0,QT_TR_NOOP("Normal")},{1,QT_TR_NOOP("Double")},{2,QT_TR_NOOP("Max")},
 	};
 	for(const auto &preset : sprite_presets)
 	{
@@ -418,7 +444,7 @@ void MainWindow::setupMenuBar()
 	syncSpriteMenuTitle();
 	syncFastModeMenu();
 
-	fullscreen_action_=operationMenu->addAction(tr("全画面切替(&F)"));
+	fullscreen_action_=operationMenu->addAction(tr("Toggle &fullscreen"));
 	fullscreen_action_->setCheckable(true);
 	fullscreen_action_->setChecked(isFullScreen());
 	addAction(fullscreen_action_);
@@ -426,22 +452,22 @@ void MainWindow::setupMenuBar()
 
 	operationMenu->addSeparator();
 
-	auto *quitAction=operationMenu->addAction(tr("終了(&Q)"));
+	auto *quitAction=operationMenu->addAction(tr("&Quit"));
 	quitAction->setShortcut(QKeySequence::Quit);
 	connect(quitAction,&QAction::triggered,this,&QWidget::close);
 
-	auto *diskMenu=menuBar()->addMenu(tr("ディスク(&D)"));
+	auto *diskMenu=menuBar()->addMenu(tr("&Disk"));
 	disk_menu_=diskMenu;
-	open_cd_action_=diskMenu->addAction(tr("CDイメージを開く(&O)…"));
+	open_cd_action_=diskMenu->addAction(tr("&Open CD image…"));
 	connect(open_cd_action_,&QAction::triggered,this,&MainWindow::openCdImage);
-	auto *ejectCdAction=diskMenu->addAction(tr("CDを取り出す(&E)"));
-	connect(ejectCdAction,&QAction::triggered,this,[this]{
+	eject_cd_action_=diskMenu->addAction(tr("&Eject CD"));
+	connect(eject_cd_action_,&QAction::triggered,this,[this]{
 		if(nullptr!=controller_)
 		{
 			QMetaObject::invokeMethod(controller_,"ejectCd",Qt::QueuedConnection);
 		}
 	});
-	cd_recent_menu_=diskMenu->addMenu(tr("最近のファイルを開く(&R)"));
+	cd_recent_menu_=diskMenu->addMenu(tr("Open &recent files"));
 	connect(cd_recent_menu_,&QMenu::aboutToShow,this,&MainWindow::rebuildRecentCdMenu);
 
 	diskMenu->addSeparator();
@@ -451,12 +477,12 @@ void MainWindow::setupMenuBar()
 		{
 			diskMenu->addSeparator();
 		}
-		open_fd_action_[drive]=diskMenu->addAction(tr("FDイメージを開く(%1)…").arg(drive));
+		open_fd_action_[drive]=diskMenu->addAction(tr("Open FD image (%1)…").arg(drive));
 		connect(open_fd_action_[drive],&QAction::triggered,this,[this,drive]{
 			openFdImage(drive);
 		});
-		auto *eject_fd_action=diskMenu->addAction(tr("FDを取り出す"));
-		connect(eject_fd_action,&QAction::triggered,this,[this,drive]{
+		eject_fd_action_[drive]=diskMenu->addAction(tr("Eject FD"));
+		connect(eject_fd_action_[drive],&QAction::triggered,this,[this,drive]{
 			if(nullptr!=controller_)
 			{
 				QMetaObject::invokeMethod(
@@ -466,11 +492,11 @@ void MainWindow::setupMenuBar()
 				    Q_ARG(int,drive));
 			}
 		});
-		fd_recent_menu_[drive]=diskMenu->addMenu(tr("最近のファイルを開く"));
+		fd_recent_menu_[drive]=diskMenu->addMenu(tr("Open recent files"));
 		connect(fd_recent_menu_[drive],&QMenu::aboutToShow,this,[this,drive]{
 			rebuildRecentFdMenu(drive);
 		});
-		fd_write_protect_[drive]=diskMenu->addAction(tr("書き込み禁止"));
+		fd_write_protect_[drive]=diskMenu->addAction(tr("Write protect"));
 		fd_write_protect_[drive]->setCheckable(true);
 		fd_write_protect_[drive]->setChecked(TownsQtSettings::fdWriteProtect(drive));
 		connect(fd_write_protect_[drive],&QAction::toggled,this,[this,drive](bool checked){
@@ -487,22 +513,33 @@ void MainWindow::setupMenuBar()
 		});
 	}
 	diskMenu->addSeparator();
-	auto *create_blank_fd_action=diskMenu->addAction(tr("ブランクFDイメージ作成"));
+	auto *create_blank_fd_action=diskMenu->addAction(tr("Create blank FD image"));
 	connect(create_blank_fd_action,&QAction::triggered,this,&MainWindow::createBlankFdImage);
-	connect(disk_menu_,&QMenu::aboutToShow,this,&MainWindow::syncFdWriteProtectMenuChecks);
+	connect(disk_menu_,&QMenu::aboutToShow,this,[this]{
+		syncFdWriteProtectMenuChecks();
+		syncFdDriveMenus();
+		syncEjectMenus();
+	});
+	syncFdDriveMenus();
+	syncEjectMenus();
 
-	auto *toolsMenu=menuBar()->addMenu(tr("ツール(&T)"));
-	auto *settingsAction=toolsMenu->addAction(tr("設定(&S)…"));
+	auto *toolsMenu=menuBar()->addMenu(tr("&Tools"));
+	auto *settingsAction=toolsMenu->addAction(tr("&Settings…"));
 	connect(settingsAction,&QAction::triggered,this,&MainWindow::openSettingsDialog);
 	toolsMenu->addSeparator();
-	drive_access_action_=toolsMenu->addAction(tr("ドライブアクセス"));
+	auto *recover_mouse_action=toolsMenu->addAction(tr("Recover mouse"));
+	recover_mouse_action->setToolTip(
+	    tr("Restart mouse-integration warm-up when the guest cursor is lost."));
+	connect(recover_mouse_action,&QAction::triggered,this,&MainWindow::recoverMouseIntegration);
+	toolsMenu->addSeparator();
+	drive_access_action_=toolsMenu->addAction(tr("Drive access"));
 	drive_access_action_->setCheckable(true);
 	drive_access_action_->setChecked(TownsQtSettings::showDriveAccessOverlay());
 	connect(drive_access_action_,&QAction::toggled,this,[this](bool enabled){
 		TownsQtSettings::setShowDriveAccessOverlay(enabled);
 		applyDriveAccessVisibility();
 	});
-	midi_monitor_action_=toolsMenu->addAction(tr("MIDI モニタ"));
+	midi_monitor_action_=toolsMenu->addAction(tr("MIDI monitor"));
 	midi_monitor_action_->setCheckable(true);
 	midi_monitor_action_->setChecked(TownsQtSettings::midiMonitor());
 	connect(midi_monitor_action_,&QAction::toggled,this,[this](bool enabled){
@@ -516,8 +553,8 @@ void MainWindow::setupMenuBar()
 			    Q_ARG(bool,enabled));
 		}
 	});
-	auto *driveDebugMenu=toolsMenu->addMenu(tr("デバッグ表示"));
-	drive_access_debug_action_=driveDebugMenu->addAction(tr("ランプ状態"));
+	auto *driveDebugMenu=toolsMenu->addMenu(tr("Debug overlay"));
+	drive_access_debug_action_=driveDebugMenu->addAction(tr("Lamp status"));
 	drive_access_debug_action_->setCheckable(true);
 	drive_access_debug_action_->setChecked(TownsQtSettings::showDriveAccessDebug());
 	connect(drive_access_debug_action_,&QAction::toggled,this,[this](bool enabled){
@@ -528,7 +565,7 @@ void MainWindow::setupMenuBar()
 			updateDriveAccessDebugDisplay();
 		}
 	});
-	mouse_debug_action_=driveDebugMenu->addAction(tr("マウス統合座標"));
+	mouse_debug_action_=driveDebugMenu->addAction(tr("Mouse integration coords"));
 	mouse_debug_action_->setCheckable(true);
 	mouse_debug_action_->setChecked(TownsQtSettings::showMouseIntegrationDebug());
 	connect(mouse_debug_action_,&QAction::toggled,this,[this](bool enabled){
@@ -540,15 +577,17 @@ void MainWindow::setupMenuBar()
 		}
 	});
 
-	auto *helpMenu=menuBar()->addMenu(tr("ヘルプ(&H)"));
+	auto *helpMenu=menuBar()->addMenu(tr("&Help"));
 	auto *aboutAction=helpMenu->addAction(AboutTsugaruTitleText());
 	connect(aboutAction,&QAction::triggered,this,&MainWindow::showAboutDialog);
+
+	syncMenuChecks();
 }
 
 void MainWindow::setCpuFastModeEnabled(bool enabled)
 {
 	TownsQtSettings::setCpuFastModeEnabled(enabled);
-	syncFastModeMenu();
+	syncMenuChecks();
 	if(nullptr!=controller_)
 	{
 		QMetaObject::invokeMethod(
@@ -696,6 +735,7 @@ void MainWindow::syncMenuChecks()
 	}
 	applyDriveAccessVisibility();
 	applyMouseDebugVisibility();
+	syncFdDriveMenus();
 }
 
 void MainWindow::syncFastModeMenu()
@@ -734,7 +774,7 @@ void MainWindow::syncGuestFastModeFromEmulator()
 {
 	if(nullptr==controller_)
 	{
-		syncFastModeMenu();
+		syncMenuChecks();
 		return;
 	}
 	bool fast_mode=TownsQtSettings::cpuFastModeEnabled();
@@ -757,7 +797,7 @@ void MainWindow::onGuestFastModeLampChanged(bool fast_mode)
 	{
 		TownsQtSettings::setCpuFastModeEnabled(fast_mode);
 	}
-	syncFastModeMenu();
+	syncMenuChecks();
 }
 
 void MainWindow::syncCdSpeedMenuTitle()
@@ -766,9 +806,12 @@ void MainWindow::syncCdSpeedMenuTitle()
 	{
 		return;
 	}
-	static const char *labels[]={"標準","2倍","4倍","8倍","最大"};
+	static const char *labels[]={
+	    QT_TR_NOOP("Normal"),QT_TR_NOOP("2x"),QT_TR_NOOP("4x"),
+	    QT_TR_NOOP("8x"),QT_TR_NOOP("Max"),
+	};
 	const int speed=TownsQtSettings::cdSpeed();
-	const char *label="標準";
+	const char *label="Normal";
 	switch(speed)
 	{
 	case 0:
@@ -791,7 +834,7 @@ void MainWindow::syncCdSpeedMenuTitle()
 		break;
 	}
 	cdrom_speed_menu_->menuAction()->setText(
-	    tr("CDROM速度  %1").arg(tr(label)));
+	    tr("CD-ROM speed  %1").arg(tr(label)));
 }
 
 void MainWindow::syncSpriteMenuTitle()
@@ -801,9 +844,11 @@ void MainWindow::syncSpriteMenuTitle()
 		return;
 	}
 	const int mode=std::clamp(TownsQtSettings::spriteTransferMode(),0,2);
-	static const char *labels[]={"標準","倍速","最大"};
+	static const char *labels[]={
+	    QT_TR_NOOP("Normal"),QT_TR_NOOP("Double"),QT_TR_NOOP("Max"),
+	};
 	sprite_menu_->menuAction()->setText(
-	    tr("スプライト転送  %1").arg(tr(labels[mode])));
+	    tr("Sprite transfer  %1").arg(tr(labels[mode])));
 }
 
 void MainWindow::openSettingsDialog()
@@ -850,6 +895,19 @@ void MainWindow::openSettingsDialog()
 	initial.mouseMaxX=TownsQtSettings::mouseMaxX();
 	initial.mouseMaxY=TownsQtSettings::mouseMaxY();
 	initial.appSpecificSetting=TownsQtSettings::appSpecificSetting();
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		initial.hdd[slot].enabled=TownsQtSettings::hddEnabled(slot);
+		initial.hdd[slot].path=TownsQtSettings::hddImagePath(slot);
+		if(!initial.hdd[slot].enabled &&
+		   initial.hdd[slot].path.isEmpty() &&
+		   TownsStartParameters::SCSIIMAGE_HARDDISK==argv_.scsiImg[slot].imageType &&
+		   !argv_.scsiImg[slot].imgFName.empty())
+		{
+			initial.hdd[slot].enabled=true;
+			initial.hdd[slot].path=QString::fromStdString(argv_.scsiImg[slot].imgFName);
+		}
+	}
 
 	const QString rom_dir=argv_.ROMPath.empty() ?
 	    TownsQtPaths::romsDir() :
@@ -861,6 +919,25 @@ void MainWindow::openSettingsDialog()
 		return;
 	}
 	applySettings(dlg.values());
+}
+
+void MainWindow::recoverMouseIntegration()
+{
+	if(nullptr==controller_ || nullptr==emu_thread_ || !emu_thread_->isRunning())
+	{
+		statusBar()->showMessage(tr("Emulator is not running."),3000);
+		return;
+	}
+	if(!TownsQtSettings::snapMouseIntegration() ||
+	   TownsQtSettings::differentialMouseIntegration())
+	{
+		statusBar()->showMessage(
+		    tr("Recover mouse requires Instant mouse integration (and not differential)."),
+		    5000);
+		return;
+	}
+	QMetaObject::invokeMethod(controller_,"resetSnapMouseWarmup",Qt::QueuedConnection);
+	statusBar()->showMessage(tr("Mouse integration warm-up restarted."),3000);
 }
 
 void MainWindow::showAboutDialog()
@@ -892,18 +969,19 @@ void MainWindow::showAboutDialog()
 	textLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
 	textLabel->setOpenExternalLinks(true);
 	textLabel->setAlignment(Qt::AlignLeft|Qt::AlignTop);
-	textLabel->setText(QStringLiteral(
+	textLabel->setText(tr(
 	    "<div style=\"line-height:1.35\">"
 	    "<b>Tsugaru \"津軽\"</b><br>"
-	    "FM TOWNS / Marty エミュレータ<br>"
-	    "for Linux (Qt) v20260522-qt 0.5.0"
+	    "FM TOWNS / Marty emulator<br>"
+	    "for Linux (Qt) %1"
 	    "<br><br>"
 	    "<a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a>"
 	    "<br><br>"
-	    "%1<br>"
+	    "%2<br>"
 	    "<a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a>"
 	    "</div>")
-	    .arg(QCoreApplication::translate("MainWindow","オリジナル")));
+	    .arg(QStringLiteral(TOWNSQT_VERSION),
+	         tr("Original")));
 	row->addWidget(textLabel,1);
 	root->addLayout(row);
 
@@ -932,7 +1010,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 		effective.modelGroupIndex=
 		    TownsQtRomAvailability::PreferredModelGroupForSysRom(sys_rom_profile);
 		statusBar()->showMessage(
-		    tr("SYS ROM と合わないモデルが選ばれていたため、既定のモデルに戻しました。"),
+		    tr("The selected model did not match the SYS ROM, so it was reset to the default."),
 		    8000);
 	}
 	const bool model_changed=(effective.modelGroupIndex!=prev_model_group);
@@ -1005,6 +1083,25 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setMouseMaxX(effective.mouseMaxX);
 	TownsQtSettings::setMouseMaxY(effective.mouseMaxY);
 	TownsQtSettings::setAppSpecificSetting(effective.appSpecificSetting);
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		TownsQtSettings::setHddEnabled(slot,effective.hdd[slot].enabled);
+		TownsQtSettings::setHddImagePath(slot,effective.hdd[slot].path);
+		if(TownsStartParameters::SCSIIMAGE_CDROM==argv_.scsiImg[slot].imageType)
+		{
+			continue;
+		}
+		if(effective.hdd[slot].enabled && !effective.hdd[slot].path.isEmpty())
+		{
+			argv_.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_HARDDISK;
+			argv_.scsiImg[slot].imgFName=effective.hdd[slot].path.toStdString();
+		}
+		else
+		{
+			argv_.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_NONE;
+			argv_.scsiImg[slot].imgFName.clear();
+		}
+	}
 	applyWindowScale(effective.displayScale,effective.autoScaling,effective.maintainAspect);
 	view_->setFullscreenVsync(effective.fullscreenVsync && isFullScreen());
 	applyFullscreenVsync();
@@ -1105,23 +1202,23 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 
 void MainWindow::openCdImage()
 {
-	QString startDir;
-	if(!cd_path_.isEmpty())
+	QString startDir=TownsQtSettings::workingDirectory();
+	if(startDir.isEmpty() && !cd_path_.isEmpty())
 	{
 		startDir=QFileInfo(cd_path_).absolutePath();
 	}
-	else if(!argv_.cdImgFName.empty())
+	else if(startDir.isEmpty() && !argv_.cdImgFName.empty())
 	{
 		startDir=QFileInfo(QString::fromStdString(argv_.cdImgFName)).absolutePath();
 	}
-	else
+	else if(startDir.isEmpty())
 	{
 		startDir=TownsQtPaths::configDir();
 	}
 
 	const QString path=QFileDialog::getOpenFileName(
 	    this,
-	    tr("CDイメージを開く"),
+	    tr("Open CD image"),
 	    startDir,
 	    tr("CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)"));
 	if(path.isEmpty() || nullptr==controller_)
@@ -1134,23 +1231,27 @@ void MainWindow::openCdImage()
 void MainWindow::openFdImage(int drive)
 {
 	drive=std::clamp(drive,0,1);
-	QString startDir;
-	if(!fd_path_[drive].isEmpty())
+	if(nullptr!=open_fd_action_[drive] && !open_fd_action_[drive]->isEnabled())
+	{
+		return;
+	}
+	QString startDir=TownsQtSettings::workingDirectory();
+	if(startDir.isEmpty() && !fd_path_[drive].isEmpty())
 	{
 		startDir=QFileInfo(fd_path_[drive]).absolutePath();
 	}
-	else if(!argv_.fdImgFName[drive].empty())
+	else if(startDir.isEmpty() && !argv_.fdImgFName[drive].empty())
 	{
 		startDir=QFileInfo(QString::fromStdString(argv_.fdImgFName[drive])).absolutePath();
 	}
-	else
+	else if(startDir.isEmpty())
 	{
 		startDir=TownsQtPaths::configDir();
 	}
 
 	const QString path=QFileDialog::getOpenFileName(
 	    this,
-	    tr("FDイメージを開く(%1)").arg(drive),
+	    tr("Open FD image (%1)").arg(drive),
 	    startDir,
 	    tr("Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)"));
 	if(path.isEmpty() || nullptr==controller_)
@@ -1166,13 +1267,79 @@ void MainWindow::createBlankFdImage()
 	{
 		return;
 	}
-	const QString path=CreateBlankFdImagePath();
-	if(path.isEmpty())
+	if(true!=TownsQtPaths::ensureLayout())
 	{
 		QMessageBox::warning(
 		    this,
-		    tr("ブランクFDイメージ作成"),
-		    tr("FDイメージの作成に失敗しました。"));
+		    tr("Create blank FD image"),
+		    tr("Failed to create the FD image."));
+		return;
+	}
+
+	QString stem;
+	if(!cd_path_.isEmpty())
+	{
+		stem=QFileInfo(cd_path_).completeBaseName();
+	}
+	else if(!argv_.cdImgFName.empty())
+	{
+		stem=QFileInfo(QString::fromStdString(argv_.cdImgFName)).completeBaseName();
+	}
+	if(stem.isEmpty())
+	{
+		stem=QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"));
+	}
+
+	QString path=QFileDialog::getSaveFileName(
+	    this,
+	    tr("Create blank FD image"),
+	    TownsQtPaths::blankFdDir()+QStringLiteral("/")+stem+QStringLiteral(".d77"),
+	    tr("Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)"),
+	    nullptr,
+	    QFileDialog::DontConfirmOverwrite);
+	if(path.isEmpty())
+	{
+		return;
+	}
+
+	QString suffix=QFileInfo(path).suffix().toLower();
+	if(suffix.isEmpty())
+	{
+		path+=QStringLiteral(".d77");
+		suffix=QStringLiteral("d77");
+	}
+	static const QStringList supported{
+	    QStringLiteral("d77"),
+	    QStringLiteral("xdf"),
+	    QStringLiteral("hdm"),
+	    QStringLiteral("fdd"),
+	    QStringLiteral("bin")};
+	if(!supported.contains(suffix))
+	{
+		QMessageBox::warning(
+		    this,
+		    tr("Create blank FD image"),
+		    tr("Unsupported floppy-image extension."));
+		return;
+	}
+
+	if(QFileInfo::exists(path) &&
+	   QMessageBox::Yes!=QMessageBox::question(
+	       this,
+	       tr("Create blank FD image"),
+	       tr("The file already exists. Overwrite it?"),
+	       QMessageBox::Yes|QMessageBox::No,
+	       QMessageBox::No))
+	{
+		return;
+	}
+
+	if(true!=CreateBlankFdImage(path))
+	{
+		QMessageBox::warning(
+		    this,
+		    tr("Create blank FD image"),
+		    tr("Failed to create the FD image."));
 		return;
 	}
 	Q_EMIT fdLoadRequested(0,path);
@@ -1204,7 +1371,7 @@ void MainWindow::rebuildRecentCdMenu()
 	{
 		cd_recent_menu_->addSeparator();
 	}
-	auto *clear_action=cd_recent_menu_->addAction(tr("リストを消す"));
+	auto *clear_action=cd_recent_menu_->addAction(tr("Clear list"));
 	connect(clear_action,&QAction::triggered,this,&MainWindow::clearRecentCdList);
 }
 
@@ -1235,7 +1402,7 @@ void MainWindow::rebuildRecentFdMenu(int drive)
 	{
 		fd_recent_menu_[drive]->addSeparator();
 	}
-	auto *clear_action=fd_recent_menu_[drive]->addAction(tr("リストを消す"));
+	auto *clear_action=fd_recent_menu_[drive]->addAction(tr("Clear list"));
 	connect(clear_action,&QAction::triggered,this,[this,drive]{
 		clearRecentFdList(drive);
 	});
@@ -1278,6 +1445,71 @@ void MainWindow::syncFdWriteProtectMenuChecks()
 	syncing_fd_write_protect_menu_=false;
 }
 
+void MainWindow::syncFdDriveMenus()
+{
+	for(int drive=0; drive<2; ++drive)
+	{
+		bool available=true;
+		if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "fdDriveAvailable",
+			    Qt::BlockingQueuedConnection,
+			    Q_RETURN_ARG(bool,available),
+			    Q_ARG(int,drive));
+		}
+		else
+		{
+			available=EmulatorController::QueryFdDriveAvailable(drive,nullptr);
+		}
+
+		fd_drive_available_[drive]=available;
+
+		if(nullptr!=open_fd_action_[drive])
+		{
+			open_fd_action_[drive]->setEnabled(available);
+		}
+		if(nullptr!=eject_fd_action_[drive])
+		{
+			eject_fd_action_[drive]->setEnabled(available && !fd_path_[drive].isEmpty());
+		}
+		if(nullptr!=fd_recent_menu_[drive])
+		{
+			fd_recent_menu_[drive]->setEnabled(available);
+		}
+		if(nullptr!=fd_write_protect_[drive])
+		{
+			fd_write_protect_[drive]->setEnabled(available);
+		}
+
+		if(!available && !fd_path_[drive].isEmpty() && nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "ejectFd",
+			    Qt::QueuedConnection,
+			    Q_ARG(int,drive));
+		}
+	}
+}
+
+void MainWindow::syncEjectMenus()
+{
+	if(nullptr!=eject_cd_action_)
+	{
+		eject_cd_action_->setEnabled(!cd_path_.isEmpty());
+	}
+	for(int drive=0; drive<2; ++drive)
+	{
+		if(nullptr!=eject_fd_action_[drive])
+		{
+			eject_fd_action_[drive]->setEnabled(
+			    fd_drive_available_[drive] && !fd_path_[drive].isEmpty());
+		}
+	}
+}
+
 void MainWindow::updateOpenCdMenuLabel()
 {
 	if(nullptr==open_cd_action_)
@@ -1286,7 +1518,7 @@ void MainWindow::updateOpenCdMenuLabel()
 	}
 	if(cd_path_.isEmpty())
 	{
-		open_cd_action_->setText(tr("CDイメージを開く(&O)…"));
+		open_cd_action_->setText(tr("&Open CD image…"));
 		open_cd_action_->setToolTip(QString());
 	}
 	else
@@ -1306,7 +1538,7 @@ void MainWindow::updateOpenFdMenuLabel(int drive)
 	}
 	if(fd_path_[drive].isEmpty())
 	{
-		open_fd_action_[drive]->setText(tr("FDイメージを開く(%1)…").arg(drive));
+		open_fd_action_[drive]->setText(tr("Open FD image (%1)…").arg(drive));
 		open_fd_action_[drive]->setToolTip(QString());
 	}
 	else
@@ -1321,9 +1553,10 @@ void MainWindow::onCdPathChanged(const QString &path)
 {
 	cd_path_=path;
 	updateOpenCdMenuLabel();
+	syncEjectMenus();
 	if(path.isEmpty())
 	{
-		statusBar()->showMessage(tr("CDを取り出しました"),3000);
+		statusBar()->showMessage(tr("CD ejected"),3000);
 	}
 	else
 	{
@@ -1336,9 +1569,10 @@ void MainWindow::onFdPathChanged(int drive,const QString &path)
 	drive=std::clamp(drive,0,1);
 	fd_path_[drive]=path;
 	updateOpenFdMenuLabel(drive);
+	syncEjectMenus();
 	if(path.isEmpty())
 	{
-		statusBar()->showMessage(tr("FD%1を取り出しました").arg(drive),3000);
+		statusBar()->showMessage(tr("FD%1 ejected").arg(drive),3000);
 	}
 	else
 	{
@@ -1370,7 +1604,7 @@ void MainWindow::onPollTimer()
 		if(nullptr!=view_)
 		{
 			drive_access_status_=controller_->driveAccessStatus();
-			view_->updateDriveAccessIndicators(drive_access_status_);
+			view_->updateDriveAccessIndicators(drive_access_status_,currentDriveAccessPresence());
 		}
 	}
 	const bool was_differential=cached_differential_integration_;
@@ -1435,16 +1669,53 @@ void MainWindow::updateDriveAccessDebugDisplay()
 		return busy ? QStringLiteral("BUSY") : QStringLiteral("IDL");
 	};
 
-	QString text=QStringLiteral("CD:%1").arg(lampText(drive_access_status_.cdAccessLamp));
+	const DriveAccessPresence presence=currentDriveAccessPresence();
+	QStringList parts;
+	if(presence.cd)
+	{
+		parts<<QStringLiteral("CD:%1").arg(lampText(drive_access_status_.cdAccessLamp));
+	}
 	for(int fd=0; fd<2; ++fd)
 	{
-		text+=QStringLiteral(" FD%1:%2").arg(fd).arg(lampText(drive_access_status_.fdAccessLamp[fd]));
+		if(presence.fd[fd])
+		{
+			parts<<QStringLiteral("FD%1:%2").arg(fd).arg(lampText(drive_access_status_.fdAccessLamp[fd]));
+		}
 	}
 	for(int hdd=0; hdd<6; ++hdd)
 	{
-		text+=QStringLiteral(" HDD%1:%2").arg(hdd).arg(lampText(drive_access_status_.scsiAccessLamp[hdd]));
+		if(presence.hdd[hdd])
+		{
+			parts<<QStringLiteral("HDD%1:%2").arg(hdd).arg(lampText(drive_access_status_.scsiAccessLamp[hdd]));
+		}
 	}
-	drive_debug_label_->setText(text);
+	drive_debug_label_->setText(parts.join(QLatin1Char(' ')));
+}
+
+DriveAccessPresence MainWindow::currentDriveAccessPresence() const
+{
+	DriveAccessPresence presence;
+	const bool marty=TownsQtModelGroupIsMarty(TownsQtSettings::modelGroupIndex());
+
+	// Internal CD-ROM is always present on Towns / Marty hardware.
+	presence.cd=true;
+	for(int fd=0; fd<2; ++fd)
+	{
+		presence.fd[fd]=fd_drive_available_[fd];
+	}
+	if(!marty)
+	{
+		const int scsi_count=std::min(
+		    6,
+		    static_cast<int>(TownsStartParameters::MAX_NUM_SCSI_DEVICES));
+		for(int hdd=0; hdd<scsi_count; ++hdd)
+		{
+			presence.hdd[hdd]=
+			    (TownsStartParameters::SCSIIMAGE_NONE!=argv_.scsiImg[hdd].imageType) &&
+			    !argv_.scsiImg[hdd].imgFName.empty();
+		}
+	}
+	return presence;
 }
 
 void MainWindow::applyMouseDebugVisibility()
@@ -1503,15 +1774,32 @@ void MainWindow::updateMouseDebugDisplay()
 		               .arg(guest.value(QStringLiteral("tbios_y")).toInt());
 		const unsigned int app_value=guest.value(QStringLiteral("app_specific")).toUInt();
 		const auto &app_profile=TownsQtAppProfileAt(TownsQtAppProfileIndexForApp(app_value));
-		meta_text=QStringLiteral("BIOS:%1 TB:%2 %3 W:%4")
+		QString hw_text;
+		if(guest.value(QStringLiteral("hw_defined")).toBool())
+		{
+			hw_text=QStringLiteral(" HW:%1,%2")
+			            .arg(guest.value(QStringLiteral("hw_x")).toInt())
+			            .arg(guest.value(QStringLiteral("hw_y")).toInt());
+		}
+		meta_text=QStringLiteral("Raw:%1,%2 Ctrl:%3,%4 Org:%5,%6 Zm:%7,%8 Pg:%9 BIOS:%10 TB:%11 %12 W:%13%14")
+		              .arg(guest.value(QStringLiteral("raw_x")).toInt())
+		              .arg(guest.value(QStringLiteral("raw_y")).toInt())
+		              .arg(guest.value(QStringLiteral("ctrl_x")).toInt())
+		              .arg(guest.value(QStringLiteral("ctrl_y")).toInt())
+		              .arg(guest.value(QStringLiteral("org_x")).toInt())
+		              .arg(guest.value(QStringLiteral("org_y")).toInt())
+		              .arg(guest.value(QStringLiteral("zoom_x")).toInt())
+		              .arg(guest.value(QStringLiteral("zoom_y")).toInt())
+		              .arg(guest.value(QStringLiteral("page")).toInt())
 		              .arg(guest.value(QStringLiteral("mouse_bios")).toBool() ? 1 : 0)
 		              .arg(guest.value(QStringLiteral("tbios_version")).toUInt())
 		              .arg(QString::fromUtf8(app_profile.label))
-		              .arg(guest.value(QStringLiteral("snap_warmup")).toInt());
+		              .arg(guest.value(QStringLiteral("snap_warmup")).toInt())
+		              .arg(hw_text);
 	}
 
 	mouse_debug_label_->setText(
-	    tr("ホスト:%1,%2  ゲスト:%3  MOS:%4  TBIOS:%5  %6")
+	    tr("Host:%1,%2  Guest:%3  MOS:%4  TBIOS:%5  %6")
 	        .arg(host_x)
 	        .arg(host_y)
 	        .arg(guest_text)
@@ -1555,7 +1843,7 @@ void MainWindow::onControllerFinished()
 		return;
 	}
 	poll_timer_.stop();
-	statusBar()->showMessage(tr("エミュレータを停止しました"),3000);
+	statusBar()->showMessage(tr("Emulator stopped"),3000);
 }
 
 void MainWindow::showEvent(QShowEvent *event)

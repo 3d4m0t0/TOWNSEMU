@@ -21,6 +21,7 @@ const TownsQtModelGroup &TownsQtModelGroupAt(int index);
 int TownsQtModelGroupDefaultIndex();
 int TownsQtModelGroupIndexForTownsType(unsigned int towns_type);
 unsigned int TownsQtModelGroupTownsType(int index);
+QString TownsQtModelGroupLabel(int index);
 QString TownsQtModelGroupDescription(int index);
 
 QString TownsQtModelGroupId(int index);

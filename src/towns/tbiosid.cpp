@@ -20,6 +20,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "townsdef.h"
 #include "tbiosid.h"
 #include "townscommandutil.h"
+#include "cpputil.h"
 
 // For Wing Commander 2 mouse integration.
 // Looks like DS is page aligned.
@@ -248,7 +249,10 @@ void FMTownsCommon::OnCRTC_HST_Write(void)
 	}
 
 	auto &cpu=CPU();
-	std::cout << "Write to CRTC-HST register." << std::endl;
+	if(true==cpputil::DebugLogEnabled())
+	{
+		std::cout << "Write to CRTC-HST register." << std::endl;
+	}
 	if(0!=(cpu.state.GetCR(0)&i486DXCommon::CR0_PROTECTION_ENABLE))
 	{
 		switch(state.appSpecificSetting)
@@ -568,6 +572,123 @@ bool FMTownsCommon::ControlMouse(int hostMouseX,int hostMouseY,unsigned int tbio
 	int diffX,diffY;
 	return ControlMouse(diffX,diffY,hostMouseX,hostMouseY,tbiosid);
 }
+void FMTownsCommon::TransformHostMouseForIntegration(int hostMouseX,int hostMouseY,
+                                                     int &outX,int &outY,
+                                                     int &originX,int &originY,
+                                                     int &zoom2xX,int &zoom2xY,
+                                                     int &page) const
+{
+	Vec2i origin;
+	Vec2i zoom2x;
+	unsigned int VRAMSize;
+	page=0;
+	if(true!=state.mouseBIOSActive &&
+	   TOWNS_APPSPECIFIC_WINGCOMMANDER2==state.appSpecificSetting)
+	{
+		origin=crtc.GetPageOriginOnMonitor(0);
+		zoom2x.Set(4,4);
+		VRAMSize=0x80000;
+	}
+	else if(true==crtc.InSinglePageMode())
+	{
+		origin=crtc.GetPageOriginOnMonitor(0);
+		zoom2x=crtc.GetPageZoom2X(0);
+		VRAMSize=crtc.GetEffectiveVRAMSize();
+	}
+	else
+	{
+		page=state.mouseDisplayPage;
+		origin=crtc.GetPageOriginOnMonitor(state.mouseDisplayPage);
+		zoom2x=crtc.GetPageZoom2X(state.mouseDisplayPage);
+		VRAMSize=crtc.GetEffectiveVRAMSize()/2;
+	}
+	originX=origin.x();
+	originY=origin.y();
+	zoom2xX=zoom2x.x();
+	zoom2xY=zoom2x.y();
+
+	hostMouseX-=origin.x();
+	hostMouseY-=origin.y();
+	if(0<zoom2x.x())
+	{
+		hostMouseX=hostMouseX*2/zoom2x.x();
+	}
+	if(0<zoom2x.y())
+	{
+		hostMouseY=hostMouseY*2/zoom2x.y();
+	}
+
+	// 2020/07/08
+	// Lemmings uses double-buffering.  In TBIOS, mouse pointer is influenced by the VRAM offset.
+	// However, in Lemmings the mouse pointer is distance from top-left corner of the monitor
+	// regardless of the VRAM offset.  Therefore, the transformation needs to be skipped.
+	// Also internally-stored X coordinate looks to be half of the actual coordinate.
+	// Same problem for Drakken.
+	bool considerVRAMOffset=var.considerVRAMOffsetInMouseIntegration;
+	switch(state.appSpecificSetting)
+	{
+	case TOWNS_APPSPECIFIC_AMARANTH3:
+		considerVRAMOffset=false;
+		break;
+	case TOWNS_APPSPECIFIC_OPERATIONWOLF:
+		considerVRAMOffset=false;
+		break;
+	case TOWNS_APPSPECIFIC_LEMMINGS:
+		considerVRAMOffset=false;
+		hostMouseX*=zoom2x.x();
+		hostMouseX/=4;
+		break;
+	case TOWNS_APPSPECIFIC_DRAKKEN:
+		considerVRAMOffset=false;
+		hostMouseY-=20;
+		break;
+	case TOWNS_APPSPECIFIC_LEMMINGS2:
+		hostMouseY-=8;
+		if(hostMouseY<-8)
+		{
+			hostMouseY=-8;
+		}
+		hostMouseX+=8;
+		if(327==hostMouseX)
+		{
+			hostMouseX=328; // Otherwise cannot scroll to the right
+		}
+		break;
+	}
+
+	// 2020/06/13
+	// SuperDAISENRYAKU uses mouse with VRAM offset=3BC00H.
+	// This offset makes towns mouse cursor appear 32 pixels down from the Windows mouse cursor.
+	// VRAM offset needs to be taken into account.
+	if(true==considerVRAMOffset)
+	{
+		int bytesPerLine=crtc.GetPageBytesPerLine(state.mouseDisplayPage);
+		if(0!=bytesPerLine)
+		{
+			int VRAMoffset=crtc.GetPageVRAMAddressOffset(state.mouseDisplayPage);
+			unsigned int VRAMHeight=VRAMSize/bytesPerLine;
+
+			// 2020/12/18
+			// SuperDAISENRYAKU needs to make the VRAM offset signed, but I suspect making it signed
+			// contradicted with something else.  I fix it this time, but it may break something else,
+			// in which case I'll need to think about something else to support both.
+			if(VRAMSize/2<=VRAMoffset)
+			{
+				VRAMoffset-=VRAMSize;
+			}
+
+			hostMouseY+=VRAMoffset/bytesPerLine;
+			// The following must be signed int.
+			// Wing Commander 2's mouse coordinate is signed.
+			hostMouseY=std::min<int>(hostMouseY,VRAMHeight-1);
+		}
+		// At this time it only takes vertical displacement into account.
+	}
+
+	outX=hostMouseX;
+	outY=hostMouseY;
+}
+
 bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMouseY,unsigned int tbiosid,bool snap)
 {
 	// Wing Commander 2 requires mouse deltas to be zero until the mouse-presence check is done.
@@ -605,107 +726,14 @@ bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMo
 
 	if(true==GetMouseCoordinate(mx,my,tbiosid) && true==var.mouseIntegration)
 	{
-		Vec2i origin;
-
-
-		Vec2i zoom2x;
-		unsigned int VRAMSize;
-		if(true!=state.mouseBIOSActive &&
-		   TOWNS_APPSPECIFIC_WINGCOMMANDER2==state.appSpecificSetting)
+		int originX=0,originY=0,zoom2xX=2,zoom2xY=2,page=0;
+		TransformHostMouseForIntegration(
+		    hostMouseX,hostMouseY,
+		    hostMouseX,hostMouseY,
+		    originX,originY,zoom2xX,zoom2xY,page);
+		if(TOWNS_APPSPECIFIC_LEMMINGS==state.appSpecificSetting)
 		{
-			origin=crtc.GetPageOriginOnMonitor(0);
-			zoom2x.Set(4,4);
-			VRAMSize=0x80000;
-		}
-		else if(true==crtc.InSinglePageMode())
-		{
-			origin=crtc.GetPageOriginOnMonitor(0);
-			zoom2x=crtc.GetPageZoom2X(0);
-			VRAMSize=crtc.GetEffectiveVRAMSize();
-		}
-		else
-		{
-			origin=crtc.GetPageOriginOnMonitor(state.mouseDisplayPage);
-			zoom2x=crtc.GetPageZoom2X(state.mouseDisplayPage);
-			VRAMSize=crtc.GetEffectiveVRAMSize()/2;
-		}
-		hostMouseX-=origin.x();
-		hostMouseY-=origin.y();
-		if(0<zoom2x.x())
-		{
-			hostMouseX=hostMouseX*2/zoom2x.x();
-		}
-		if(0<zoom2x.y())
-		{
-			hostMouseY=hostMouseY*2/zoom2x.y();
-		}
-
-		// 2020/07/08
-		// Lemmings uses double-buffering.  In TBIOS, mouse pointer is influenced by the VRAM offset.
-		// However, in Lemmings the mouse pointer is distance from top-left corner of the monitor
-		// regardless of the VRAM offset.  Therefore, the transformation needs to be skipped.
-		// Also internally-stored X coordinate looks to be half of the actual coordinate.
-		// Same problem for Drakken.
-		bool considerVRAMOffset=var.considerVRAMOffsetInMouseIntegration;
-		switch(state.appSpecificSetting)
-		{
-		case TOWNS_APPSPECIFIC_AMARANTH3:
-			considerVRAMOffset=false;
-			break;
-		case TOWNS_APPSPECIFIC_OPERATIONWOLF:
-			considerVRAMOffset=false;
-			break;
-		case TOWNS_APPSPECIFIC_LEMMINGS:
-			considerVRAMOffset=false;
-			hostMouseX*=zoom2x.x();
-			hostMouseX/=4;
 			slowDownRange=4;
-			break;
-		case TOWNS_APPSPECIFIC_DRAKKEN:
-			considerVRAMOffset=false;
-			hostMouseY-=20;
-			break;
-		case TOWNS_APPSPECIFIC_LEMMINGS2:
-			hostMouseY-=8;
-			if(hostMouseY<-8)
-			{
-				hostMouseY=-8;
-			}
-			hostMouseX+=8;
-			if(327==hostMouseX)
-			{
-				hostMouseX=328; // Otherwise cannot scroll to the right
-			}
-			break;
-		}
-
-		// 2020/06/13
-		// SuperDAISENRYAKU uses mouse with VRAM offset=3BC00H.
-		// This offset makes towns mouse cursor appear 32 pixels down from the Windows mouse cursor.
-		// VRAM offset needs to be taken into account.
-		if(true==considerVRAMOffset)
-		{
-			int bytesPerLine=crtc.GetPageBytesPerLine(state.mouseDisplayPage);
-			if(0!=bytesPerLine)
-			{
-				int VRAMoffset=crtc.GetPageVRAMAddressOffset(state.mouseDisplayPage);
-				unsigned int VRAMHeight=VRAMSize/bytesPerLine;
-
-				// 2020/12/18
-				// SuperDAISENRYAKU needs to make the VRAM offset signed, but I suspect making it signed
-				// contradicted with something else.  I fix it this time, but it may break something else,
-				// in which case I'll need to think about something else to support both.
-				if(VRAMSize/2<=VRAMoffset)
-				{
-					VRAMoffset-=VRAMSize;
-				}
-
-				hostMouseY+=VRAMoffset/bytesPerLine;
-				// The following must be signed int.
-				// Wing Commander 2's mouse coordinate is signed.
-				hostMouseY=std::min<int>(hostMouseY,VRAMHeight-1);
-			}
-			// At this time it only takes vertical displacement into account.
 		}
 
 		diffX=hostMouseX-mx;

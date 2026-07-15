@@ -8,9 +8,10 @@ namespace TownsQtPaths
 QString configDir();
 QString romsDir();
 QString blankFdDir();
+QString hddDir();
 QString cmosFilePath();
 QString configFilePath();
 
-/*! Create configDir and romsDir if missing. */
+/*! Create configDir, romsDir, blankFdDir, and hddDir if missing. */
 bool ensureLayout();
 }
