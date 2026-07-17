@@ -189,6 +189,11 @@ TownsSCSI::TownsSCSI(class FMTownsCommon *townsPtr) : Device(townsPtr)
 	{
 		n=0;
 	}
+	for(auto &b : breakOnSCSICommand)
+	{
+		b=false;
+	}
+	breakOnDMATransfer=false;
 	commandLength[SCSICMD_TEST_UNIT_READY]=6;
 	commandLength[SCSICMD_REZERO_UNIT]    =6;
 	commandLength[SCSICMD_SENSE]          =6;

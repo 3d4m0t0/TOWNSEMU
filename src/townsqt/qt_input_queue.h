@@ -30,6 +30,9 @@ public:
 	/*! GUI thread: poll cursor position (CUI FsGetMouseState equivalent). */
 	void PollMouseState(bool lb,bool mb,bool rb,int view_x,int view_y,int emu_x,int emu_y);
 
+	/*! Clear button state only (keep last position). Used when focus leaves the emulator. */
+	void ClearMouseButtons();
+
 	enum
 	{
 		MOUSE_BTN_LEFT=1,

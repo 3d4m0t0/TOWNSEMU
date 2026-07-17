@@ -38,6 +38,7 @@ public:
 		bool pretend386DX=false;
 		bool useFPU=false;
 		bool fastScsi=false;
+		bool fastFd=false;
 		bool midiBoard=false;
 		int modelGroupIndex=0;
 		int displayScale=1;
@@ -67,7 +68,7 @@ public:
 		bool considerVRAMOffsetInMouseIntegration=true;
 		bool differentialMouseIntegration=false;
 		bool snapMouseIntegration=false;
-		int snapMouseWarmupFrames=60;
+		int snapMouseWarmupFrames=30;
 		int mouseMinX=0;
 		int mouseMinY=0;
 		int mouseMaxX=1023;
@@ -136,6 +137,7 @@ private:
 	QCheckBox *pretend_386_=nullptr;
 	QCheckBox *use_fpu_=nullptr;
 	QCheckBox *fast_scsi_=nullptr;
+	QCheckBox *fast_fd_=nullptr;
 	QCheckBox *midi_board_=nullptr;
 	QPushButton *hdd_settings_button_=nullptr;
 	QComboBox *model_group_=nullptr;

@@ -78,7 +78,7 @@ public:
 	bool snapMouseIntegration=false;
 	/*! Gradual integration frames before snap engages (layout / BIOS settle). */
 	int snapMouseWarmupRemaining=0;
-	int snapMouseWarmupFrames=60;
+	int snapMouseWarmupFrames=30;
 	void ResetSnapMouseWarmup(void);
 
 	// Wing Commander and Strike Commander series can be configured to use mouse as joystick.

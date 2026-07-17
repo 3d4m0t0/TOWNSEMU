@@ -269,6 +269,26 @@ bool ArgvHasExplicitFastScsiFlag(int argc,char *argv[])
 	return false;
 }
 
+bool ArgvHasExplicitFastFdFlag(int argc,char *argv[])
+{
+	for(int i=1; i<argc; ++i)
+	{
+		std::string arg=argv[i];
+		for(auto &c : arg)
+		{
+			if('a'<=c && c<='z')
+			{
+				c=static_cast<char>(c+'A'-'a');
+			}
+		}
+		if("-FASTFD"==arg || "-SLOWFD"==arg || "-NORMALFD"==arg)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void TownsQtConfigureOpenGL()
 {
 	QSurfaceFormat fmt;
@@ -317,7 +337,7 @@ int main(int argc,char *argv[])
 	TownsQtConfigureOpenGL();
 
 	QApplication app(argc,argv);
-	app.setApplicationName(QStringLiteral("TownsQt"));
+	app.setApplicationName(QStringLiteral("Tsugaru_QT"));
 	app.setApplicationVersion(QStringLiteral(TOWNSQT_VERSION));
 	app.setOrganizationName(QStringLiteral("TOWNSEMU"));
 	TownsQtInstallTranslators(app);
@@ -472,6 +492,15 @@ int main(int argc,char *argv[])
 	else
 	{
 		TownsQtSettings::setFastScsi(townsArgv.fastSCSI);
+	}
+
+	if(true!=ArgvHasExplicitFastFdFlag(argc,argv))
+	{
+		townsArgv.fastFD=TownsQtSettings::fastFd();
+	}
+	else
+	{
+		TownsQtSettings::setFastFd(townsArgv.fastFD);
 	}
 
 	townsArgv.fmVol=TownsQtSettings::fmChipVolume();

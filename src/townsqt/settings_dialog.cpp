@@ -164,7 +164,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.considerVRAMOffsetInMouseIntegration=true;
 	v.differentialMouseIntegration=false;
 	v.snapMouseIntegration=false;
-	v.snapMouseWarmupFrames=60;
+	v.snapMouseWarmupFrames=30;
 	v.mouseMinX=TownsStartParameters::DEFAULT_MOUSE_MINX;
 	v.mouseMinY=TownsStartParameters::DEFAULT_MOUSE_MINY;
 	v.mouseMaxX=TownsStartParameters::DEFAULT_MOUSE_MAXX;
@@ -359,17 +359,19 @@ void SettingsDialog::buildUi()
 		CompactGrid(opt_grid);
 		opt_grid->setColumnStretch(0,1);
 		opt_grid->setColumnStretch(1,1);
-		opt_grid->setColumnStretch(2,0);
+		opt_grid->setColumnStretch(2,1);
 		pretend_386_=new QCheckBox(tr("pretend386DX"),opt_grid_widget_);
-		use_fpu_=new QCheckBox(tr("80386FPU"),opt_grid_widget_);
 		fast_scsi_=new QCheckBox(tr("FAST SCSI"),opt_grid_widget_);
+		fast_fd_=new QCheckBox(tr("FAST FD"),opt_grid_widget_);
+		use_fpu_=new QCheckBox(tr("80386FPU"),opt_grid_widget_);
 		midi_board_=new QCheckBox(tr("MIDI board"),opt_grid_widget_);
 		hdd_settings_button_=new QPushButton(tr("Hard disk drive settings…"),opt_grid_widget_);
 		opt_grid->addWidget(pretend_386_,0,0);
 		opt_grid->addWidget(fast_scsi_,0,1);
-		opt_grid->addWidget(hdd_settings_button_,0,2);
+		opt_grid->addWidget(fast_fd_,0,2);
 		opt_grid->addWidget(use_fpu_,1,0);
 		opt_grid->addWidget(midi_board_,1,1);
+		opt_grid->addWidget(hdd_settings_button_,1,2);
 		v->addWidget(opt_grid_widget_);
 		connect(midi_board_,&QCheckBox::toggled,this,&SettingsDialog::updateAudioTabMidiSection);
 		connect(hdd_settings_button_,&QPushButton::clicked,this,&SettingsDialog::openHddSettingsDialog);
@@ -1115,6 +1117,10 @@ void SettingsDialog::updateMachineTabControls()
 	{
 		fast_scsi_->setEnabled(editable);
 	}
+	if(nullptr!=fast_fd_)
+	{
+		fast_fd_->setEnabled(editable);
+	}
 	if(nullptr!=midi_board_)
 	{
 		midi_board_->setEnabled(editable);
@@ -1166,6 +1172,10 @@ void SettingsDialog::loadFromValues(const Values &values)
 	if(nullptr!=fast_scsi_)
 	{
 		fast_scsi_->setChecked(values.fastScsi);
+	}
+	if(nullptr!=fast_fd_)
+	{
+		fast_fd_->setChecked(values.fastFd);
 	}
 	if(nullptr!=midi_board_)
 	{
@@ -1344,6 +1354,10 @@ void SettingsDialog::applyToValues(Values &out) const
 	{
 		out.fastScsi=fast_scsi_->isChecked();
 	}
+	if(nullptr!=fast_fd_)
+	{
+		out.fastFd=fast_fd_->isChecked();
+	}
 	if(nullptr!=midi_board_)
 	{
 		out.midiBoard=midi_board_->isChecked();
@@ -1508,6 +1522,10 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		if(nullptr!=fast_scsi_)
 		{
 			fast_scsi_->setChecked(default_values_.fastScsi);
+		}
+		if(nullptr!=fast_fd_)
+		{
+			fast_fd_->setChecked(default_values_.fastFd);
 		}
 		if(nullptr!=midi_board_)
 		{

@@ -1365,7 +1365,13 @@ void MidiFluidSynthHost::SetSampleRate(int sample_rate_hz)
 void MidiFluidSynthHost::SetSoundFontPath(const char *path)
 {
 	std::lock_guard<std::mutex> lock(g_mutex);
-	g_soundfont_path=(nullptr!=path) ? path : "";
+	const std::string new_path=(nullptr!=path) ? path : "";
+	if(new_path==g_soundfont_path)
+	{
+		// Settings apply often re-sets the same path; avoid reloading .sf2.
+		return;
+	}
+	g_soundfont_path=new_path;
 	if(true==g_active)
 	{
 		LoadSoundFontLocked();

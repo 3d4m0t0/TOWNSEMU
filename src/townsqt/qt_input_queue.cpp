@@ -145,6 +145,14 @@ void QtInputQueue::PollMouseState(bool lb,bool mb,bool rb,int view_x,int view_y,
 	lastViewMouseY_=view_y;
 }
 
+void QtInputQueue::ClearMouseButtons()
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	lastMouse_.lb=0;
+	lastMouse_.mb=0;
+	lastMouse_.rb=0;
+}
+
 void QtInputQueue::DrainTo(std::vector<unsigned int> &keyCode,
                            std::vector<unsigned int> &charCode,
                            unsigned char keyState[FSKEY_NUM_KEYCODE],

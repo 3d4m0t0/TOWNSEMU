@@ -32,6 +32,7 @@ void ApplyMachineFromSettings(TownsARGV &argv)
 	argv.pretend386DX=TownsQtSettings::pretend386DX();
 	argv.useFPU=TownsQtSettings::useFPU();
 	argv.fastSCSI=TownsQtSettings::fastScsi();
+	argv.fastFD=TownsQtSettings::fastFd();
 	argv.nMidiCards=TownsQtSettings::midiBoard() ? 1 : 0;
 	argv.fmVol=TownsQtSettings::fmChipVolume();
 	argv.pcmVol=TownsQtSettings::pcmChipVolume();

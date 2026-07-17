@@ -277,13 +277,13 @@
     },
     {
       "context": "MainWindow",
-      "source": "TownsQt — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5",
-      "translation": "TownsQt — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5"
+      "source": "Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5",
+      "translation": "Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5"
     },
     {
       "context": "MainWindow",
-      "source": "TownsQt",
-      "translation": "TownsQt"
+      "source": "Tsugaru_QT",
+      "translation": "Tsugaru_QT"
     },
     {
       "context": "MainWindow",
@@ -344,6 +344,11 @@
       "context": "SettingsDialog",
       "source": "FAST SCSI",
       "translation": "FAST SCSI"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "FAST FD",
+      "translation": "FAST FD"
     },
     {
       "context": "SettingsDialog",
@@ -1024,31 +1029,6 @@
       "context": "TownsQtModelProfile",
       "source": "RAM limited up to before the OS ROM",
       "translation": "RAM 上限到 OS ROM 之前"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Recover mouse",
-      "translation": "Recover mouse"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Restart mouse-integration warm-up when the guest cursor is lost.",
-      "translation": "Restart mouse-integration warm-up when the guest cursor is lost."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Emulator is not running.",
-      "translation": "Emulator is not running."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Recover mouse requires Instant mouse integration (and not differential).",
-      "translation": "Recover mouse requires Instant mouse integration (and not differential)."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Mouse integration warm-up restarted.",
-      "translation": "Mouse integration warm-up restarted."
     },
     {
       "context": "SettingsDialog",

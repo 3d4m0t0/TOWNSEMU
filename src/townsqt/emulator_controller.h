@@ -68,7 +68,6 @@ public Q_SLOTS:
 	Q_INVOKABLE void setSnapMouseIntegration(bool enabled);
 	Q_INVOKABLE void applySnapMouseSettings(bool enabled,int warmup_frames);
 	Q_INVOKABLE bool snapMouseIntegration() const;
-	Q_INVOKABLE void resetSnapMouseWarmup();
 
 Q_SIGNALS:
 	void frameReady();

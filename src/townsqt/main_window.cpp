@@ -151,6 +151,10 @@ bool MachineSettingsNeedRestart(const SettingsDialog::Values &values)
 	{
 		return true;
 	}
+	if(values.fastFd!=TownsQtSettings::fastFd())
+	{
+		return true;
+	}
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
 		if(values.hdd[slot].enabled!=TownsQtSettings::hddEnabled(slot) ||
@@ -166,7 +170,7 @@ bool MachineSettingsNeedRestart(const SettingsDialog::Values &values)
 MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	: QMainWindow(parent),argv_(argv)
 {
-	setWindowTitle(QStringLiteral("TownsQt"));
+	setWindowTitle(QStringLiteral("Tsugaru_QT"));
 	view_=new EmuView(this);
 	view_->attachFramebuffer(&framebuffer_);
 	view_->attachInputQueue(&inputQueue_);
@@ -178,8 +182,9 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	setupMenuBar();
 	const int content_w=640*scale;
 	const int content_h=480*scale;
-	resize(content_w+16,
-	       content_h+menuBar()->sizeHint().height()+statusBar()->sizeHint().height()+16);
+	const int window_w=content_w+16;
+	const int window_h=content_h+menuBar()->sizeHint().height()+statusBar()->sizeHint().height()+16;
+	setFixedSize(window_w,window_h);
 
 	statusBar()->showMessage(tr("Starting…"));
 	applyDriveAccessVisibility();
@@ -524,11 +529,6 @@ void MainWindow::setupMenuBar()
 	auto *toolsMenu=menuBar()->addMenu(tr("&Tools"));
 	auto *settingsAction=toolsMenu->addAction(tr("&Settings…"));
 	connect(settingsAction,&QAction::triggered,this,&MainWindow::openSettingsDialog);
-	toolsMenu->addSeparator();
-	auto *recover_mouse_action=toolsMenu->addAction(tr("Recover mouse"));
-	recover_mouse_action->setToolTip(
-	    tr("Restart mouse-integration warm-up when the guest cursor is lost."));
-	connect(recover_mouse_action,&QAction::triggered,this,&MainWindow::recoverMouseIntegration);
 	toolsMenu->addSeparator();
 	drive_access_action_=toolsMenu->addAction(tr("Drive access"));
 	drive_access_action_->setCheckable(true);
@@ -875,6 +875,7 @@ void MainWindow::openSettingsDialog()
 	initial.pretend386DX=TownsQtSettings::pretend386DX();
 	initial.useFPU=TownsQtSettings::useFPU();
 	initial.fastScsi=TownsQtSettings::fastScsi();
+	initial.fastFd=TownsQtSettings::fastFd();
 	initial.midiBoard=TownsQtSettings::midiBoard();
 	initial.modelGroupIndex=TownsQtSettings::modelGroupIndex();
 	initial.displayScale=TownsQtSettings::displayScale();
@@ -934,25 +935,6 @@ void MainWindow::openSettingsDialog()
 		return;
 	}
 	applySettings(dlg.values());
-}
-
-void MainWindow::recoverMouseIntegration()
-{
-	if(nullptr==controller_ || nullptr==emu_thread_ || !emu_thread_->isRunning())
-	{
-		statusBar()->showMessage(tr("Emulator is not running."),3000);
-		return;
-	}
-	if(!TownsQtSettings::snapMouseIntegration() ||
-	   TownsQtSettings::differentialMouseIntegration())
-	{
-		statusBar()->showMessage(
-		    tr("Recover mouse requires Instant mouse integration (and not differential)."),
-		    5000);
-		return;
-	}
-	QMetaObject::invokeMethod(controller_,"resetSnapMouseWarmup",Qt::QueuedConnection);
-	statusBar()->showMessage(tr("Mouse integration warm-up restarted."),3000);
 }
 
 void MainWindow::showAboutDialog()
@@ -1054,6 +1036,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setPretend386DX(effective.pretend386DX);
 	TownsQtSettings::setUseFPU(effective.useFPU);
 	TownsQtSettings::setFastScsi(effective.fastScsi);
+	TownsQtSettings::setFastFd(effective.fastFd);
 	TownsQtSettings::setMidiBoard(effective.midiBoard);
 	argv_.nMidiCards=effective.midiBoard ? 1 : 0;
 	TownsQtSettings::setMidiSoundFont(effective.midiSoundFont);
@@ -1217,19 +1200,12 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 
 void MainWindow::openCdImage()
 {
-	QString startDir=TownsQtSettings::workingDirectory();
-	if(startDir.isEmpty() && !cd_path_.isEmpty())
-	{
-		startDir=QFileInfo(cd_path_).absolutePath();
-	}
-	else if(startDir.isEmpty() && !argv_.cdImgFName.empty())
-	{
-		startDir=QFileInfo(QString::fromStdString(argv_.cdImgFName)).absolutePath();
-	}
-	else if(startDir.isEmpty())
-	{
-		startDir=TownsQtPaths::configDir();
-	}
+	const QString startDir=TownsQtSettings::fileDialogStartDirectory(
+	    !cd_path_.isEmpty()
+	        ? cd_path_
+	        : (!argv_.cdImgFName.empty()
+	               ? QString::fromStdString(argv_.cdImgFName)
+	               : QString()));
 
 	const QString path=QFileDialog::getOpenFileName(
 	    this,
@@ -1240,6 +1216,7 @@ void MainWindow::openCdImage()
 	{
 		return;
 	}
+	TownsQtSettings::rememberFileDialogPath(path);
 	Q_EMIT cdLoadRequested(path);
 }
 
@@ -1250,19 +1227,12 @@ void MainWindow::openFdImage(int drive)
 	{
 		return;
 	}
-	QString startDir=TownsQtSettings::workingDirectory();
-	if(startDir.isEmpty() && !fd_path_[drive].isEmpty())
-	{
-		startDir=QFileInfo(fd_path_[drive]).absolutePath();
-	}
-	else if(startDir.isEmpty() && !argv_.fdImgFName[drive].empty())
-	{
-		startDir=QFileInfo(QString::fromStdString(argv_.fdImgFName[drive])).absolutePath();
-	}
-	else if(startDir.isEmpty())
-	{
-		startDir=TownsQtPaths::configDir();
-	}
+	const QString startDir=TownsQtSettings::fileDialogStartDirectory(
+	    !fd_path_[drive].isEmpty()
+	        ? fd_path_[drive]
+	        : (!argv_.fdImgFName[drive].empty()
+	               ? QString::fromStdString(argv_.fdImgFName[drive])
+	               : QString()));
 
 	const QString path=QFileDialog::getOpenFileName(
 	    this,
@@ -1273,6 +1243,7 @@ void MainWindow::openFdImage(int drive)
 	{
 		return;
 	}
+	TownsQtSettings::rememberFileDialogPath(path);
 	Q_EMIT fdLoadRequested(drive,path);
 }
 
@@ -1316,6 +1287,7 @@ void MainWindow::createBlankFdImage()
 	{
 		return;
 	}
+	TownsQtSettings::rememberFileDialogPath(path);
 
 	QString suffix=QFileInfo(path).suffix().toLower();
 	if(suffix.isEmpty())
@@ -1398,7 +1370,7 @@ void MainWindow::rebuildRecentFdMenu(int drive)
 		return;
 	}
 	fd_recent_menu_[drive]->clear();
-	const QStringList paths=TownsQtSettings::recentFdImagePaths(drive);
+	const QStringList paths=TownsQtSettings::recentFdImagePaths();
 	for(const QString &path : paths)
 	{
 		const QFileInfo info(path);
@@ -1418,9 +1390,7 @@ void MainWindow::rebuildRecentFdMenu(int drive)
 		fd_recent_menu_[drive]->addSeparator();
 	}
 	auto *clear_action=fd_recent_menu_[drive]->addAction(tr("Clear list"));
-	connect(clear_action,&QAction::triggered,this,[this,drive]{
-		clearRecentFdList(drive);
-	});
+	connect(clear_action,&QAction::triggered,this,&MainWindow::clearRecentFdList);
 }
 
 void MainWindow::clearRecentCdList()
@@ -1429,10 +1399,11 @@ void MainWindow::clearRecentCdList()
 	rebuildRecentCdMenu();
 }
 
-void MainWindow::clearRecentFdList(int drive)
+void MainWindow::clearRecentFdList()
 {
-	TownsQtSettings::clearRecentFdImagePaths(drive);
-	rebuildRecentFdMenu(drive);
+	TownsQtSettings::clearRecentFdImagePaths();
+	rebuildRecentFdMenu(0);
+	rebuildRecentFdMenu(1);
 }
 
 void MainWindow::syncFdWriteProtectMenuChecks()
@@ -1611,7 +1582,15 @@ void MainWindow::onPollTimer()
 {
 	if(nullptr!=view_)
 	{
-		view_->pollMousePosition();
+		if(shouldCaptureHostMouse())
+		{
+			view_->pollMousePosition();
+		}
+		else
+		{
+			// Other app / settings dialog / popup has focus: do not feed host cursor.
+			inputQueue_.ClearMouseButtons();
+		}
 	}
 	if(nullptr!=controller_)
 	{
@@ -2034,7 +2013,7 @@ void MainWindow::onFrameReady()
 
 void MainWindow::onStatsUpdated(double fps,double emu_hz,int queue_depth,int capture_queue_depth,int present_lag)
 {
-	setWindowTitle(tr("TownsQt — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5")
+	setWindowTitle(tr("Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5")
 	                   .arg(fps,0,'f',1)
 	                   .arg(emu_hz,0,'f',2)
 	                   .arg(queue_depth)
@@ -2045,7 +2024,7 @@ void MainWindow::onStatsUpdated(double fps,double emu_hz,int queue_depth,int cap
 void MainWindow::onFailed(const QString &message)
 {
 	statusBar()->showMessage(message,0);
-	QMessageBox::critical(this,tr("TownsQt"),message);
+	QMessageBox::critical(this,tr("Tsugaru_QT"),message);
 }
 
 void MainWindow::onControllerFinished()
@@ -2103,9 +2082,10 @@ void MainWindow::changeEvent(QEvent *event)
 	else if(QEvent::ActivationChange==event->type())
 	{
 		syncDifferentialMouseCursor();
-		if(!isActiveWindow())
+		if(!shouldCaptureHostMouse())
 		{
 			inputQueue_.CancelCursorWarp();
+			inputQueue_.ClearMouseButtons();
 		}
 	}
 }
@@ -2199,6 +2179,9 @@ void MainWindow::applyFullscreenLayout()
 	{
 		menuBar()->hide();
 	}
+	// Drop fixed windowed size so the compositor can take the full screen.
+	setMinimumSize(0,0);
+	setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX);
 	showFullScreen();
 	applyWindowScale(
 	    TownsQtSettings::displayScale(),
@@ -2383,11 +2366,19 @@ bool MainWindow::isMouseInsideWindow(const QPoint &global_pos) const
 	return rect().contains(mapFromGlobal(global_pos));
 }
 
+bool MainWindow::shouldCaptureHostMouse() const
+{
+	return isVisible() &&
+	       isActiveWindow() &&
+	       nullptr==QApplication::activeModalWidget() &&
+	       nullptr==QApplication::activePopupWidget() &&
+	       !isCursorOverUiChrome();
+}
+
 void MainWindow::processPendingMouseWarp()
 {
 	if(!cached_differential_integration_ ||
-	   !isActiveWindow() ||
-	   nullptr!=QApplication::activeModalWidget() ||
+	   !shouldCaptureHostMouse() ||
 	   nullptr==view_)
 	{
 		inputQueue_.CancelCursorWarp();
@@ -2452,10 +2443,7 @@ void MainWindow::syncDifferentialMouseCursor()
 
 void MainWindow::updateBlankCursor()
 {
-	const bool active=
-	    isVisible() &&
-	    isActiveWindow() &&
-	    nullptr==QApplication::activeModalWidget();
+	const bool active=shouldCaptureHostMouse();
 	const bool differential=cached_differential_integration_ && active;
 
 	bool want_blank=differential;
@@ -2712,12 +2700,16 @@ void MainWindow::applyWindowScale(int scale,bool auto_scaling,bool maintain_aspe
 
 	if(!fullscreen_ && !isFullScreen())
 	{
-		// Clear stale minimum sizes so x2->x1 can shrink the window.
+		// Fixed window size: scale/settings may change it, but the user cannot drag-resize.
 		setMinimumSize(0,0);
 		setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX);
-		setMinimumSize(window_w,window_h);
-		resize(window_w,window_h);
+		setFixedSize(window_w,window_h);
 		windowed_geometry_=geometry();
+	}
+	else
+	{
+		setMinimumSize(0,0);
+		setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX);
 	}
 }
 
@@ -2742,8 +2734,15 @@ void MainWindow::cleanupStoppedEmulator(EmulatorController *stopping)
 	if(nullptr!=stopping)
 	{
 		disconnect(stopping,nullptr,emu_thread_,nullptr);
-		stopping->moveToThread(thread());
-		delete stopping;
+		// Affinity should already be the UI thread (moved at end of EmulatorController::run).
+		if(stopping->thread()==thread())
+		{
+			delete stopping;
+		}
+		else
+		{
+			stopping->deleteLater();
+		}
 	}
 	if(nullptr!=emu_thread_)
 	{

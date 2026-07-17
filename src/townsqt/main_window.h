@@ -52,13 +52,12 @@ private Q_SLOTS:
 	void rebuildRecentCdMenu();
 	void rebuildRecentFdMenu(int drive);
 	void clearRecentCdList();
-	void clearRecentFdList(int drive);
+	void clearRecentFdList();
 	void syncFdWriteProtectMenuChecks();
 	void syncFdDriveMenus();
 	void syncEjectMenus();
 	void openSettingsDialog();
 	void applySettings(const SettingsDialog::Values &values);
-	void recoverMouseIntegration();
 	void toggleFullScreen();
 	void showAboutDialog();
 
@@ -121,6 +120,7 @@ private:
 	void updateOpenFdMenuLabel(int drive);
 	bool queryDifferentialMouseIntegration() const;
 	bool isMouseInsideWindow(const QPoint &global_pos) const;
+	bool shouldCaptureHostMouse() const;
 	bool isCursorOverUiChrome() const;
 	bool isCursorNearFullscreenMenu() const;
 	bool isSignificantFullscreenMouseMove(const QPoint &global_pos) const;

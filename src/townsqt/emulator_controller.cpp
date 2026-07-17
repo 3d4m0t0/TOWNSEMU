@@ -17,6 +17,7 @@
 #include "fssimplewindow_connection.h"
 #include "cpputil.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QEventLoop>
 #include <QFile>
@@ -203,6 +204,16 @@ void EmulatorController::run()
 {
 	running_.store(true,std::memory_order_relaxed);
 
+	auto emitFinishedFromEmuThread=[this]{
+		// moveToThread must run on the object's current thread (this emu QThread).
+		// cleanupStoppedEmulator() deletes us from the UI thread after QThread::finished.
+		if(QCoreApplication *app=QCoreApplication::instance())
+		{
+			moveToThread(app->thread());
+		}
+		Q_EMIT finished();
+	};
+
 	impl_->outside_world=new QtOutsideWorld(inputQueue_,framebuffer_);
 	impl_->sound=impl_->outside_world->CreateSound();
 	if(auto *qt_sound=dynamic_cast<QtSyncSoundConnection *>(impl_->sound))
@@ -358,7 +369,7 @@ void EmulatorController::run()
 		if(true!=FMTownsCommon::Setup(*towns,impl_->outside_world,impl_->window,argv_))
 		{
 			Q_EMIT failed(QStringLiteral("Failed to set up FM TOWNS (ROM missing or invalid)."));
-			Q_EMIT finished();
+			emitFinishedFromEmuThread();
 			return;
 		}
 		runWithTowns(*towns);
@@ -369,13 +380,13 @@ void EmulatorController::run()
 		if(true!=FMTownsCommon::Setup(*towns,impl_->outside_world,impl_->window,argv_))
 		{
 			Q_EMIT failed(QStringLiteral("Failed to set up FM TOWNS (ROM missing or invalid)."));
-			Q_EMIT finished();
+			emitFinishedFromEmuThread();
 			return;
 		}
 		runWithTowns(*towns);
 	}
 
-	Q_EMIT finished();
+	emitFinishedFromEmuThread();
 }
 
 void EmulatorController::requestStop()
@@ -935,20 +946,6 @@ bool EmulatorController::snapMouseIntegration() const
 		return impl_->outside_world->snapMouseIntegration;
 	}
 	return TownsQtSettings::snapMouseIntegration();
-}
-
-void EmulatorController::resetSnapMouseWarmup()
-{
-	if(nullptr==impl_->outside_world)
-	{
-		return;
-	}
-	if(true!=impl_->outside_world->snapMouseIntegration ||
-	   true==impl_->outside_world->differentialMouseIntegration)
-	{
-		return;
-	}
-	impl_->outside_world->ResetSnapMouseWarmup();
 }
 
 void EmulatorController::applyDisplayOptions(bool damperWireLine,bool scanLineEffectIn15KHz,int spriteTransferMode)

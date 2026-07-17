@@ -10,6 +10,11 @@ void setLastCdImagePath(const QString &path);
 void clearLastCdImagePath();
 QString workingDirectory();
 void setWorkingDirectory(const QString &directory);
+/*! Start directory for CD/FD file dialogs: shared working directory, then fallback, then config dir.
+ *  Paths under ~/.config/townsqt/blank_fd/ do not update the working directory. */
+QString fileDialogStartDirectory(const QString &fallback=QString());
+/*! Remember the directory of a CD/FD path chosen in a file dialog (blank_fd excluded). */
+void rememberFileDialogPath(const QString &path);
 
 constexpr int kRecentFileHistoryMax=8;
 QStringList recentCdImagePaths();
@@ -19,9 +24,10 @@ void clearRecentCdImagePaths();
 QString lastFdImagePath(int drive);
 void setLastFdImagePath(int drive,const QString &path);
 void clearLastFdImagePath(int drive);
-QStringList recentFdImagePaths(int drive);
+/*! Shared recent-FD list for FD0 and FD1. */
+QStringList recentFdImagePaths();
 void addRecentFdImagePath(int drive,const QString &path);
-void clearRecentFdImagePaths(int drive);
+void clearRecentFdImagePaths();
 bool fdWriteProtect(int drive);
 void setFdWriteProtect(int drive,bool enabled);
 
@@ -71,6 +77,9 @@ void setUseFPU(bool enabled);
 
 bool fastScsi();
 void setFastScsi(bool enabled);
+
+bool fastFd();
+void setFastFd(bool enabled);
 
 bool midiBoard();
 void setMidiBoard(bool enabled);

@@ -6,6 +6,7 @@
 #include "townsqt_model_profile.h"
 #include "townsqt_paths.h"
 
+#include <QDir>
 #include <QFileInfo>
 #include <QSettings>
 
@@ -31,6 +32,7 @@ constexpr char kCpuHighFidelityKey[]="cpu/high_fidelity";
 constexpr char kPretend386DxKey[]="machine/pretend_386dx";
 constexpr char kUseFpuKey[]="machine/use_fpu";
 constexpr char kFastScsiKey[]="machine/fast_scsi";
+constexpr char kFastFdKey[]="machine/fast_fd";
 constexpr char kMidiBoardKey[]="machine/midi_board";
 constexpr char kMidiSoundFontKey[]="midi/soundfont";
 constexpr char kMidiVolumePercentKey[]="midi/volume_percent";
@@ -70,7 +72,7 @@ constexpr char kHddPathKeySuffix[]="/path";
 constexpr char kHddEnabledKeySuffix[]="/enabled";
 constexpr char kSnapMouseIntegrationLegacyKey[]="debug/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesLegacyKey[]="debug/snap_mouse_warmup_frames";
-constexpr int kSnapMouseWarmupFramesDefault=60;
+constexpr int kSnapMouseWarmupFramesDefault=30;
 constexpr int kCpuFreqDefaultMhz=33;
 constexpr int kMemSizeDefaultMb=4;
 constexpr int kChipVolumeMax=8192;
@@ -140,6 +142,22 @@ unsigned int ParseGamePortEmu(const QString &text,unsigned int fallback)
 		return fallback;
 	}
 	return emu;
+}
+
+bool IsBlankFdDirectory(const QString &directory)
+{
+	if(directory.isEmpty())
+	{
+		return false;
+	}
+	const QString blank=TownsQtPaths::blankFdDir();
+	const QString dir_canon=QFileInfo(directory).canonicalFilePath();
+	const QString blank_canon=QFileInfo(blank).canonicalFilePath();
+	if(!dir_canon.isEmpty() && !blank_canon.isEmpty())
+	{
+		return dir_canon==blank_canon;
+	}
+	return QDir(directory).absolutePath()==QDir(blank).absolutePath();
 }
 }
 
@@ -315,6 +333,24 @@ void TownsQtSettings::setFastScsi(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kFastScsiKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::fastFd()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(!settings.contains(QString::fromLatin1(kFastFdKey)))
+	{
+		setFastFd(false);
+		return false;
+	}
+	return settings.value(QString::fromLatin1(kFastFdKey),false).toBool();
+}
+
+void TownsQtSettings::setFastFd(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kFastFdKey),enabled);
 	settings.sync();
 }
 
@@ -688,11 +724,7 @@ void TownsQtSettings::setLastCdImagePath(const QString &path)
 		const QString canonical=QFileInfo(path).canonicalFilePath();
 		const QString use_path=canonical.isEmpty() ? path : canonical;
 		settings.setValue(QString::fromLatin1(kLastCdImageKey),use_path);
-		const QString directory=QFileInfo(use_path).absolutePath();
-		const QString canonical_directory=QFileInfo(directory).canonicalFilePath();
-		settings.setValue(
-		    QString::fromLatin1(kWorkingDirectoryKey),
-		    canonical_directory.isEmpty() ? directory : canonical_directory);
+		setWorkingDirectory(QFileInfo(use_path).absolutePath());
 	}
 	settings.sync();
 }
@@ -707,7 +739,7 @@ QString TownsQtSettings::workingDirectory()
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	const QString directory=
 	    settings.value(QString::fromLatin1(kWorkingDirectoryKey)).toString();
-	if(QFileInfo(directory).isDir())
+	if(QFileInfo(directory).isDir() && !IsBlankFdDirectory(directory))
 	{
 		return directory;
 	}
@@ -720,6 +752,10 @@ QString TownsQtSettings::workingDirectory()
 		return {};
 	}
 	const QString last_cd_directory=QFileInfo(last_cd).absolutePath();
+	if(IsBlankFdDirectory(last_cd_directory))
+	{
+		return {};
+	}
 	return QFileInfo(last_cd_directory).isDir() ? last_cd_directory : QString{};
 }
 
@@ -729,12 +765,48 @@ void TownsQtSettings::setWorkingDirectory(const QString &directory)
 	{
 		return;
 	}
+	// Shared CD/FD working directory must not track blank_fd/.
+	if(IsBlankFdDirectory(directory))
+	{
+		return;
+	}
 	const QString canonical=QFileInfo(directory).canonicalFilePath();
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(
 	    QString::fromLatin1(kWorkingDirectoryKey),
 	    canonical.isEmpty() ? QFileInfo(directory).absoluteFilePath() : canonical);
 	settings.sync();
+}
+
+QString TownsQtSettings::fileDialogStartDirectory(const QString &fallback)
+{
+	const QString working=workingDirectory();
+	if(!working.isEmpty())
+	{
+		return working;
+	}
+	if(!fallback.isEmpty())
+	{
+		if(QFileInfo(fallback).isDir())
+		{
+			return QFileInfo(fallback).absoluteFilePath();
+		}
+		const QString directory=QFileInfo(fallback).absolutePath();
+		if(QFileInfo(directory).isDir())
+		{
+			return directory;
+		}
+	}
+	return TownsQtPaths::configDir();
+}
+
+void TownsQtSettings::rememberFileDialogPath(const QString &path)
+{
+	if(path.isEmpty())
+	{
+		return;
+	}
+	setWorkingDirectory(QFileInfo(path).absolutePath());
 }
 
 QStringList TownsQtSettings::recentCdImagePaths()
@@ -804,7 +876,9 @@ void TownsQtSettings::setLastFdImagePath(int drive,const QString &path)
 	else
 	{
 		const QString canonical=QFileInfo(path).canonicalFilePath();
-		settings.setValue(key,canonical.isEmpty() ? path : canonical);
+		const QString use_path=canonical.isEmpty() ? path : canonical;
+		settings.setValue(key,use_path);
+		setWorkingDirectory(QFileInfo(use_path).absolutePath());
 	}
 	settings.sync();
 }
@@ -814,12 +888,40 @@ void TownsQtSettings::clearLastFdImagePath(int drive)
 	setLastFdImagePath(drive,QString());
 }
 
-QStringList TownsQtSettings::recentFdImagePaths(int drive)
+QStringList TownsQtSettings::recentFdImagePaths()
 {
-	drive=std::clamp(drive,0,1);
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	const QString key=QString::fromLatin1(kRecentFdImagesKey)+QString::number(drive);
-	QStringList list=settings.value(key).toStringList();
+	QStringList list=settings.value(QString::fromLatin1(kRecentFdImagesKey)).toStringList();
+
+	// Migrate older per-drive recent lists into the shared list once.
+	if(list.isEmpty())
+	{
+		for(int drive=0; drive<2; ++drive)
+		{
+			const QString legacy_key=
+			    QString::fromLatin1(kRecentFdImagesKey)+QString::number(drive);
+			const QStringList legacy=settings.value(legacy_key).toStringList();
+			for(const QString &path : legacy)
+			{
+				if(!path.isEmpty() && !list.contains(path))
+				{
+					list.push_back(path);
+				}
+			}
+		}
+		if(!list.isEmpty())
+		{
+			while(kRecentFileHistoryMax<list.size())
+			{
+				list.removeLast();
+			}
+			settings.setValue(QString::fromLatin1(kRecentFdImagesKey),list);
+			settings.remove(QString::fromLatin1(kRecentFdImagesKey)+QStringLiteral("0"));
+			settings.remove(QString::fromLatin1(kRecentFdImagesKey)+QStringLiteral("1"));
+			settings.sync();
+		}
+	}
+
 	QStringList filtered;
 	for(const QString &path : list)
 	{
@@ -844,7 +946,7 @@ void TownsQtSettings::addRecentFdImagePath(int drive,const QString &path)
 	}
 	const QString canonical=QFileInfo(path).canonicalFilePath();
 	const QString usePath=canonical.isEmpty() ? path : canonical;
-	QStringList list=recentFdImagePaths(drive);
+	QStringList list=recentFdImagePaths();
 	list.removeAll(usePath);
 	list.prepend(usePath);
 	while(kRecentFileHistoryMax<list.size())
@@ -852,18 +954,17 @@ void TownsQtSettings::addRecentFdImagePath(int drive,const QString &path)
 		list.removeLast();
 	}
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	const QString key=QString::fromLatin1(kRecentFdImagesKey)+QString::number(drive);
-	settings.setValue(key,list);
+	settings.setValue(QString::fromLatin1(kRecentFdImagesKey),list);
 	settings.sync();
 	setLastFdImagePath(drive,usePath);
 }
 
-void TownsQtSettings::clearRecentFdImagePaths(int drive)
+void TownsQtSettings::clearRecentFdImagePaths()
 {
-	drive=std::clamp(drive,0,1);
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	const QString key=QString::fromLatin1(kRecentFdImagesKey)+QString::number(drive);
-	settings.remove(key);
+	settings.remove(QString::fromLatin1(kRecentFdImagesKey));
+	settings.remove(QString::fromLatin1(kRecentFdImagesKey)+QStringLiteral("0"));
+	settings.remove(QString::fromLatin1(kRecentFdImagesKey)+QStringLiteral("1"));
 	settings.sync();
 }
 
