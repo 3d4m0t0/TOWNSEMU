@@ -19,6 +19,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 /* { */
 
 #include <stdint.h>
+#include <deque>
+#include <mutex>
+#include <string>
+#include <vector>
 #include "device.h"
 #include "townsdef.h"
 #include "i8251.h"
@@ -39,6 +43,10 @@ public:
 	};
 
 	bool midiMonitor=false;
+
+	/*! Thread-safe MIDI monitor log for GUI front-ends (also still prints to stdout). */
+	void LogMonitorLine(const std::string &line);
+	std::vector <std::string> TakeMonitorLines(void);
 
 	class MIDICard;
 
@@ -171,6 +179,11 @@ public:
 	uint32_t SerializeVersion(void) const override;
 	void SpecificSerialize(std::vector <unsigned char> &data,std::string stateFName) const override;
 	bool SpecificDeserialize(const unsigned char *&data,std::string stateFName,uint32_t version) override;
+
+private:
+	std::mutex monitorMutex_;
+	std::deque <std::string> monitorLines_;
+	static constexpr size_t kMaxMonitorLines=2000;
 };
 
 

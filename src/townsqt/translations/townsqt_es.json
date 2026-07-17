@@ -162,13 +162,18 @@
     },
     {
       "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "Superposición de depuración"
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / historial CS:EIP"
     },
     {
       "context": "MainWindow",
-      "source": "Lamp status",
-      "translation": "Estado de indicadores"
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "Registros CPU, instrucción actual, historial CS:EIP y pila de llamadas. Activa el depurador del núcleo mientras esté abierto."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "Superposición de depuración"
     },
     {
       "context": "MainWindow",

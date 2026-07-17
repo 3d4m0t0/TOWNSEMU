@@ -162,13 +162,18 @@
     },
     {
       "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "Debug overlay"
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / CS:EIP history"
     },
     {
       "context": "MainWindow",
-      "source": "Lamp status",
-      "translation": "Lamp status"
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "Debug overlay"
     },
     {
       "context": "MainWindow",

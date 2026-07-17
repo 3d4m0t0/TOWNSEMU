@@ -162,13 +162,18 @@
     },
     {
       "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "调试叠加显示"
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / CS:EIP 历史"
     },
     {
       "context": "MainWindow",
-      "source": "Lamp status",
-      "translation": "指示灯状态"
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "显示 CPU 寄存器、当前指令、CS:EIP 历史和调用栈。窗口打开时启用核心调试器。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "调试叠加显示"
     },
     {
       "context": "MainWindow",

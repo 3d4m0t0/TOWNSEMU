@@ -146,11 +146,11 @@ void setAppSpecificSetting(unsigned int app_value);
 bool showMouseIntegrationDebug();
 void setShowMouseIntegrationDebug(bool enabled);
 
+bool showCpuDebug();
+void setShowCpuDebug(bool enabled);
+
 bool showDriveAccessOverlay();
 void setShowDriveAccessOverlay(bool enabled);
-
-bool showDriveAccessDebug();
-void setShowDriveAccessDebug(bool enabled);
 
 bool midiMonitor();
 void setMidiMonitor(bool enabled);

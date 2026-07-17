@@ -162,13 +162,18 @@
     },
     {
       "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "除錯疊加顯示"
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / CS:EIP 歷程"
     },
     {
       "context": "MainWindow",
-      "source": "Lamp status",
-      "translation": "指示燈狀態"
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "顯示 CPU 暫存器、目前指令、CS:EIP 歷程與呼叫堆疊。視窗開啟時會啟用核心除錯器。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "除錯疊加顯示"
     },
     {
       "context": "MainWindow",

@@ -162,13 +162,18 @@
     },
     {
       "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "디버그 표시"
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / CS:EIP 기록"
     },
     {
       "context": "MainWindow",
-      "source": "Lamp status",
-      "translation": "램프 상태"
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "CPU 레지스터, 현재 명령, CS:EIP 기록, 콜 스택을 표시합니다. 창이 열려 있는 동안 코어 디버거를 사용합니다."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "디버그 표시"
     },
     {
       "context": "MainWindow",

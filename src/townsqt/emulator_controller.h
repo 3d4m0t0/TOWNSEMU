@@ -3,6 +3,7 @@
 #include <QElapsedTimer>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariantMap>
 #include <atomic>
 
@@ -48,6 +49,9 @@ public Q_SLOTS:
 	void applyAudioVolumes(int fm_chip_volume,int pcm_chip_volume,int cdda_volume_percent,bool pcm_lpf_enabled,int pcm_lpf_cutoff_hz,bool pcm_resample_hq);
 	void applyMidiBoard(bool enabled);
 	void setMidiMonitor(bool enabled);
+	Q_INVOKABLE QStringList takeMidiMonitorLines();
+	void setCpuDebugMonitor(bool enabled);
+	Q_INVOKABLE QString cpuDebugSnapshot() const;
 	void restartAudioOutput(void);
 	void applyPeripheralSettings(unsigned int game_port0,
 	                             unsigned int game_port1,
@@ -102,6 +106,7 @@ private:
 
 	uint32_t last_fast_mode_lamp_revision_=0;
 	bool last_fast_mode_lamp_=false;
+	bool cpu_debug_ui_enabled_=false;
 
 	uint64_t last_presented_vsync_index_=0;
 	bool has_presented_frame_=false;

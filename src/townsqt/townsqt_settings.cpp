@@ -60,8 +60,8 @@ constexpr char kMouseMaxXKey[]="peripheral/mouse_max_x";
 constexpr char kMouseMaxYKey[]="peripheral/mouse_max_y";
 constexpr char kAppSpecificKey[]="app/specific_setting";
 constexpr char kMouseIntegrationDebugKey[]="debug/mouse_integration_coords";
+constexpr char kCpuDebugKey[]="debug/cpu_cseip";
 constexpr char kDriveAccessOverlayKey[]="display/drive_access_overlay";
-constexpr char kDriveAccessDebugKey[]="debug/drive_access_lamps";
 constexpr char kMidiMonitorKey[]="debug/midi_monitor";
 constexpr char kSnapMouseIntegrationKey[]="function/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesKey[]="function/snap_mouse_warmup_frames";
@@ -1096,6 +1096,19 @@ void TownsQtSettings::setShowMouseIntegrationDebug(bool enabled)
 	settings.sync();
 }
 
+bool TownsQtSettings::showCpuDebug()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kCpuDebugKey),false).toBool();
+}
+
+void TownsQtSettings::setShowCpuDebug(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kCpuDebugKey),enabled);
+	settings.sync();
+}
+
 bool TownsQtSettings::showDriveAccessOverlay()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -1110,19 +1123,6 @@ void TownsQtSettings::setShowDriveAccessOverlay(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kDriveAccessOverlayKey),enabled);
-	settings.sync();
-}
-
-bool TownsQtSettings::showDriveAccessDebug()
-{
-	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	return settings.value(QString::fromLatin1(kDriveAccessDebugKey),false).toBool();
-}
-
-void TownsQtSettings::setShowDriveAccessDebug(bool enabled)
-{
-	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	settings.setValue(QString::fromLatin1(kDriveAccessDebugKey),enabled);
 	settings.sync();
 }
 

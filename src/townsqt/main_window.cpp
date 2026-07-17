@@ -1,5 +1,6 @@
 #include "main_window.h"
 
+#include "debug_text_window.h"
 #include "emulator_controller.h"
 #include "townsargv.h"
 #include "townsqt_argv_from_settings.h"
@@ -49,6 +50,7 @@
 #include <QPixmap>
 #include <QShowEvent>
 #include <QStatusBar>
+#include <QStringList>
 #include <QTimer>
 #include <QVariantMap>
 #include <QVBoxLayout>
@@ -180,14 +182,10 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	       content_h+menuBar()->sizeHint().height()+statusBar()->sizeHint().height()+16);
 
 	statusBar()->showMessage(tr("Starting…"));
-	drive_debug_label_=new QLabel(statusBar());
-	drive_debug_label_->setMinimumWidth(320);
-	statusBar()->addPermanentWidget(drive_debug_label_);
-	mouse_debug_label_=new QLabel(statusBar());
-	mouse_debug_label_->setMinimumWidth(900);
-	statusBar()->addPermanentWidget(mouse_debug_label_);
 	applyDriveAccessVisibility();
 	applyMouseDebugVisibility();
+	applyMidiMonitorVisibility();
+	applyCpuDebugVisibility();
 	if(nullptr!=view_)
 	{
 		view_->setDriveAccessOverlayEnabled(TownsQtSettings::showDriveAccessOverlay());
@@ -539,7 +537,19 @@ void MainWindow::setupMenuBar()
 		TownsQtSettings::setShowDriveAccessOverlay(enabled);
 		applyDriveAccessVisibility();
 	});
-	midi_monitor_action_=toolsMenu->addAction(tr("MIDI monitor"));
+	auto *debugMenu=toolsMenu->addMenu(tr("Debug overlay"));
+	mouse_debug_action_=debugMenu->addAction(tr("Mouse integration coords"));
+	mouse_debug_action_->setCheckable(true);
+	mouse_debug_action_->setChecked(TownsQtSettings::showMouseIntegrationDebug());
+	connect(mouse_debug_action_,&QAction::toggled,this,[this](bool enabled){
+		TownsQtSettings::setShowMouseIntegrationDebug(enabled);
+		applyMouseDebugVisibility();
+		if(enabled)
+		{
+			updateMouseDebugDisplay();
+		}
+	});
+	midi_monitor_action_=debugMenu->addAction(tr("MIDI monitor"));
 	midi_monitor_action_->setCheckable(true);
 	midi_monitor_action_->setChecked(TownsQtSettings::midiMonitor());
 	connect(midi_monitor_action_,&QAction::toggled,this,[this](bool enabled){
@@ -552,28 +562,31 @@ void MainWindow::setupMenuBar()
 			    Qt::QueuedConnection,
 			    Q_ARG(bool,enabled));
 		}
-	});
-	auto *driveDebugMenu=toolsMenu->addMenu(tr("Debug overlay"));
-	drive_access_debug_action_=driveDebugMenu->addAction(tr("Lamp status"));
-	drive_access_debug_action_->setCheckable(true);
-	drive_access_debug_action_->setChecked(TownsQtSettings::showDriveAccessDebug());
-	connect(drive_access_debug_action_,&QAction::toggled,this,[this](bool enabled){
-		TownsQtSettings::setShowDriveAccessDebug(enabled);
-		applyDriveAccessVisibility();
+		applyMidiMonitorVisibility();
 		if(enabled)
 		{
-			updateDriveAccessDebugDisplay();
+			updateMidiMonitorDisplay();
 		}
 	});
-	mouse_debug_action_=driveDebugMenu->addAction(tr("Mouse integration coords"));
-	mouse_debug_action_->setCheckable(true);
-	mouse_debug_action_->setChecked(TownsQtSettings::showMouseIntegrationDebug());
-	connect(mouse_debug_action_,&QAction::toggled,this,[this](bool enabled){
-		TownsQtSettings::setShowMouseIntegrationDebug(enabled);
-		applyMouseDebugVisibility();
+	cpu_debug_action_=debugMenu->addAction(tr("CPU / CS:EIP history"));
+	cpu_debug_action_->setCheckable(true);
+	cpu_debug_action_->setChecked(TownsQtSettings::showCpuDebug());
+	cpu_debug_action_->setToolTip(
+	    tr("Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open."));
+	connect(cpu_debug_action_,&QAction::toggled,this,[this](bool enabled){
+		TownsQtSettings::setShowCpuDebug(enabled);
+		if(nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setCpuDebugMonitor",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,enabled));
+		}
+		applyCpuDebugVisibility();
 		if(enabled)
 		{
-			updateMouseDebugDisplay();
+			updateCpuDebugDisplay();
 		}
 	});
 
@@ -735,6 +748,8 @@ void MainWindow::syncMenuChecks()
 	}
 	applyDriveAccessVisibility();
 	applyMouseDebugVisibility();
+	applyMidiMonitorVisibility();
+	applyCpuDebugVisibility();
 	syncFdDriveMenus();
 }
 
@@ -1627,7 +1642,8 @@ void MainWindow::onPollTimer()
 		updateFullscreenNormalIntegrationChrome();
 	}
 	updateMouseDebugDisplay();
-	updateDriveAccessDebugDisplay();
+	updateMidiMonitorDisplay();
+	updateCpuDebugDisplay();
 }
 
 void MainWindow::applyDriveAccessVisibility()
@@ -1643,53 +1659,6 @@ void MainWindow::applyDriveAccessVisibility()
 		drive_access_action_->setChecked(overlay);
 		drive_access_action_->blockSignals(false);
 	}
-
-	const bool debug=TownsQtSettings::showDriveAccessDebug();
-	if(nullptr!=drive_debug_label_)
-	{
-		drive_debug_label_->setVisible(debug);
-	}
-	if(nullptr!=drive_access_debug_action_ && drive_access_debug_action_->isChecked()!=debug)
-	{
-		drive_access_debug_action_->blockSignals(true);
-		drive_access_debug_action_->setChecked(debug);
-		drive_access_debug_action_->blockSignals(false);
-	}
-}
-
-void MainWindow::updateDriveAccessDebugDisplay()
-{
-	if(nullptr==drive_debug_label_ || !TownsQtSettings::showDriveAccessDebug())
-	{
-		return;
-	}
-
-	auto lampText=[](bool busy)->QString
-	{
-		return busy ? QStringLiteral("BUSY") : QStringLiteral("IDL");
-	};
-
-	const DriveAccessPresence presence=currentDriveAccessPresence();
-	QStringList parts;
-	if(presence.cd)
-	{
-		parts<<QStringLiteral("CD:%1").arg(lampText(drive_access_status_.cdAccessLamp));
-	}
-	for(int fd=0; fd<2; ++fd)
-	{
-		if(presence.fd[fd])
-		{
-			parts<<QStringLiteral("FD%1:%2").arg(fd).arg(lampText(drive_access_status_.fdAccessLamp[fd]));
-		}
-	}
-	for(int hdd=0; hdd<6; ++hdd)
-	{
-		if(presence.hdd[hdd])
-		{
-			parts<<QStringLiteral("HDD%1:%2").arg(hdd).arg(lampText(drive_access_status_.scsiAccessLamp[hdd]));
-		}
-	}
-	drive_debug_label_->setText(parts.join(QLatin1Char(' ')));
 }
 
 DriveAccessPresence MainWindow::currentDriveAccessPresence() const
@@ -1718,12 +1687,25 @@ DriveAccessPresence MainWindow::currentDriveAccessPresence() const
 	return presence;
 }
 
+void MainWindow::ensureMouseDebugWindow()
+{
+	if(nullptr!=mouse_debug_window_)
+	{
+		return;
+	}
+	mouse_debug_window_=new DebugTextWindow(tr("Mouse integration debug"),this);
+	connect(mouse_debug_window_,&DebugTextWindow::windowClosed,this,[this](){
+		TownsQtSettings::setShowMouseIntegrationDebug(false);
+		applyMouseDebugVisibility();
+	});
+}
+
 void MainWindow::applyMouseDebugVisibility()
 {
 	const bool show=TownsQtSettings::showMouseIntegrationDebug();
-	if(nullptr!=mouse_debug_label_)
+	if(nullptr!=view_)
 	{
-		mouse_debug_label_->setVisible(show);
+		view_->setMouseDebugCrosshair(show);
 	}
 	if(nullptr!=mouse_debug_action_ && mouse_debug_action_->isChecked()!=show)
 	{
@@ -1731,11 +1713,29 @@ void MainWindow::applyMouseDebugVisibility()
 		mouse_debug_action_->setChecked(show);
 		mouse_debug_action_->blockSignals(false);
 	}
+	if(show)
+	{
+		ensureMouseDebugWindow();
+		if(nullptr!=mouse_debug_window_)
+		{
+			mouse_debug_window_->show();
+			mouse_debug_window_->raise();
+		}
+	}
+	else if(nullptr!=mouse_debug_window_)
+	{
+		mouse_debug_window_->hide();
+	}
 }
 
 void MainWindow::updateMouseDebugDisplay()
 {
-	if(nullptr==mouse_debug_label_ || !TownsQtSettings::showMouseIntegrationDebug())
+	if(!TownsQtSettings::showMouseIntegrationDebug())
+	{
+		return;
+	}
+	ensureMouseDebugWindow();
+	if(nullptr==mouse_debug_window_)
 	{
 		return;
 	}
@@ -1752,6 +1752,7 @@ void MainWindow::updateMouseDebugDisplay()
 	QString mos_text=QStringLiteral("-,-");
 	QString tbios_text=QStringLiteral("-,-");
 	QString meta_text;
+	QString version_text;
 	if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
 	{
 		QVariantMap guest;
@@ -1760,6 +1761,14 @@ void MainWindow::updateMouseDebugDisplay()
 		    "guestMouseCoords",
 		    Qt::BlockingQueuedConnection,
 		    Q_RETURN_ARG(QVariantMap,guest));
+		version_text=QStringLiteral("SysROM:%1\nTBIOS:%2 %3 (TB:%4)\nTOS:%5\nMi:%6\nMo:%7")
+		                 .arg(guest.value(QStringLiteral("sysrom")).toString())
+		                 .arg(guest.value(QStringLiteral("tbios_id")).toString())
+		                 .arg(guest.value(QStringLiteral("tbios_date")).toString())
+		                 .arg(guest.value(QStringLiteral("tbios_version")).toUInt())
+		                 .arg(guest.value(QStringLiteral("tos")).toString())
+		                 .arg(guest.value(QStringLiteral("mi_words")).toString())
+		                 .arg(guest.value(QStringLiteral("mo_words")).toString());
 		if(guest.value(QStringLiteral("valid")).toBool())
 		{
 			guest_text=QStringLiteral("%1,%2")
@@ -1781,7 +1790,8 @@ void MainWindow::updateMouseDebugDisplay()
 			            .arg(guest.value(QStringLiteral("hw_x")).toInt())
 			            .arg(guest.value(QStringLiteral("hw_y")).toInt());
 		}
-		meta_text=QStringLiteral("Raw:%1,%2 Ctrl:%3,%4 Org:%5,%6 Zm:%7,%8 Pg:%9 BIOS:%10 TB:%11 %12 W:%13%14")
+		// Keep each .arg() chain to %1..%9 — Qt replaces "%1" inside "%10" otherwise.
+		meta_text=QStringLiteral("Raw:%1,%2 Ctrl:%3,%4 Org:%5,%6 Zm:%7,%8 Pg:%9")
 		              .arg(guest.value(QStringLiteral("raw_x")).toInt())
 		              .arg(guest.value(QStringLiteral("raw_y")).toInt())
 		              .arg(guest.value(QStringLiteral("ctrl_x")).toInt())
@@ -1790,22 +1800,224 @@ void MainWindow::updateMouseDebugDisplay()
 		              .arg(guest.value(QStringLiteral("org_y")).toInt())
 		              .arg(guest.value(QStringLiteral("zoom_x")).toInt())
 		              .arg(guest.value(QStringLiteral("zoom_y")).toInt())
-		              .arg(guest.value(QStringLiteral("page")).toInt())
-		              .arg(guest.value(QStringLiteral("mouse_bios")).toBool() ? 1 : 0)
-		              .arg(guest.value(QStringLiteral("tbios_version")).toUInt())
-		              .arg(QString::fromUtf8(app_profile.label))
-		              .arg(guest.value(QStringLiteral("snap_warmup")).toInt())
-		              .arg(hw_text);
+		              .arg(guest.value(QStringLiteral("page")).toInt());
+		meta_text+=QStringLiteral("\nBIOS:%1 TB:%2 %3 W:%4 Spr:%5,%6 Sk:%7")
+		               .arg(guest.value(QStringLiteral("mouse_bios")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("tbios_version")).toUInt())
+		               .arg(QString::fromUtf8(app_profile.label))
+		               .arg(guest.value(QStringLiteral("snap_warmup")).toInt())
+		               .arg(guest.value(QStringLiteral("spr_h")).toInt())
+		               .arg(guest.value(QStringLiteral("spr_v")).toInt())
+		               .arg(guest.value(QStringLiteral("hskip")).toInt());
+		meta_text+=QStringLiteral("\nSc:%1,%2 n:%3 Sp:%4 Nr:%5,%6 Hs:%7,%8")
+		               .arg(guest.value(QStringLiteral("spr_cx")).toInt())
+		               .arg(guest.value(QStringLiteral("spr_cy")).toInt())
+		               .arg(guest.value(QStringLiteral("spr_n")).toInt())
+		               .arg(guest.value(QStringLiteral("spen")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("spr_nx")).toInt())
+		               .arg(guest.value(QStringLiteral("spr_ny")).toInt())
+		               .arg(guest.value(QStringLiteral("spr_hx")).toInt())
+		               .arg(guest.value(QStringLiteral("spr_hy")).toInt());
+		meta_text+=QStringLiteral("\nVo:%1,%2 Vo1:%3,%4 Fa0:%5,%6 Hot:%7,%8")
+		               .arg(guest.value(QStringLiteral("voff_x")).toInt())
+		               .arg(guest.value(QStringLiteral("voff_y")).toInt())
+		               .arg(guest.value(QStringLiteral("voff1_x")).toInt())
+		               .arg(guest.value(QStringLiteral("voff1_y")).toInt())
+		               .arg(guest.value(QStringLiteral("fa0_0")).toInt())
+		               .arg(guest.value(QStringLiteral("fa0_1")).toInt())
+		               .arg(guest.value(QStringLiteral("hot_x")).toInt())
+		               .arg(guest.value(QStringLiteral("hot_y")).toInt());
+		meta_text+=QStringLiteral("\nCp:%1,%2")
+		               .arg(guest.value(QStringLiteral("cp_x")).toInt())
+		               .arg(guest.value(QStringLiteral("cp_y")).toInt());
+		meta_text+=QStringLiteral("\nO0:%1 O1:%2 Sk0:%3 Sk1:%4 1p:%5 Sh:%6,%7")
+		               .arg(guest.value(QStringLiteral("org0_x")).toInt())
+		               .arg(guest.value(QStringLiteral("org1_x")).toInt())
+		               .arg(guest.value(QStringLiteral("hskip0")).toInt())
+		               .arg(guest.value(QStringLiteral("hskip1")).toInt())
+		               .arg(guest.value(QStringLiteral("single_page")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("show0")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("show1")).toBool() ? 1 : 0);
+		meta_text+=QStringLiteral("\nZ0:%1,%2 Z1:%3,%4 Sz0:%5 Sz1:%6 HalfOff:%7")
+		               .arg(guest.value(QStringLiteral("zoom0_x")).toInt())
+		               .arg(guest.value(QStringLiteral("zoom0_y")).toInt())
+		               .arg(guest.value(QStringLiteral("zoom1_x")).toInt())
+		               .arg(guest.value(QStringLiteral("zoom1_y")).toInt())
+		               .arg(guest.value(QStringLiteral("psize0_x")).toInt())
+		               .arg(guest.value(QStringLiteral("psize1_x")).toInt())
+		               .arg(guest.value(QStringLiteral("ctrl_x")).toInt()/2);
+		meta_text+=QStringLiteral("\nSnap:%1,%2 Rpr:%3")
+		               .arg(guest.value(QStringLiteral("snap_valid")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("snap_applied")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("xor_repair")).toInt());
+		meta_text+=QStringLiteral("\nPv:%1,%2 Pt:%3,%4%5")
+		               .arg(guest.value(QStringLiteral("mi_prev_x")).toInt())
+		               .arg(guest.value(QStringLiteral("mi_prev_y")).toInt())
+		               .arg(guest.value(QStringLiteral("mi_paint_x")).toInt())
+		               .arg(guest.value(QStringLiteral("mi_paint_y")).toInt())
+		               .arg(hw_text);
 	}
 
-	mouse_debug_label_->setText(
-	    tr("Host:%1,%2  Guest:%3  MOS:%4  TBIOS:%5  %6")
-	        .arg(host_x)
-	        .arg(host_y)
-	        .arg(guest_text)
-	        .arg(mos_text)
-	        .arg(tbios_text)
-	        .arg(meta_text));
+	const QString body=QStringLiteral("%1\nHost:%2,%3\nGuest:%4\nMOS:%5\nTBIOS:%6\n%7")
+	                       .arg(version_text)
+	                       .arg(host_x)
+	                       .arg(host_y)
+	                       .arg(guest_text)
+	                       .arg(mos_text)
+	                       .arg(tbios_text)
+	                       .arg(meta_text);
+	mouse_debug_window_->setLiveText(body);
+}
+
+void MainWindow::ensureMidiMonitorWindow()
+{
+	if(nullptr!=midi_monitor_window_)
+	{
+		return;
+	}
+	midi_monitor_window_=new DebugTextWindow(tr("MIDI monitor"),this);
+	connect(midi_monitor_window_,&DebugTextWindow::windowClosed,this,[this](){
+		TownsQtSettings::setMidiMonitor(false);
+		if(nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setMidiMonitor",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,false));
+		}
+		applyMidiMonitorVisibility();
+	});
+}
+
+void MainWindow::applyMidiMonitorVisibility()
+{
+	const bool show=TownsQtSettings::midiMonitor();
+	if(nullptr!=midi_monitor_action_ && midi_monitor_action_->isChecked()!=show)
+	{
+		midi_monitor_action_->blockSignals(true);
+		midi_monitor_action_->setChecked(show);
+		midi_monitor_action_->blockSignals(false);
+	}
+	if(show)
+	{
+		ensureMidiMonitorWindow();
+		if(nullptr!=midi_monitor_window_)
+		{
+			midi_monitor_window_->show();
+			midi_monitor_window_->raise();
+		}
+	}
+	else if(nullptr!=midi_monitor_window_)
+	{
+		midi_monitor_window_->hide();
+	}
+}
+
+void MainWindow::updateMidiMonitorDisplay()
+{
+	if(!TownsQtSettings::midiMonitor())
+	{
+		return;
+	}
+	ensureMidiMonitorWindow();
+	if(nullptr==midi_monitor_window_ ||
+	   nullptr==controller_ ||
+	   nullptr==emu_thread_ ||
+	   !emu_thread_->isRunning())
+	{
+		return;
+	}
+
+	QStringList lines;
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "takeMidiMonitorLines",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(QStringList,lines));
+	for(const QString &line : lines)
+	{
+		midi_monitor_window_->appendLine(line);
+	}
+}
+
+void MainWindow::ensureCpuDebugWindow()
+{
+	if(nullptr!=cpu_debug_window_)
+	{
+		return;
+	}
+	cpu_debug_window_=new DebugTextWindow(tr("CPU / CS:EIP history"),this);
+	cpu_debug_window_->resize(820,560);
+	connect(cpu_debug_window_,&DebugTextWindow::windowClosed,this,[this](){
+		TownsQtSettings::setShowCpuDebug(false);
+		if(nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setCpuDebugMonitor",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,false));
+		}
+		applyCpuDebugVisibility();
+	});
+}
+
+void MainWindow::applyCpuDebugVisibility()
+{
+	const bool show=TownsQtSettings::showCpuDebug();
+	if(nullptr!=cpu_debug_action_ && cpu_debug_action_->isChecked()!=show)
+	{
+		cpu_debug_action_->blockSignals(true);
+		cpu_debug_action_->setChecked(show);
+		cpu_debug_action_->blockSignals(false);
+	}
+	if(show)
+	{
+		ensureCpuDebugWindow();
+		if(nullptr!=cpu_debug_window_)
+		{
+			cpu_debug_window_->show();
+			cpu_debug_window_->raise();
+		}
+	}
+	else if(nullptr!=cpu_debug_window_)
+	{
+		cpu_debug_window_->hide();
+	}
+}
+
+void MainWindow::updateCpuDebugDisplay()
+{
+	if(!TownsQtSettings::showCpuDebug())
+	{
+		return;
+	}
+	ensureCpuDebugWindow();
+	if(nullptr==cpu_debug_window_ ||
+	   nullptr==controller_ ||
+	   nullptr==emu_thread_ ||
+	   !emu_thread_->isRunning())
+	{
+		return;
+	}
+
+	// Snapshot is relatively heavy; refresh at ~10 Hz.
+	static qint64 s_last_ms=0;
+	const qint64 now=QDateTime::currentMSecsSinceEpoch();
+	if(now-s_last_ms<100)
+	{
+		return;
+	}
+	s_last_ms=now;
+
+	QString text;
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "cpuDebugSnapshot",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(QString,text));
+	cpu_debug_window_->setLiveText(text);
 }
 
 void MainWindow::onFrameReady()

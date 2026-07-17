@@ -20,6 +20,7 @@ class QActionGroup;
 class EmulatorController;
 class QLabel;
 class QMenu;
+class DebugTextWindow;
 
 class MainWindow : public QMainWindow
 {
@@ -107,7 +108,13 @@ private:
 	void updateFullscreenNormalIntegrationChrome();
 	void updateMouseDebugDisplay();
 	void applyMouseDebugVisibility();
-	void updateDriveAccessDebugDisplay();
+	void ensureMouseDebugWindow();
+	void updateMidiMonitorDisplay();
+	void applyMidiMonitorVisibility();
+	void ensureMidiMonitorWindow();
+	void updateCpuDebugDisplay();
+	void applyCpuDebugVisibility();
+	void ensureCpuDebugWindow();
 	void applyDriveAccessVisibility();
 	DriveAccessPresence currentDriveAccessPresence() const;
 	void updateOpenCdMenuLabel();
@@ -155,11 +162,12 @@ private:
 	QAction *fullscreen_action_=nullptr;
 	QAction *drive_access_action_=nullptr;
 	QAction *midi_monitor_action_=nullptr;
-	QAction *drive_access_debug_action_=nullptr;
 	QAction *mouse_debug_action_=nullptr;
+	QAction *cpu_debug_action_=nullptr;
 	QTimer *fullscreen_chrome_hide_timer_=nullptr;
-	QLabel *drive_debug_label_=nullptr;
-	QLabel *mouse_debug_label_=nullptr;
+	DebugTextWindow *mouse_debug_window_=nullptr;
+	DebugTextWindow *midi_monitor_window_=nullptr;
+	DebugTextWindow *cpu_debug_window_=nullptr;
 
 	bool fullscreen_=false;
 	bool fullscreen_cursor_hidden_=false;

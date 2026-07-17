@@ -162,13 +162,18 @@
     },
     {
       "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "Superposition de débogage"
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / historique CS:EIP"
     },
     {
       "context": "MainWindow",
-      "source": "Lamp status",
-      "translation": "État des voyants"
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "Registres CPU, instruction courante, historique CS:EIP et pile d'appels. Active le débogueur du cœur tant que la fenêtre est ouverte."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "Superposition de débogage"
     },
     {
       "context": "MainWindow",

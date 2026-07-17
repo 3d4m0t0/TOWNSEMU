@@ -5,6 +5,29 @@
 #include "towns.h"
 
 
+void TownsMIDI::LogMonitorLine(const std::string &line)
+{
+	std::cout << line << std::endl;
+	if(nullptr!=townsPtr)
+	{
+		townsPtr->debugger.WriteLogFile(line);
+	}
+	std::lock_guard <std::mutex> lock(monitorMutex_);
+	monitorLines_.push_back(line);
+	while(kMaxMonitorLines<monitorLines_.size())
+	{
+		monitorLines_.pop_front();
+	}
+}
+
+std::vector <std::string> TownsMIDI::TakeMonitorLines(void)
+{
+	std::lock_guard <std::mutex> lock(monitorMutex_);
+	std::vector <std::string> out(monitorLines_.begin(),monitorLines_.end());
+	monitorLines_.clear();
+	return out;
+}
+
 void TownsMIDI::i8251Client::Tx(unsigned char data)
 {
 	owner->ByteSentFromVM(portNo,data);
@@ -21,8 +44,7 @@ void TownsMIDI::MIDICard::ByteSentFromVM(int port,unsigned char data)
 		s+=cpputil::Uitoa(port+portBase);
 		s+=" Data:";
 		s+=cpputil::Ubtox(data);
-		std::cout << s << std::endl;
-		owner->townsPtr->debugger.WriteLogFile(s);
+		owner->LogMonitorLine(s);
 	}
 
 	auto &p=ports[port];
@@ -85,8 +107,7 @@ void TownsMIDI::MIDICard::ByteSentFromVM(int port,unsigned char data)
 					s += cpputil::Ubtox(p.midiMessage[i]);
 					s += " ";
 				}
-				std::cout << s << std::endl;
-				owner->townsPtr->debugger.WriteLogFile(s);
+				owner->LogMonitorLine(s);
 			}
 			p.midiItfc->SendCommand(p.midiMessage);
 			p.midiMessage[1]=0;
@@ -108,8 +129,7 @@ void TownsMIDI::MIDICard::ByteSentFromVM(int port,unsigned char data)
 					s += " ";
 				}
 				s+="F7";
-				std::cout<<s<<std::endl;
-				owner->townsPtr->debugger.WriteLogFile(s);
+				owner->LogMonitorLine(s);
 			}
 			p.midiItfc->SendExclusiveCommand(p.midiMessage,p.midiMessageLen);
 			p.midiSysExflag=false;

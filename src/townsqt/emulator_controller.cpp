@@ -15,6 +15,7 @@
 #include "townsthread.h"
 
 #include "fssimplewindow_connection.h"
+#include "cpputil.h"
 
 #include <QDir>
 #include <QEventLoop>
@@ -221,7 +222,7 @@ void EmulatorController::run()
 		    TownsQtSettings::pcmLpfEnabled(),
 		    TownsQtSettings::pcmLpfCutoffHz(),
 		    TownsQtSettings::pcmResampleHighQuality());
-		if(true==argv_.debugger)
+		if(true==argv_.debugger || true==TownsQtSettings::showCpuDebug())
 		{
 			towns.EnableDebugger();
 		}
@@ -612,6 +613,128 @@ void EmulatorController::setMidiMonitor(bool enabled)
 	}
 }
 
+QStringList EmulatorController::takeMidiMonitorLines()
+{
+	QStringList lines;
+	if(nullptr==towns_)
+	{
+		return lines;
+	}
+	for(const auto &line : towns_->midi.TakeMonitorLines())
+	{
+		lines<<QString::fromStdString(line);
+	}
+	return lines;
+}
+
+void EmulatorController::setCpuDebugMonitor(bool enabled)
+{
+	cpu_debug_ui_enabled_=enabled;
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	if(enabled || true==argv_.debugger)
+	{
+		towns_->EnableDebugger();
+	}
+	else
+	{
+		towns_->DisableDebugger();
+	}
+}
+
+QString EmulatorController::cpuDebugSnapshot() const
+{
+	QString out;
+	if(nullptr==towns_)
+	{
+		return out;
+	}
+
+	auto &cpu=towns_->CPU();
+	auto &debugger=towns_->debugger;
+
+	out+=QStringLiteral("=== Registers ===\n");
+	for(const auto &line : cpu.GetStateText())
+	{
+		out+=QString::fromStdString(line);
+		out+=QLatin1Char('\n');
+	}
+
+	out+=QStringLiteral("\n=== Current instruction ===\n");
+	if(nullptr!=cpu.debuggerPtr)
+	{
+		i486DXCommon::InstructionAndOperand instOp;
+		MemoryAccess::ConstMemoryWindow emptyMemWindow;
+		cpu.DebugFetchInstruction(emptyMemWindow,instOp,towns_->mem);
+		const std::string disasm=cpu.Disassemble(
+		    instOp.inst,
+		    instOp.op1,
+		    instOp.op2,
+		    cpu.state.CS(),
+		    cpu.state.EIP,
+		    towns_->mem,
+		    debugger.GetSymTable(),
+		    debugger.GetIOTable());
+		out+=QString::fromStdString(disasm);
+		out+=QLatin1Char('\n');
+	}
+	else
+	{
+		out+=QStringLiteral("(debugger not attached — open this window to enable)\n");
+	}
+
+	out+=QStringLiteral("\n=== CS:EIP history (newest first) ===\n");
+	constexpr unsigned int kHistorySteps=64;
+	const auto hist=debugger.GetCSEIPLog(kHistorySteps);
+	const auto &symTable=debugger.GetSymTable();
+	for(auto iter=hist.rbegin(); iter!=hist.rend(); ++iter)
+	{
+		if(0==iter->SEG && 0==iter->OFFSET && 0==iter->count)
+		{
+			continue;
+		}
+		out+=QString::fromStdString(
+		    cpputil::Ustox(iter->SEG)+":"+cpputil::Uitox(iter->OFFSET)+
+		    "  SS="+cpputil::Ustox(iter->SS)+
+		    "  ESP="+cpputil::Uitox(iter->ESP));
+		if(1<iter->count)
+		{
+			out+=QStringLiteral(" (%1)").arg(static_cast<qulonglong>(iter->count));
+		}
+		if(const auto *sym=symTable.Find(iter->SEG,iter->OFFSET))
+		{
+			out+=QLatin1Char(' ');
+			out+=QString::fromStdString(sym->Format());
+		}
+		out+=QLatin1Char('\n');
+	}
+
+	out+=QStringLiteral("\n=== Call stack ===\n");
+	const auto stack=debugger.GetCallStackText(cpu);
+	constexpr size_t kMaxStackLines=48;
+	const size_t start=(stack.size()>kMaxStackLines) ? (stack.size()-kMaxStackLines) : 0;
+	if(stack.empty())
+	{
+		out+=QStringLiteral("(empty)\n");
+	}
+	else
+	{
+		if(0<start)
+		{
+			out+=QStringLiteral("... (%1 older frames omitted)\n").arg(static_cast<qulonglong>(start));
+		}
+		for(size_t i=start; i<stack.size(); ++i)
+		{
+			out+=QString::fromStdString(stack[i]);
+			out+=QLatin1Char('\n');
+		}
+	}
+
+	return out;
+}
+
 void EmulatorController::restartAudioOutput()
 {
 	if(!running_.load(std::memory_order_relaxed))
@@ -969,6 +1092,53 @@ QVariantMap EmulatorController::guestMouseCoords() const
 	result[QStringLiteral("hw_defined")]=ow.debugHwCursorDefined;
 	result[QStringLiteral("hw_x")]=ow.debugHwCursorX;
 	result[QStringLiteral("hw_y")]=ow.debugHwCursorY;
+	result[QStringLiteral("hskip")]=ow.debugHSkip1X;
+	result[QStringLiteral("spr_h")]=ow.debugSpriteHOffset;
+	result[QStringLiteral("spr_v")]=ow.debugSpriteVOffset;
+	result[QStringLiteral("spr_cx")]=ow.debugSpriteCursorX;
+	result[QStringLiteral("spr_cy")]=ow.debugSpriteCursorY;
+	result[QStringLiteral("spr_n")]=ow.debugSpriteCursorCount;
+	result[QStringLiteral("spr_nx")]=ow.debugSpriteNearestX;
+	result[QStringLiteral("spr_ny")]=ow.debugSpriteNearestY;
+	result[QStringLiteral("spr_hx")]=ow.debugSpriteHalfX;
+	result[QStringLiteral("spr_hy")]=ow.debugSpriteHalfY;
+	result[QStringLiteral("spen")]=ow.debugSpriteSpen;
+	result[QStringLiteral("voff_x")]=ow.debugVramOffsetX;
+	result[QStringLiteral("voff_y")]=ow.debugVramOffsetY;
+	result[QStringLiteral("voff1_x")]=ow.debugVramOffsetX1;
+	result[QStringLiteral("voff1_y")]=ow.debugVramOffsetY1;
+	result[QStringLiteral("fa0_0")]=ow.debugFa0_0;
+	result[QStringLiteral("fa0_1")]=ow.debugFa0_1;
+	result[QStringLiteral("hot_x")]=ow.debugMouseInfoHotX;
+	result[QStringLiteral("hot_y")]=ow.debugMouseInfoHotY;
+	result[QStringLiteral("cp_x")]=ow.debugCursorDrawX;
+	result[QStringLiteral("cp_y")]=ow.debugCursorDrawY;
+	result[QStringLiteral("org0_x")]=ow.debugOrg0X;
+	result[QStringLiteral("org1_x")]=ow.debugOrg1X;
+	result[QStringLiteral("hskip0")]=ow.debugHSkip0;
+	result[QStringLiteral("hskip1")]=ow.debugHSkip1;
+	result[QStringLiteral("single_page")]=ow.debugSinglePage;
+	result[QStringLiteral("show0")]=ow.debugShowPage0;
+	result[QStringLiteral("show1")]=ow.debugShowPage1;
+	result[QStringLiteral("sysrom")]=QString::fromStdString(ow.debugSysRomVersion);
+	result[QStringLiteral("tbios_id")]=QString::fromStdString(ow.debugTbiosId);
+	result[QStringLiteral("tbios_date")]=QString::fromStdString(ow.debugTbiosDate);
+	result[QStringLiteral("tos")]=QString::fromStdString(ow.debugTosVersion);
+	result[QStringLiteral("mi_words")]=QString::fromStdString(ow.debugMouseInfoWords);
+	result[QStringLiteral("mo_words")]=QString::fromStdString(ow.debugMosWorkWords);
+	result[QStringLiteral("zoom0_x")]=ow.debugZoom0X;
+	result[QStringLiteral("zoom0_y")]=ow.debugZoom0Y;
+	result[QStringLiteral("zoom1_x")]=ow.debugZoom1X;
+	result[QStringLiteral("zoom1_y")]=ow.debugZoom1Y;
+	result[QStringLiteral("psize0_x")]=ow.debugPageSize0X;
+	result[QStringLiteral("psize1_x")]=ow.debugPageSize1X;
+	result[QStringLiteral("snap_valid")]=ow.debugMouseSnapValid;
+	result[QStringLiteral("snap_applied")]=ow.debugMouseSnapApplied;
+	result[QStringLiteral("xor_repair")]=ow.debugMouseInfoRepair;
+	result[QStringLiteral("mi_prev_x")]=ow.debugMiPrevX;
+	result[QStringLiteral("mi_prev_y")]=ow.debugMiPrevY;
+	result[QStringLiteral("mi_paint_x")]=ow.debugMiPaintX;
+	result[QStringLiteral("mi_paint_y")]=ow.debugMiPaintY;
 	return result;
 }
 
