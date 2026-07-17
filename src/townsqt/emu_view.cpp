@@ -11,6 +11,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPen>
 #include <QApplication>
 #include <QCursor>
 #include <QResizeEvent>
@@ -115,6 +116,10 @@ void EmuView::syncInputDisplayLayout()
 	int x=0,y=0,dst_w=0,dst_h=0;
 	queryDisplayRect(x,y,dst_w,dst_h);
 	inputQueue_->SetDisplayLayout(emu_wid_,emu_hei_,x,y,dst_w,dst_h);
+	if(nullptr!=gl_view_)
+	{
+		gl_view_->setLogicalDisplayRect(x,y,dst_w,dst_h);
+	}
 }
 
 void EmuView::setHostCursorBlank(bool blank)
@@ -125,6 +130,20 @@ void EmuView::setHostCursorBlank(bool blank)
 	{
 		gl_view_->setCursor(shape);
 	}
+}
+
+void EmuView::setMouseDebugCrosshair(bool enabled)
+{
+	if(mouse_debug_crosshair_==enabled)
+	{
+		return;
+	}
+	mouse_debug_crosshair_=enabled;
+	if(nullptr!=gl_view_)
+	{
+		gl_view_->setMouseDebugCrosshair(enabled);
+	}
+	update();
 }
 
 void EmuView::noteViewMousePosition(const QPoint &view_pos)
@@ -274,6 +293,10 @@ void EmuView::pollMousePosition()
 	}
 	const Qt::MouseButtons buttons=QApplication::mouseButtons();
 	const auto emu_pos=mapToEmu(view_pos);
+	if(true==mouse_debug_crosshair_ && nullptr!=gl_view_)
+	{
+		gl_view_->setMouseDebugCrosshairEmuPos(emu_pos.x(),emu_pos.y());
+	}
 	inputQueue_->PollMouseState(
 	    (buttons & Qt::LeftButton)!=0,
 	    (buttons & Qt::MiddleButton)!=0,
@@ -520,6 +543,7 @@ void EmuView::paintEvent(QPaintEvent * /*event*/)
 		painter.drawImage(x,y,image_);
 	}
 	paintDriveAccessOverlay(painter);
+	paintMouseDebugCrosshair(painter);
 }
 
 QPoint EmuView::mapToEmu(const QPoint &pos) const
@@ -537,6 +561,19 @@ QPoint EmuView::mapToEmu(const QPoint &pos) const
 	return QPoint(mx,my);
 }
 
+QPoint EmuView::mapFromEmu(int emu_x,int emu_y) const
+{
+	int x0=0,y0=0,dst_w=0,dst_h=0;
+	queryDisplayRect(x0,y0,dst_w,dst_h);
+	if(dst_w<=0 || dst_h<=0 || emu_wid_<=0 || emu_hei_<=0)
+	{
+		return QPoint(0,0);
+	}
+	return QPoint(
+	    x0+emu_x*dst_w/emu_wid_,
+	    y0+emu_y*dst_h/emu_hei_);
+}
+
 bool EmuView::isPointOnEmuPicture(const QPoint &view_pos) const
 {
 	int x=0,y=0,dst_w=0,dst_h=0;
@@ -546,6 +583,19 @@ bool EmuView::isPointOnEmuPicture(const QPoint &view_pos) const
 		return false;
 	}
 	return QRect(x,y,dst_w,dst_h).contains(view_pos);
+}
+
+void EmuView::paintMouseDebugCrosshair(QPainter &painter)
+{
+	if(!mouse_debug_crosshair_ || emu_wid_<=0 || emu_hei_<=0)
+	{
+		return;
+	}
+	const QPoint emu=hostMouseEmuCoords();
+	const QPoint view=mapFromEmu(emu.x(),emu.y());
+	painter.setPen(QPen(QColor(0,255,0),1));
+	painter.drawLine(view.x()-6,view.y(),view.x()+6,view.y());
+	painter.drawLine(view.x(),view.y()-6,view.x(),view.y()+6);
 }
 
 void EmuView::keyPressEvent(QKeyEvent *event)

@@ -597,6 +597,7 @@ void FMTownsCommon::State::Reset(void)
 	MOS_work_linearAddr=0;
 	MOS_work_physicalAddr=0;
 	mouseBIOSActive=false;
+	mouseBIOSStartSerial=0;
 	mouseDisplayPage=0;
 
 	serialROMBitCount=0;
@@ -1286,7 +1287,15 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 		state.TBIOS_mouseInfoOffset=FindTBIOSMouseInfoOffset(state.tbiosVersion,state.TBIOS_physicalAddr);
 
 		state.mouseBIOSActive=true;
+		++state.mouseBIOSStartSerial;
 		state.mouseDisplayPage=0;
+
+		// Director / multimedia titles may leave sprite H/V offset set.  ATTR_OFFS cursor
+		// sprites then appear shifted while MOS coordinates (hit testing) stay correct.
+		sprite.state.reg[TownsSprite::REG_HORIZONTAL_OFFSET0]=0;
+		sprite.state.reg[TownsSprite::REG_HORIZONTAL_OFFSET1]=0;
+		sprite.state.reg[TownsSprite::REG_VERTICAL_OFFSET0]=0;
+		sprite.state.reg[TownsSprite::REG_VERTICAL_OFFSET1]=0;
 
 		std::cout << "Identified TBIOS as: " << TBIOSIDENTtoString(state.tbiosVersion) << std::endl;
 

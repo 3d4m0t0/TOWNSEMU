@@ -15,6 +15,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 
 #include "towns.h"
 #include "townsdef.h"
@@ -681,8 +682,20 @@ void FMTownsCommon::TransformHostMouseForIntegration(int hostMouseX,int hostMous
 			// The following must be signed int.
 			// Wing Commander 2's mouse coordinate is signed.
 			hostMouseY=std::min<int>(hostMouseY,VRAMHeight-1);
+
+			// Horizontal component of FA0 (Director may leave a non-row-aligned offset).
+			// Previously only the vertical component was applied.
+			int hBytes=VRAMoffset%bytesPerLine;
+			if(hBytes<0)
+			{
+				hBytes+=bytesPerLine;
+			}
+			const int bpp=crtc.GetPageBitsPerPixel(state.mouseDisplayPage);
+			if(0<bpp)
+			{
+				hostMouseX+=(hBytes*8)/bpp;
+			}
 		}
-		// At this time it only takes vertical displacement into account.
 	}
 
 	outX=hostMouseX;
@@ -742,15 +755,153 @@ bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMo
 		{
 			if(true==SetMouseCoordinate(hostMouseX,hostMouseY,tbiosid))
 			{
+				SyncMouseCursorSpritesToCoord(hostMouseX,hostMouseY);
+				SyncMouseCursorDrawCoordinate(hostMouseX,hostMouseY);
 				DontControlMouse();
 				return true;
 			}
 			// Mouse BIOS storage may not be ready yet at boot — use gradual integration.
-			return ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
+			const bool ok=ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
+			SyncMouseCursorSpritesToCoord(hostMouseX,hostMouseY);
+			SyncMouseCursorDrawCoordinate(hostMouseX,hostMouseY);
+			return ok;
 		}
-		return ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
+		const bool ok=ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
+		SyncMouseCursorSpritesToCoord(hostMouseX,hostMouseY);
+		SyncMouseCursorDrawCoordinate(hostMouseX,hostMouseY);
+		return ok;
 	}
 	return false;
+}
+
+void FMTownsCommon::SyncMouseCursorSpritesToCoord(int mx,int my)
+{
+	// Director / WC2 installer can leave the hardware cursor sprite's X out of sync with MOS
+	// (hit-testing).  On a quiet TOS desktop only a few sprites are active — rewrite X/Y for
+	// displayed sprites that share the mouse scanline so the picture matches MOS again.
+	// Sprite index coords are often half of MOS (256-plane / 2x CRTC zoom); Sc:-1 with SPEN
+	// on usually means the filter looked for full-scale Y only.
+	if(true!=state.mouseBIOSActive ||
+	   TOWNS_APPSPECIFIC_NONE!=state.appSpecificSetting ||
+	   true!=sprite.SPEN() ||
+	   true==crtc.state.highResCRTCEnabled)
+	{
+		return;
+	}
+	if(8<sprite.NumSpritesActuallyDrawn())
+	{
+		return;
+	}
+
+	auto *spriteRAM=physMem.state.spriteRAM;
+	const unsigned int xOff=sprite.HOffset();
+	const unsigned int yOff=sprite.VOffset();
+	for(unsigned int spriteIndex=sprite.FirstSpriteIndex();
+	    spriteIndex<TownsSprite::MAX_NUM_SPRITE_INDEX;
+	    ++spriteIndex)
+	{
+		auto *indexPtr=spriteRAM+(spriteIndex<<3);
+		const unsigned int paletteInfo=(unsigned int)(indexPtr[6]|(indexPtr[7]<<8));
+		if(0!=(paletteInfo&TownsSprite::PALETTE_DISP))
+		{
+			continue;
+		}
+		int dstX=(int)((indexPtr[0]|(indexPtr[1]<<8))&511);
+		int dstY=(int)((indexPtr[2]|(indexPtr[3]<<8))&511);
+		const unsigned int attrib=(unsigned int)(indexPtr[4]|(indexPtr[5]<<8));
+		if(0!=(attrib&TownsSprite::ATTR_OFFS))
+		{
+			dstX+=(int)xOff;
+			dstY+=(int)yOff;
+		}
+
+		// Match full-scale MOS Y, or half-scale sprite plane (Y≈MOS/2, common with 2x zoom).
+		const int dFull=std::abs(dstY-my);
+		const int dHalf=std::abs(dstY*2-my);
+		const bool halfScale=(dHalf<=2 && dHalf<dFull);
+		if(2<dFull && 2<dHalf)
+		{
+			continue;
+		}
+		const int goalX=(true==halfScale ? mx/2 : mx);
+		const int goalY=(true==halfScale ? my/2 : my);
+		if(dstX==goalX && dstY==goalY)
+		{
+			continue;
+		}
+		int writeX=goalX;
+		int writeY=goalY;
+		if(0!=(attrib&TownsSprite::ATTR_OFFS))
+		{
+			writeX-=(int)xOff;
+			writeY-=(int)yOff;
+		}
+		writeX&=511;
+		writeY&=511;
+		if(writeX<0)
+		{
+			writeX=0;
+		}
+		if(writeY<0)
+		{
+			writeY=0;
+		}
+		indexPtr[0]=(unsigned char)(writeX&0xFF);
+		indexPtr[1]=(unsigned char)((writeX>>8)&0x01);
+		indexPtr[2]=(unsigned char)(writeY&0xFF);
+		indexPtr[3]=(unsigned char)((writeY>>8)&0x01);
+	}
+}
+
+namespace
+{
+unsigned int MouseCursorDrawPhysicalAddr(const FMTownsCommon &towns)
+{
+	// Per-TBIOS layout only — never guess TBIOS+0x510 on V31L35 (that word is unrelated
+	// and writing it corrupts TBIOS; reads show as Cp:4864,10613-style garbage).
+	switch(towns.state.tbiosVersion)
+	{
+	case TBIOS_V31L31_92:
+	case TBIOS_V31L31_93:
+		// ES:[510H] is MOS_rdpos / cursor position for these revisions.
+		if(0!=towns.state.TBIOS_physicalAddr)
+		{
+			return towns.state.TBIOS_physicalAddr+0x510;
+		}
+		return 0;
+	case TBIOS_V31L35:
+		// Draw and rdpos share mouseInfo+0x0C/+0x0E — no separate CURSOR_POSITION.
+		if(0!=towns.state.TBIOS_physicalAddr && 0!=towns.state.TBIOS_mouseInfoOffset)
+		{
+			return towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset+0x0C;
+		}
+		return 0;
+	default:
+		break;
+	}
+	return 0;
+}
+}
+
+bool FMTownsCommon::GetMouseCursorDrawCoordinate(int &mx,int &my) const
+{
+	const unsigned int phys=MouseCursorDrawPhysicalAddr(*this);
+	if(0==phys)
+	{
+		return false;
+	}
+	mx=(int)mem.FetchWord(phys);
+	my=(int)mem.FetchWord(phys+2);
+	return true;
+}
+
+void FMTownsCommon::SyncMouseCursorDrawCoordinate(int mx,int my)
+{
+	// V31L35 / V31L31_92 already get X/Y via SetMouseCoordinate into the same words
+	// MouseCursorDrawPhysicalAddr() would touch.  Extra writes are unnecessary; the old
+	// TBIOS+0x510 fallback actively corrupted V31L35 after Director titles.
+	(void)mx;
+	(void)my;
 }
 
 bool FMTownsCommon::SetMouseCoordinate(int mx,int my,unsigned int tbiosid)
@@ -806,6 +957,7 @@ bool FMTownsCommon::SetMouseCoordinate(int mx,int my,unsigned int tbiosid)
 				mem.StoreWord(state.MOS_work_physicalAddr+0x56,mx);
 				mem.StoreWord(state.MOS_work_physicalAddr+0x58,my);
 			}
+			SyncMouseCursorDrawCoordinate(mx,my);
 			return true;
 		}
 	}

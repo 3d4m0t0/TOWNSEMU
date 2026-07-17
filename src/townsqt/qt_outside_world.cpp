@@ -134,22 +134,9 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 		winThrEx.primary.lastKnownMouse.lb=lastMouse.lb;
 		winThrEx.primary.lastKnownMouse.mb=lastMouse.mb;
 		winThrEx.primary.lastKnownMouse.rb=lastMouse.rb;
+		// lastMouse.mx/my are already emulator image coordinates from EmuView::mapToEmu.
 		winThrEx.primary.lastKnownMouse.mx=lastMouse.mx;
 		winThrEx.primary.lastKnownMouse.my=lastMouse.my;
-
-		// Convert view coordinates to emulator image coordinates here (same as EmuView::mapToEmu).
-		// DevicePolling must receive emu coords with an identity display transform.
-		if(0<emuWid && 0<emuHei && 0<displayW && 0<displayH)
-		{
-			const int vx=winThrEx.primary.lastKnownMouse.mx;
-			const int vy=winThrEx.primary.lastKnownMouse.my;
-			int emx=(vx-displayX)*emuWid/displayW;
-			int emy=(vy-displayY)*emuHei/displayH;
-			emx=std::clamp(emx,0,emuWid-1);
-			emy=std::clamp(emy,0,emuHei-1);
-			winThrEx.primary.lastKnownMouse.mx=emx;
-			winThrEx.primary.lastKnownMouse.my=emy;
-		}
 
 		const bool differential=(nullptr!=owner_ && true==owner_->differentialMouseIntegration);
 

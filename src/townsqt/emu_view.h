@@ -30,6 +30,7 @@ public:
 	void setVideoOptions(int base_scale,bool auto_scale,bool maintain_aspect);
 	void setFullscreenVsync(bool enabled);
 	void setHostCursorBlank(bool blank);
+	void setMouseDebugCrosshair(bool enabled);
 
 	/*! Poll host cursor over the view (GUI thread, each input interval). */
 	void pollMousePosition();
@@ -75,7 +76,9 @@ private:
 	void onSoftwareVsyncTick();
 	void recomputeDisplayLayout();
 	void queryDisplayRect(int &x,int &y,int &dst_w,int &dst_h) const;
+	QPoint mapFromEmu(int emu_x,int emu_y) const;
 	void paintDriveAccessOverlay(QPainter &painter);
+	void paintMouseDebugCrosshair(QPainter &painter);
 	void setDriveAccessOverlayVisible(bool visible);
 
 	SharedRgbaFramebuffer *framebuffer_=nullptr;
@@ -98,6 +101,7 @@ private:
 	bool software_present_pending_=false;
 	bool has_view_mouse_pos_=false;
 	QPoint last_view_mouse_pos_;
+	bool mouse_debug_crosshair_=false;
 	Outside_World::StatusBarInfo drive_access_{};
 	DriveAccessPresence drive_access_presence_{};
 	bool drive_access_valid_=false;

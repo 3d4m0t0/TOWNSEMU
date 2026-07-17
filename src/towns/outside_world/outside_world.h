@@ -61,6 +61,17 @@ public:
 	bool mouseIntegrationActive=false;
 	int lastMx,lastMy,mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 	bool differentialMouseIntegration=false;
+	bool prevSpriteSpen_=false;
+	/*! Set when a non-desktop CRTC mode is seen; cleared after desktop restore. */
+	bool spriteOffsetSeenInExoticMode_=false;
+	/*! Last seen Mouse BIOS AH=00 serial (TOS/desktop re-init detection). */
+	unsigned int lastMouseBIOSStartSerial_=0;
+	bool mouseBIOSStartSerialInited_=false;
+	/*! Debug Snap: saw Director-like CRTC / ran post-Director absolute-integration pause. */
+	bool mouseDesktopSnapshotValid_=false;
+	bool mouseDesktopSnapApplied_=false;
+	/*! Pause absolute mouse integration after return to TOS (soft cursor recenters). */
+	int mouseInfoRepairFrames_=0;
 	/*! TownsQt: drive mouse motion with image-space deltas when differential integration is off. */
 	bool qtImageDeltaMouseMotion=false;
 	/*! Test mode: set guest mouse coordinate equal to host in one step (no ScaleStep). */
@@ -187,6 +198,37 @@ public:
 	unsigned int debugTBIOSVersion=0;
 	unsigned int debugAppSpecific=0;
 	int debugSnapWarmupRemaining=0;
+	int debugHSkip1X=0;
+	int debugSpriteHOffset=0;
+	int debugSpriteVOffset=0;
+	int debugSpriteCursorX=-1,debugSpriteCursorY=-1;
+	int debugSpriteCursorCount=0;
+	int debugSpriteNearestX=-1,debugSpriteNearestY=-1;
+	int debugSpriteHalfX=-1,debugSpriteHalfY=-1;
+	bool debugSpriteSpen=false;
+	int debugVramOffsetX=0,debugVramOffsetY=0;
+	int debugVramOffsetX1=0,debugVramOffsetY1=0;
+	int debugFa0_0=0,debugFa0_1=0;
+	int debugMouseInfoHotX=0,debugMouseInfoHotY=0;
+	int debugCursorDrawX=-1,debugCursorDrawY=-1;
+	int debugOrg0X=0,debugOrg1X=0;
+	int debugHSkip0=0,debugHSkip1=0;
+	int debugZoom0X=2,debugZoom0Y=2,debugZoom1X=2,debugZoom1Y=2;
+	int debugPageSize0X=0,debugPageSize1X=0;
+	bool debugSinglePage=true;
+	bool debugShowPage0=true,debugShowPage1=false;
+	std::string debugSysRomVersion;
+	std::string debugTbiosId;
+	std::string debugTbiosDate;
+	std::string debugTosVersion;
+	std::string debugMouseInfoWords;
+	std::string debugMosWorkWords;
+	bool debugMouseSnapValid=false;
+	bool debugMouseSnapApplied=false;
+	int debugMouseInfoRepair=0;
+	int debugMiPrevX=0,debugMiPrevY=0;
+	int debugMiPaintX=0,debugMiPaintY=0;
+	unsigned int debugVersionCacheTbiosPhys_=0;
 
 	Outside_World();
 	virtual ~Outside_World();

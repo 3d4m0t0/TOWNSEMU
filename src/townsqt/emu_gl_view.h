@@ -26,6 +26,10 @@ public:
 	void setScale(int scale);
 	void setMaintainAspect(bool enabled);
 	void setStretchToFill(bool enabled);
+	/*! Logical (widget) rectangle where the emu image is drawn — must match EmuView::mapToEmu. */
+	void setLogicalDisplayRect(int x,int y,int w,int h);
+	void setMouseDebugCrosshair(bool enabled);
+	void setMouseDebugCrosshairEmuPos(int emu_x,int emu_y);
 	void setSwapIntervalPreference(int interval);
 	void setDriveAccessIndicators(const Outside_World::StatusBarInfo &info,
 	                              const DriveAccessPresence &presence);
@@ -59,6 +63,14 @@ private:
 	int scale_=1;
 	bool maintain_aspect_=true;
 	bool stretch_to_fill_=false;
+	bool have_logical_display_rect_=false;
+	int logical_display_x_=0;
+	int logical_display_y_=0;
+	int logical_display_w_=640;
+	int logical_display_h_=480;
+	bool mouse_debug_crosshair_=false;
+	int mouse_debug_emu_x_=0;
+	int mouse_debug_emu_y_=0;
 	uint64_t last_serial_=0;
 	int emu_wid_=640;
 	int emu_hei_=480;

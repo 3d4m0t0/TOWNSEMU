@@ -4,9 +4,10 @@
 #include "townsqt_drive_access_overlay.h"
 
 #include <QOpenGLShader>
+#include <QPainter>
+#include <QPen>
 #include <QVector2D>
 #include <QVector4D>
-#include <QPainter>
 
 #include <algorithm>
 #include <cmath>
@@ -117,6 +118,39 @@ void EmuGlView::setStretchToFill(bool enabled)
 {
 	stretch_to_fill_=enabled;
 	update();
+}
+
+void EmuGlView::setLogicalDisplayRect(int x,int y,int w,int h)
+{
+	have_logical_display_rect_=true;
+	logical_display_x_=x;
+	logical_display_y_=y;
+	logical_display_w_=std::max(1,w);
+	logical_display_h_=std::max(1,h);
+}
+
+void EmuGlView::setMouseDebugCrosshair(bool enabled)
+{
+	if(mouse_debug_crosshair_==enabled)
+	{
+		return;
+	}
+	mouse_debug_crosshair_=enabled;
+	update();
+}
+
+void EmuGlView::setMouseDebugCrosshairEmuPos(int emu_x,int emu_y)
+{
+	if(mouse_debug_emu_x_==emu_x && mouse_debug_emu_y_==emu_y)
+	{
+		return;
+	}
+	mouse_debug_emu_x_=emu_x;
+	mouse_debug_emu_y_=emu_y;
+	if(true==mouse_debug_crosshair_)
+	{
+		update();
+	}
 }
 
 void EmuGlView::setDriveAccessOverlayEnabled(bool enabled)
@@ -363,30 +397,59 @@ void EmuGlView::paintGL()
 		return;
 	}
 
-	const int dst_w=stretch_to_fill_ ?
-	    vp_w :
-	    std::max(1,static_cast<int>(std::lround(emu_wid_*scale_*dpr)));
-	const int dst_h=stretch_to_fill_ ?
-	    vp_h :
-	    std::max(1,static_cast<int>(std::lround(emu_hei_*scale_*dpr)));
-	const int x=stretch_to_fill_ ? 0 : (vp_w-dst_w)/2;
-	const int y=stretch_to_fill_ ? 0 : (vp_h-dst_h)/2;
+	int x=0,y=0,dst_w=0,dst_h=0;
+	if(have_logical_display_rect_)
+	{
+		x=static_cast<int>(std::lround(logical_display_x_*dpr));
+		y=static_cast<int>(std::lround(logical_display_y_*dpr));
+		dst_w=std::max(1,static_cast<int>(std::lround(logical_display_w_*dpr)));
+		dst_h=std::max(1,static_cast<int>(std::lround(logical_display_h_*dpr)));
+	}
+	else if(stretch_to_fill_)
+	{
+		dst_w=vp_w;
+		dst_h=vp_h;
+	}
+	else
+	{
+		dst_w=std::max(1,static_cast<int>(std::lround(emu_wid_*scale_*dpr)));
+		dst_h=std::max(1,static_cast<int>(std::lround(emu_hei_*scale_*dpr)));
+		x=(vp_w-dst_w)/2;
+		y=(vp_h-dst_h)/2;
+	}
 	drawTexturedQuad(x,y,dst_w,dst_h,vp_w,vp_h);
 
-	if(true==drive_access_overlay_enabled_ &&
-	   true==drive_access_overlay_visible_ &&
-	   true==drive_access_valid_ &&
-	   0<drive_access_presence_.IconCount())
+	const bool want_overlay=
+	    (true==drive_access_overlay_enabled_ &&
+	     true==drive_access_overlay_visible_ &&
+	     true==drive_access_valid_ &&
+	     0<drive_access_presence_.IconCount()) ||
+	    true==mouse_debug_crosshair_;
+	if(want_overlay)
 	{
 		QPainter painter(this);
 		painter.setRenderHint(QPainter::SmoothPixmapTransform,false);
-		constexpr int kMargin=2;
-		DrawDriveAccessOverlay(
-		    painter,
-		    DriveAccessOverlayOriginX(width(),drive_access_presence_),
-		    height()-kDriveAccessIconSize-kMargin,
-		    drive_access_,
-		    drive_access_presence_);
+		if(true==drive_access_overlay_enabled_ &&
+		   true==drive_access_overlay_visible_ &&
+		   true==drive_access_valid_ &&
+		   0<drive_access_presence_.IconCount())
+		{
+			constexpr int kMargin=2;
+			DrawDriveAccessOverlay(
+			    painter,
+			    DriveAccessOverlayOriginX(width(),drive_access_presence_),
+			    height()-kDriveAccessIconSize-kMargin,
+			    drive_access_,
+			    drive_access_presence_);
+		}
+		if(true==mouse_debug_crosshair_ && have_logical_display_rect_ && 0<emu_wid_ && 0<emu_hei_)
+		{
+			const int vx=logical_display_x_+mouse_debug_emu_x_*logical_display_w_/emu_wid_;
+			const int vy=logical_display_y_+mouse_debug_emu_y_*logical_display_h_/emu_hei_;
+			painter.setPen(QPen(QColor(0,255,0),1));
+			painter.drawLine(vx-6,vy,vx+6,vy);
+			painter.drawLine(vx,vy-6,vx,vy+6);
+		}
 		painter.end();
 	}
 }

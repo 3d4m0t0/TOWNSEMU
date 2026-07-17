@@ -196,6 +196,8 @@ public:
 		*/
 		unsigned int tbiosVersion=TBIOS_UNKNOWN;
 		bool mouseBIOSActive=false;
+		/*! Incremented on Mouse BIOS AH=00 (start/re-init).  Used to detect TOS desktop return. */
+		unsigned int mouseBIOSStartSerial=0;
 		int mouseDisplayPage=0;
 		unsigned int TBIOS_physicalAddr=0;
 		unsigned int TBIOS_mouseInfoOffset=0;
@@ -606,6 +608,15 @@ public:
 
 	/*! Write guest mouse coordinate directly (used by snap mouse integration test). */
 	bool SetMouseCoordinate(int mx,int my,unsigned int tbiosid);
+
+	/*! After Director etc., sprite-index cursor X can lag MOS; force-match on quiet desktops.
+	    Also matches half-scale sprite-plane coords (Y≈MOS/2) used with 2x CRTC zoom. */
+	void SyncMouseCursorSpritesToCoord(int mx,int my);
+
+	/*! Debug: physical words used for guest cursor X/Y for the active TBIOS layout. */
+	bool GetMouseCursorDrawCoordinate(int &mx,int &my) const;
+	/*! No-op kept for call sites; do not write guessed CURSOR_POSITION addresses. */
+	void SyncMouseCursorDrawCoordinate(int mx,int my);
 
 	/*! Control mouse return.  The difference from ControlMouse is the input x and y are in the Towns's
 	    mouse coordinate.

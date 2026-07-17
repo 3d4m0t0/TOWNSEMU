@@ -14,6 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 << LICENSE */
 #include <iostream>
 #include <algorithm>
+#include <cstdio>
 #include <cstring> // std::memcpy for Linux compiler
 
 #include "outside_world.h"
@@ -1346,9 +1347,173 @@ void Outside_World::ResetSnapMouseWarmup(void)
 	mouseIntegrationActive=false;
 	mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 }
+
+namespace
+{
+/*! Macromedia Director (and similar) often leave sprite H/V offset non-zero.
+    ATTR_OFFS mouse-cursor sprites then draw shifted while MOS hit-test coords stay put —
+    horizontal-only visual skew that survives returning to the TOS desktop.
+    Clear offsets when mouse BIOS is (re)inited or when SPEN falls (typical app exit).
+    Also remember exotic CRTC (page-1 scroll etc.) even when SPEN stays off — WC2 installer. */
+void ClearStaleSpriteOffsetIfNeeded(FMTownsCommon &towns,bool force)
+{
+	if(false==force)
+	{
+		return;
+	}
+	towns.sprite.state.reg[TownsSprite::REG_HORIZONTAL_OFFSET0]=0;
+	towns.sprite.state.reg[TownsSprite::REG_HORIZONTAL_OFFSET1]=0;
+	towns.sprite.state.reg[TownsSprite::REG_VERTICAL_OFFSET0]=0;
+	towns.sprite.state.reg[TownsSprite::REG_VERTICAL_OFFSET1]=0;
+}
+
+int PageVramOffsetY(const FMTownsCommon &towns,unsigned char page)
+{
+	const int bytesPerLine=towns.crtc.GetPageBytesPerLine(page);
+	int voff=(int)towns.crtc.GetPageVRAMAddressOffset(page);
+	const unsigned int vramSize=
+	    (true==towns.crtc.InSinglePageMode() ? 0x80000u : 0x40000u);
+	if((int)(vramSize/2)<=voff)
+	{
+		voff-=(int)vramSize;
+	}
+	return (0!=bytesPerLine ? voff/bytesPerLine : 0);
+}
+
+/*! TOS desktop is page0 zoom2x=2, but WC2/Director keeps page0 looking normal while
+    page1 runs zoom2x=4 and/or Vo1 scroll (Sh:1,1).  Checking only mouseDisplayPage (0)
+    falsely treats that as a quiet desktop and can restore mid-transition. */
+bool IsStandardDesktopCrtc(const FMTownsCommon &towns)
+{
+	if(true==towns.crtc.state.highResCRTCEnabled)
+	{
+		return false;
+	}
+	const auto z0=towns.crtc.GetPageZoom2X(0);
+	const auto o0=towns.crtc.GetPageOriginOnMonitor(0);
+	if(2!=z0.x() || 2!=z0.y() || 0!=o0.x() || 0!=o0.y())
+	{
+		return false;
+	}
+	if(0!=PageVramOffsetY(towns,0))
+	{
+		return false;
+	}
+	if(true!=towns.crtc.InSinglePageMode())
+	{
+		const auto z1=towns.crtc.GetPageZoom2X(1);
+		const auto o1=towns.crtc.GetPageOriginOnMonitor(1);
+		if(2!=z1.x() || 2!=z1.y() || 0!=o1.x() || 0!=o1.y())
+		{
+			return false;
+		}
+		if(0!=PageVramOffsetY(towns,1))
+		{
+			return false;
+		}
+	}
+	if(0!=towns.sprite.HOffset() || 0!=towns.sprite.VOffset())
+	{
+		return false;
+	}
+	return true;
+}
+
+void SyncMouseInfoPrevDrawToCurrent(FMTownsCommon &towns)
+{
+	if(0==towns.state.TBIOS_physicalAddr || 0==towns.state.TBIOS_mouseInfoOffset)
+	{
+		return;
+	}
+	const unsigned int base=
+	    towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset;
+	const unsigned int x=towns.mem.FetchWord(base+0x0C);
+	const unsigned int y=towns.mem.FetchWord(base+0x0E);
+	// Clean TOS keeps +22/+24 at 0 — do not mirror position into those words.
+	towns.mem.StoreWord(base+0x10,x);
+	towns.mem.StoreWord(base+0x12,y);
+}
+}
+
 void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb,int mx,int my)
 {
 	towns.SetMouseButtonState((0!=lb),(0!=rb));
+
+	const bool spen=towns.sprite.SPEN();
+	if(true==prevSpriteSpen_ && true!=spen)
+	{
+		ClearStaleSpriteOffsetIfNeeded(towns,true);
+	}
+	prevSpriteSpen_=spen;
+
+	const bool standardCrtc=IsStandardDesktopCrtc(towns);
+	const bool quietDesktop=
+	    true==standardCrtc &&
+	    true==towns.state.mouseBIOSActive &&
+	    TOWNS_APPSPECIFIC_NONE==towns.state.appSpecificSetting;
+
+	// Mouse BIOS AH=00 re-init (serial bump) — strongest "back to TOS desktop mouse" signal.
+	bool mosReinit=false;
+	if(true!=mouseBIOSStartSerialInited_)
+	{
+		lastMouseBIOSStartSerial_=towns.state.mouseBIOSStartSerial;
+		mouseBIOSStartSerialInited_=true;
+	}
+	else if(lastMouseBIOSStartSerial_!=towns.state.mouseBIOSStartSerial)
+	{
+		lastMouseBIOSStartSerial_=towns.state.mouseBIOSStartSerial;
+		// Ignore the very first AH=00 after boot (serial becomes 1); later re-inits matter.
+		if(1<towns.state.mouseBIOSStartSerial)
+		{
+			mosReinit=true;
+		}
+	}
+
+	if(true!=standardCrtc)
+	{
+		if(true!=spriteOffsetSeenInExoticMode_)
+		{
+			mouseDesktopSnapApplied_=false;
+		}
+		spriteOffsetSeenInExoticMode_=true;
+		mouseDesktopSnapshotValid_=true;
+	}
+
+	const bool desktopReturn=
+	    (true==spriteOffsetSeenInExoticMode_ && true==quietDesktop) ||
+	    (true==mosReinit && true==quietDesktop);
+	if(true==desktopReturn)
+	{
+		ClearStaleSpriteOffsetIfNeeded(towns,true);
+		towns.state.mouseDisplayPage=0;
+		towns.crtc.state.crtcReg[TownsCRTC::REG_FA0]=0;
+		towns.crtc.state.crtcReg[TownsCRTC::REG_FA0+4]=0;
+		// Absolute/snap SetMouseCoordinate during app→TOS handoff corrupts soft-cursor XOR
+		// state.  Pause briefly so TOS can re-center (same as a differential-mode exit).
+		mouseInfoRepairFrames_=180;
+		mouseIntegrationActive=false;
+		mouseDesktopSnapApplied_=true;
+		ResetSnapMouseWarmup();
+		spriteOffsetSeenInExoticMode_=false;
+	}
+
+	// Pause absolute/snap integration after TOS return (until timeout or host moves).
+	if(true!=differentialMouseIntegration && 0<mouseInfoRepairFrames_)
+	{
+		const bool hostMovedPause=(lastMx!=mx || lastMy!=my);
+		if(true!=hostMovedPause)
+		{
+			--mouseInfoRepairFrames_;
+			towns.DontControlMouse();
+			if(0==mouseInfoRepairFrames_)
+			{
+				SyncMouseInfoPrevDrawToCurrent(towns);
+			}
+			return;
+		}
+		mouseInfoRepairFrames_=0;
+		SyncMouseInfoPrevDrawToCurrent(towns);
+	}
 
 	const bool hostMoved=(lastMx!=mx || lastMy!=my);
 	if(hostMoved)
@@ -1453,6 +1618,307 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 	debugGuestMx=gx;
 	debugGuestMy=gy;
 	debugSnapWarmupRemaining=snapMouseWarmupRemaining;
+
+	debugHSkip1X=(int)towns.crtc.GetVRAMHSkip1X((unsigned char)debugMousePage);
+	debugSpriteHOffset=(int)towns.sprite.HOffset();
+	debugSpriteVOffset=(int)towns.sprite.VOffset();
+	debugSpriteSpen=towns.sprite.SPEN();
+
+	debugSpriteCursorX=-1;
+	debugSpriteCursorY=-1;
+	debugSpriteNearestX=-1;
+	debugSpriteNearestY=-1;
+	debugSpriteHalfX=-1;
+	debugSpriteHalfY=-1;
+	debugSpriteCursorCount=0;
+	if(true==debugSpriteSpen)
+	{
+		auto *spriteRAM=towns.physMem.state.spriteRAM;
+		const unsigned int xOff=towns.sprite.HOffset();
+		const unsigned int yOff=towns.sprite.VOffset();
+		int bestNearDist=0x7fffffff;
+		int bestHalfDist=0x7fffffff;
+		for(unsigned int spriteIndex=towns.sprite.FirstSpriteIndex();
+		    spriteIndex<TownsSprite::MAX_NUM_SPRITE_INDEX;
+		    ++spriteIndex)
+		{
+			auto *indexPtr=spriteRAM+(spriteIndex<<3);
+			const unsigned int paletteInfo=(unsigned int)(indexPtr[6]|(indexPtr[7]<<8));
+			if(0!=(paletteInfo&TownsSprite::PALETTE_DISP))
+			{
+				continue;
+			}
+			int dstX=(int)((indexPtr[0]|(indexPtr[1]<<8))&511);
+			int dstY=(int)((indexPtr[2]|(indexPtr[3]<<8))&511);
+			const unsigned int attrib=(unsigned int)(indexPtr[4]|(indexPtr[5]<<8));
+			if(0!=(attrib&TownsSprite::ATTR_OFFS))
+			{
+				dstX+=(int)xOff;
+				dstY+=(int)yOff;
+			}
+			++debugSpriteCursorCount;
+			const int nearDist=std::abs(dstX-debugCtrlMx)+std::abs(dstY-debugCtrlMy);
+			if(nearDist<bestNearDist)
+			{
+				bestNearDist=nearDist;
+				debugSpriteNearestX=dstX;
+				debugSpriteNearestY=dstY;
+			}
+			if(2>=std::abs(dstY-debugCtrlMy) &&
+			   (debugSpriteCursorX<0 ||
+			    std::abs(dstX-debugCtrlMx)<std::abs(debugSpriteCursorX-debugCtrlMx)))
+			{
+				debugSpriteCursorX=dstX;
+				debugSpriteCursorY=dstY;
+			}
+			const int halfDist=std::abs(dstX*2-debugCtrlMx)+std::abs(dstY*2-debugCtrlMy);
+			if(2>=std::abs(dstY*2-debugCtrlMy) && halfDist<bestHalfDist)
+			{
+				bestHalfDist=halfDist;
+				debugSpriteHalfX=dstX;
+				debugSpriteHalfY=dstY;
+			}
+		}
+	}
+
+	auto fillVramOffset=[&](unsigned char page,int &ox,int &oy)
+	{
+		const int bytesPerLine=towns.crtc.GetPageBytesPerLine(page);
+		int voff=(int)towns.crtc.GetPageVRAMAddressOffset(page);
+		const unsigned int vramSize=
+		    (true==towns.crtc.InSinglePageMode() ? 0x80000u : 0x40000u);
+		if((int)(vramSize/2)<=voff)
+		{
+			voff-=(int)vramSize;
+		}
+		oy=(0!=bytesPerLine ? voff/bytesPerLine : 0);
+		int hBytes=(0!=bytesPerLine ? voff%bytesPerLine : 0);
+		if(hBytes<0 && 0!=bytesPerLine)
+		{
+			hBytes+=bytesPerLine;
+		}
+		const int bpp=towns.crtc.GetPageBitsPerPixel(page);
+		ox=(0<bpp ? (hBytes*8)/bpp : 0);
+	};
+	fillVramOffset((unsigned char)debugMousePage,debugVramOffsetX,debugVramOffsetY);
+	fillVramOffset(1,debugVramOffsetX1,debugVramOffsetY1);
+	debugFa0_0=(int)towns.crtc.state.crtcReg[TownsCRTC::REG_FA0];
+	debugFa0_1=(int)towns.crtc.state.crtcReg[TownsCRTC::REG_FA0+4];
+
+	debugOrg0X=towns.crtc.GetPageOriginOnMonitor(0).x();
+	debugOrg1X=towns.crtc.GetPageOriginOnMonitor(1).x();
+	debugHSkip0=(int)towns.crtc.GetVRAMHSkip1X(0);
+	debugHSkip1=(int)towns.crtc.GetVRAMHSkip1X(1);
+	{
+		const auto z0=towns.crtc.GetPageZoom2X(0);
+		const auto z1=towns.crtc.GetPageZoom2X(1);
+		debugZoom0X=z0.x();
+		debugZoom0Y=z0.y();
+		debugZoom1X=z1.x();
+		debugZoom1Y=z1.y();
+		debugPageSize0X=towns.crtc.GetPageSizeOnMonitor(0).x();
+		debugPageSize1X=towns.crtc.GetPageSizeOnMonitor(1).x();
+	}
+	debugSinglePage=towns.crtc.InSinglePageMode();
+	debugShowPage0=towns.crtc.state.ShowPage(0);
+	debugShowPage1=towns.crtc.state.ShowPage(1);
+
+	// Candidate size/center words next to TBIOS mouse X/Y (+0x0C/+0x0E) — often 320,240.
+	debugMouseInfoHotX=0;
+	debugMouseInfoHotY=0;
+	if(0!=towns.state.TBIOS_physicalAddr && 0!=towns.state.TBIOS_mouseInfoOffset)
+	{
+		const unsigned int base=
+		    towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset;
+		debugMouseInfoHotX=(int)(short)towns.mem.FetchWord(base+0x08);
+		debugMouseInfoHotY=(int)(short)towns.mem.FetchWord(base+0x0A);
+	}
+
+	debugCursorDrawX=-1;
+	debugCursorDrawY=-1;
+	{
+		int cx=0,cy=0;
+		if(true==towns.GetMouseCursorDrawCoordinate(cx,cy))
+		{
+			debugCursorDrawX=cx;
+			debugCursorDrawY=cy;
+		}
+	}
+
+	debugSysRomVersion.clear();
+	{
+		const auto &rom=towns.physMem.sysRom;
+		auto tryCapture=[&](size_t i)->bool
+		{
+			std::string s;
+			for(size_t j=0; j<12 && i+j<rom.size(); ++j)
+			{
+				const unsigned char c=rom[i+j];
+				if(c<0x20 || 0x7E<c)
+				{
+					break;
+				}
+				s.push_back((char)c);
+			}
+			while(!s.empty() && (' '==s.back() || '.'==s.back()))
+			{
+				s.pop_back();
+			}
+			if(4<=s.size())
+			{
+				debugSysRomVersion=s;
+				return true;
+			}
+			return false;
+		};
+		for(size_t i=0; i+4<rom.size(); ++i)
+		{
+			// V6L01 / V6.00L01 / V6L01A
+			if('V'!=rom[i])
+			{
+				continue;
+			}
+			size_t k=i+1;
+			if(k>=rom.size() || rom[k]<'0' || '9'<rom[k])
+			{
+				continue;
+			}
+			++k;
+			if(k<rom.size() && '.'==rom[k])
+			{
+				++k;
+				while(k<rom.size() && rom[k]>='0' && rom[k]<='9')
+				{
+					++k;
+				}
+			}
+			while(k<rom.size() && ' '==rom[k])
+			{
+				++k;
+			}
+			if(k>=rom.size() || 'L'!=rom[k])
+			{
+				continue;
+			}
+			if(true==tryCapture(i))
+			{
+				break;
+			}
+		}
+	}
+
+	if(debugVersionCacheTbiosPhys_!=towns.state.TBIOS_physicalAddr)
+	{
+		debugVersionCacheTbiosPhys_=towns.state.TBIOS_physicalAddr;
+		debugTbiosId.clear();
+		debugTbiosDate.clear();
+		debugTosVersion.clear();
+		if(0!=towns.state.TBIOS_physicalAddr)
+		{
+			std::string id[4];
+			towns.GetTBIOSIdentifierStrings(id,towns.state.TBIOS_physicalAddr);
+			debugTbiosId=id[0];
+			debugTbiosDate=id[1];
+
+			// Prefer an explicit "V2.1Lxx" (or V1.1Lxx) string inside TBIOS image.
+			for(unsigned int ptr=0; ptr<0x40000; ++ptr)
+			{
+				const unsigned char c0=towns.mem.FetchByte(towns.state.TBIOS_physicalAddr+ptr);
+				if('V'!=c0)
+				{
+					continue;
+				}
+				const unsigned char c1=towns.mem.FetchByte(towns.state.TBIOS_physicalAddr+ptr+1);
+				const unsigned char c2=towns.mem.FetchByte(towns.state.TBIOS_physicalAddr+ptr+2);
+				const unsigned char c3=towns.mem.FetchByte(towns.state.TBIOS_physicalAddr+ptr+3);
+				const unsigned char c4=towns.mem.FetchByte(towns.state.TBIOS_physicalAddr+ptr+4);
+				if((('1'==c1 && '.'==c2 && '1'==c3) || ('2'==c1 && '.'==c2 && '1'==c3)) &&
+				   'L'==c4)
+				{
+					std::string s;
+					for(unsigned int j=0; j<12; ++j)
+					{
+						const unsigned char c=towns.mem.FetchByte(towns.state.TBIOS_physicalAddr+ptr+j);
+						if(c<0x20 || 0x7E<c)
+						{
+							break;
+						}
+						s.push_back((char)c);
+					}
+					if(6<=s.size())
+					{
+						debugTosVersion=s;
+						break;
+					}
+				}
+			}
+			if(true==debugTosVersion.empty())
+			{
+				// Fallback: map known TBIOS builds to the Towns OS family that ships them.
+				if("V31L35"==debugTbiosId)
+				{
+					if(0==debugTbiosDate.find("94/") || 0==debugTbiosDate.find("95/"))
+					{
+						debugTosVersion="V2.1L50? (TBIOS date)";
+					}
+					else if(0==debugTbiosDate.find("93/"))
+					{
+						debugTosVersion="V2.1L30-L40? (TBIOS date)";
+					}
+				}
+				else if("V31L31"==debugTbiosId ||
+				        TBIOS_V31L31_91==towns.state.tbiosVersion ||
+				        TBIOS_V31L31_92==towns.state.tbiosVersion ||
+				        TBIOS_V31L31_93==towns.state.tbiosVersion)
+				{
+					debugTosVersion="V2.1L10B-L20A? (TBIOS id)";
+				}
+			}
+		}
+	}
+
+	debugMouseInfoWords.clear();
+	if(0!=towns.state.TBIOS_physicalAddr && 0!=towns.state.TBIOS_mouseInfoOffset)
+	{
+		const unsigned int base=
+		    towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset;
+		char buf[32];
+		for(unsigned int off=0; off<=0x2C; off+=2)
+		{
+			const int w=(int)(short)towns.mem.FetchWord(base+off);
+			std::snprintf(buf,sizeof(buf),"+%02X:%d ",off,w);
+			debugMouseInfoWords+=buf;
+		}
+	}
+
+	debugMosWorkWords.clear();
+	if(0!=towns.state.MOS_work_physicalAddr)
+	{
+		char buf[32];
+		for(unsigned int off=0x40; off<=0x70; off+=2)
+		{
+			const int w=(int)(short)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+off);
+			std::snprintf(buf,sizeof(buf),"+%02X:%d ",off,w);
+			debugMosWorkWords+=buf;
+		}
+	}
+
+	debugMouseSnapValid=mouseDesktopSnapshotValid_;
+	debugMouseSnapApplied=mouseDesktopSnapApplied_;
+	debugMouseInfoRepair=mouseInfoRepairFrames_;
+	debugMiPrevX=0;
+	debugMiPrevY=0;
+	debugMiPaintX=0;
+	debugMiPaintY=0;
+	if(0!=towns.state.TBIOS_physicalAddr && 0!=towns.state.TBIOS_mouseInfoOffset)
+	{
+		const unsigned int base=
+		    towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset;
+		debugMiPrevX=(int)(short)towns.mem.FetchWord(base+0x10);
+		debugMiPrevY=(int)(short)towns.mem.FetchWord(base+0x12);
+		debugMiPaintX=(int)(short)towns.mem.FetchWord(base+0x28);
+		debugMiPaintY=(int)(short)towns.mem.FetchWord(base+0x2A);
+	}
 }
 
 void Outside_World::ProcessMouseDifferential(class FMTownsCommon &towns,int lb,int mb,int rb,int dx,int dy,int refX,int refY)

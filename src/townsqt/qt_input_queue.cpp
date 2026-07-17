@@ -61,8 +61,8 @@ void QtInputQueue::MousePress(int button,int view_x,int view_y,int emu_x,int emu
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	MouseEvent ev;
-	ev.mx=view_x;
-	ev.my=view_y;
+	ev.mx=emu_x;
+	ev.my=emu_y;
 	if(MOUSE_BTN_LEFT==button)
 	{
 		ev.evt=FSMOUSEEVENT_LBUTTONDOWN;
@@ -85,8 +85,8 @@ void QtInputQueue::MousePress(int button,int view_x,int view_y,int emu_x,int emu
 	{
 		return;
 	}
-	lastMouse_.mx=view_x;
-	lastMouse_.my=view_y;
+	lastMouse_.mx=emu_x;
+	lastMouse_.my=emu_y;
 	lastViewMouseX_=view_x;
 	lastViewMouseY_=view_y;
 	pendingMouse_.push_back(ev);
@@ -96,8 +96,8 @@ void QtInputQueue::MouseRelease(int button,int view_x,int view_y,int emu_x,int e
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	MouseEvent ev;
-	ev.mx=view_x;
-	ev.my=view_y;
+	ev.mx=emu_x;
+	ev.my=emu_y;
 	if(MOUSE_BTN_LEFT==button)
 	{
 		ev.evt=FSMOUSEEVENT_LBUTTONUP;
@@ -117,8 +117,8 @@ void QtInputQueue::MouseRelease(int button,int view_x,int view_y,int emu_x,int e
 	{
 		return;
 	}
-	lastMouse_.mx=view_x;
-	lastMouse_.my=view_y;
+	lastMouse_.mx=emu_x;
+	lastMouse_.my=emu_y;
 	lastViewMouseX_=view_x;
 	lastViewMouseY_=view_y;
 	pendingMouse_.push_back(ev);
@@ -127,8 +127,8 @@ void QtInputQueue::MouseRelease(int button,int view_x,int view_y,int emu_x,int e
 void QtInputQueue::MouseMove(int view_x,int view_y,int emu_x,int emu_y)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	lastMouse_.mx=view_x;
-	lastMouse_.my=view_y;
+	lastMouse_.mx=emu_x;
+	lastMouse_.my=emu_y;
 	lastViewMouseX_=view_x;
 	lastViewMouseY_=view_y;
 }
@@ -139,8 +139,8 @@ void QtInputQueue::PollMouseState(bool lb,bool mb,bool rb,int view_x,int view_y,
 	lastMouse_.lb=lb ? 1 : 0;
 	lastMouse_.mb=mb ? 1 : 0;
 	lastMouse_.rb=rb ? 1 : 0;
-	lastMouse_.mx=view_x;
-	lastMouse_.my=view_y;
+	lastMouse_.mx=emu_x;
+	lastMouse_.my=emu_y;
 	lastViewMouseX_=view_x;
 	lastViewMouseY_=view_y;
 }
