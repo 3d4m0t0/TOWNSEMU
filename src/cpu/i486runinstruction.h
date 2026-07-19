@@ -5256,6 +5256,9 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		if(0==(state.EFLAGS&EFLAGS_VIRTUAL86))
 		{
 			state.halt=true;
+			// HLT runs from the main loop at interrupt-nesting depth 0; use it to self-correct
+			// any drift in the best-effort inInterruptDepth counter.
+			state.inInterruptDepth=0;
 		}
 		else
 		{
@@ -7733,6 +7736,10 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_IRET://   0xCF,
 		{
+			if(0<state.inInterruptDepth)
+			{
+				--state.inInterruptDepth;
+			}
 			if(true==IsInRealMode())
 			{
 				clocksPassed=15;

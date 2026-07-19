@@ -60,7 +60,75 @@ public:
 	};
 	bool mouseIntegrationActive=false;
 	int lastMx,lastMy,mouseStationaryCount=MOUSE_STATIONARY_COUNT;
+	/*! User preference while Mouse BIOS (TBIOS/MOS) is active. Absolute/snap when false.
+	    Toggled at runtime by middle mouse button (not a persistent settings checkbox). */
 	bool differentialMouseIntegration=false;
+	/*! When Mouse BIOS is inactive, automatically use differential integration. */
+	bool autoDifferentialOnMouseBIOSStop=true;
+	/*! Runtime path actually used for ProcessMouse vs ProcessMouseDifferential. */
+	bool effectiveDifferentialMouseIntegration=false;
+	/*! False after middle-button release with MOS down; click resumes. */
+	bool mouseFeedingEnabled_=true;
+	/*! Middle-button released capture while MOS inactive (host cursor shown). */
+	bool mouseCaptureReleased_=false;
+	/*! GUI/core failsafe: force host cursor visible (e.g. VM appear hung). */
+	bool mouseFailsafeShowHostCursor_=false;
+	/*! Saw MOS AH=00 at least once (debug / legacy). */
+	bool mouseBIOSEverActive_=false;
+	/*! No MOS → differential-only (unless app-specific hold). Cleared while MOS active. */
+	bool mouseBIOSStoppedForcedDiff_=false;
+	/*! Auto-forced differential begins with capture released; set once per force episode
+	    so the user starts capture by clicking the screen (not grabbed automatically). */
+	bool forcedDiffReleaseApplied_=false;
+	/*! MOS still active, but guest never reads MOS/TBIOS coords and only uses gameport. */
+	bool mosUnusedForcedDiff_=false;
+	/*! Observing MOS usage after AH=00 (force differential while probing). */
+	bool mosUsageObserving_=false;
+	/*! After concluding "MOS is read" (e.g. MI2 launcher), watch for reads to stop. */
+	bool mosUsageMonitorAfterUse_=false;
+	/*! After desktop concluded "MOS is read", re-check once non-desktop CRTC appears. */
+	bool mosUsageAwaitExoticReprobe_=false;
+	long long int mosUsageObserveStartTownsTime_=0;
+	unsigned int mosUsageObserveSerial_=0;
+	unsigned int mosUsageIdleReadBaseline_=0;
+	unsigned int mosUsageIdlePacketBaseline_=0;
+	/*! Throttle for the post-launcher monitor diagnostic log. */
+	long long int mosUsageMonitorLogTownsTime_=0;
+	/*! Host mouse motion (|dx|+|dy|, emu image px) accumulated since the last MOS coord
+	    read, while monitoring after use.  Distinguishes "app reads MOS when the mouse
+	    moves" (launcher → absolute) from "app ignores MOS on motion" (game → differential).
+	    Idle time alone cannot tell them apart: both stop reading MOS when the mouse rests. */
+	unsigned int mosUsageMotionSinceRead_=0;
+	int mosUsagePrevHostX_=0,mosUsagePrevHostY_=0;
+	bool mosUsageHostPosValid_=false;
+	/*! Count of "forced differential → MOS reads resumed → reverted" oscillations in the
+	    current MOS session.  A MOS-driven UI (e.g. MI2 launcher) reads MOS again as soon as
+	    differential feeds the gameport, so it reverts every time; a gameport-only title never
+	    resumes MOS reads.  After a couple of reverts we latch to absolute (below). */
+	unsigned int mosUsageRevertCount_=0;
+	/*! Latched "this MOS session is MOS-driven, keep absolute" until the next AH=00. */
+	bool mosUsageLatchAbsolute_=false;
+	/*! Read-count MOS-usage probe.  After AH=00 (also fired when TBIOS is re-identified on
+	    app exit) we start in absolute integration with the MOS-coordinate read watchpoint
+	    installed (FMTownsCommon::InterceptINT does this).
+	      Phase 1 (idle settle, MOS_LEARN_DURATION): learn which code segments read the
+	        coordinate.  The soft cursor / TBIOS redraw the cursor every frame regardless of
+	        the app, so whatever reads during the idle settle is "system" and is excluded.
+	      Phase 2 (motion): as the host mouse moves inside the picture, count reads from any
+	        other (application) segment.  A MOS-using app (MI2's launcher, TOS desktop) reads
+	        the coordinate many times while the pointer moves; a gameport-only title (MI2's
+	        game) barely reads it.  Below MOS_APP_READ_MIN we switch to differential exactly
+	        like the no-MOS case (capture released, click to capture).
+	    One-way per MOS session; reset only on the next AH=00.  Not run while the user has
+	    chosen differential integration. */
+	bool mosUsageLearnPhase_=false;
+	unsigned int mosUsageAppReadBaseline_=0;
+	unsigned int mosUsageBiosCallBaseline_=0;
+	unsigned int mosUsageSysReadBaseline_=0;
+	unsigned int mosUsageGameportBaseline_=0;
+	int mosTrackPrevHostX_=0,mosTrackPrevHostY_=0;
+	bool mosTrackSampleValid_=false;
+	unsigned int mosTrackHostMotion_=0;
 	bool prevSpriteSpen_=false;
 	/*! Set when a non-desktop CRTC mode is seen; cleared after desktop restore. */
 	bool spriteOffsetSeenInExoticMode_=false;
@@ -195,6 +263,14 @@ public:
 	unsigned int debugTbiosMouseInfoOffset=0;
 	bool debugGuestValid=false;
 	bool debugMouseBIOSActive=false;
+	bool debugEffectiveDifferential=false;
+	bool debugForcedDifferentialByMouseBIOSStop=false;
+	bool debugForcedDifferentialByMosUnused=false;
+	bool debugMosUsageObserving=false;
+	unsigned int debugMosCoordAppReads=0;
+	unsigned int debugGameportMousePackets=0;
+	bool debugMouseCaptureReleased=false;
+	bool debugMouseFeedingEnabled=false;
 	unsigned int debugTBIOSVersion=0;
 	unsigned int debugAppSpecific=0;
 	int debugSnapWarmupRemaining=0;
@@ -245,6 +321,20 @@ public:
 	virtual void Start(void)=0;
 	virtual void Stop(void)=0;
 	virtual void DevicePolling(class FMTownsCommon &towns)=0;
+	/*! Prefix for host-facing stdout (e.g. "Tsugaru_QT: "). Empty for CUI. */
+	std::string hostLogPrefix;
+	void LogHostMessage(const std::string &message);
+
+	/*! Recompute effective path / feeding / showMouseCursor from MOS + preference + capture. */
+	void UpdateEffectiveDifferentialMouseIntegration(class FMTownsCommon &towns);
+	void UpdateMosUsageObservation(class FMTownsCommon &towns);
+	/*! Middle button: MOS up → toggle preference; MOS down → release capture (show host cursor). */
+	void HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns);
+	/*! Picture click: resume feeding after middle-button release (MOS inactive). */
+	void ResumeMouseCapture(class FMTownsCommon &towns);
+	/*! Set differential preference (settings / ENA/DIS DIFFMOUSE). */
+	void SetDifferentialMouseIntegrationPreference(bool enabled,class FMTownsCommon *towns);
+	void SetMouseFailsafeShowHostCursor(bool show);
 	void UpdateMouseIntegrationDebug(class FMTownsCommon &towns);
 	void UpdateStatusBarInfo(class FMTownsCommon &towns);
 

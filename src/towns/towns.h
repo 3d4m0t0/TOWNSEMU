@@ -20,6 +20,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <string>
 #include <map>
 #include <atomic>
+#include <memory>
 
 #include "lineparser.h"
 
@@ -58,6 +59,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "eventlog.h"
 
 #include "outside_world.h"
+#include "mos_coord_probe.h"
 
 
 
@@ -203,8 +205,34 @@ public:
 		unsigned int TBIOS_mouseInfoOffset=0;
 		unsigned int MOS_work_linearAddr=0;
 		unsigned int MOS_work_physicalAddr=0;
+		/*! CS selector of Mouse BIOS at AH=00 (usage-probe self-read filter). */
+		unsigned int MOS_code_CS=0;
 		unsigned int MOS_pulsePerPixelH=8,MOS_pulsePerPixelV=8;
 		int mouseIntegrationSpeed=256;
+		/*! Guest CPU reads of MOS/TBIOS mouse-coordinate words (usage probe). */
+		unsigned int mosCoordAppReadCount=0;
+		/*! Same probe, but from Mouse BIOS / TBIOS / desktop soft-cursor CS. */
+		unsigned int mosCoordTbiosSelfReadCount=0;
+		/*! Application MOS BIOS calls (FAR CALL 0110:0040) other than init/end, made from a
+		    non-interrupt, non-system caller.  An app that reads the mouse through the MOS BIOS
+		    API (INT/CALL) does not read the coordinate memory itself — the BIOS does — so the
+		    memory-read probe alone cannot see API-based usage (e.g. MI2's launcher polls the
+		    BIOS heavily).  Counting the app's BIOS calls detects that. */
+		unsigned int mosBIOSAppCallCount=0;
+		/*! Guest reads of the gameport mouse port (I/O 0x4D2 while port 1 is a MOUSE).  A
+		    gameport-mouse game (e.g. MI2's game part) polls this every frame regardless of the
+		    integration mode or capture state — the read access happens even when we feed no
+		    motion — so it is the definitive "this title reads the mouse through the gameport,
+		    not MOS" signal, and unlike non-zero motion packets it has no chicken-and-egg with
+		    capture being released.  A MOS-only UI (MI2's launcher, TOS desktop) never polls it. */
+		unsigned int gameportMouseReadCount=0;
+		/*! CS selectors seen reading MOS coords on the desktop (soft cursor etc.). */
+		unsigned int mosCoordSystemCS[8]={0,0,0,0,0,0,0,0};
+		unsigned int mosCoordSystemCSCount=0;
+		/*! Diagnostic: distinct CS selectors counted as application MOS-coord reads. */
+		unsigned int mosCoordAppReadCS[4]={0,0,0,0};
+		unsigned int mosCoordAppReadCSHits[4]={0,0,0,0};
+		unsigned int mosCoordAppReadCSCount=0;
 
 		unsigned short DOSSEG=0;
 		unsigned short DOSVER=0;
@@ -309,6 +337,11 @@ public:
 		    To enable, set this flag true, then VM will respect the next ControlMouse and SetMouseButtonState functions and on.
 		*/
 		bool mouseIntegration=true;
+
+		/*! Host-side MOS/TBIOS coord Fetch must set this so the usage probe ignores them. */
+		mutable bool suppressMosCoordReadProbe=false;
+		/*! While true, MOS-coord readers are recorded as desktop system CS (soft cursor). */
+		mutable bool mosUsageLearnSystemCS=false;
 
 		bool customMouseIntegration=false;
 		std::string customMouseX,customMouseY;
@@ -501,6 +534,9 @@ public:
 	InOut io;
 	Memory mem;
 
+	std::unique_ptr<MosCoordReadProbe> mosCoordProbeA;
+	std::unique_ptr<MosCoordReadProbe> mosCoordProbeB;
+
 	/*! Pointers of all devices (except *this) must be stored in allDevices.
 	*/
 	using VMBase::allDevices;
@@ -608,6 +644,12 @@ public:
 
 	/*! Write guest mouse coordinate directly (used by snap mouse integration test). */
 	bool SetMouseCoordinate(int mx,int my,unsigned int tbiosid);
+
+	/*! Install a short-lived probe that counts guest reads of MOS/TBIOS mouse coords. */
+	void StartMosCoordUsageProbe(void);
+	void StopMosCoordUsageProbe(void);
+	unsigned int GetGameportMouseMotionPacketCount(void) const;
+	void ResetGameportMouseMotionPacketCount(void);
 
 	/*! After Director etc., sprite-index cursor X can lag MOS; force-match on quiet desktops.
 	    Also matches half-scale sprite-plane coords (Y≈MOS/2) used with 2x CRTC zoom. */

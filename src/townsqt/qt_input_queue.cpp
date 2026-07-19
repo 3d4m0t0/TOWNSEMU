@@ -213,3 +213,47 @@ void QtInputQueue::CancelCursorWarp()
 {
 	pendingWarp_.store(false,std::memory_order_release);
 }
+
+void QtInputQueue::AddRelativeMotion(double dx,double dy)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	relativeMotionX_+=dx;
+	relativeMotionY_+=dy;
+}
+
+void QtInputQueue::ClearRelativeMotion()
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	relativeMotionX_=0.0;
+	relativeMotionY_=0.0;
+}
+
+bool QtInputQueue::TakeRelativeMotion(double &dx,double &dy)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	dx=relativeMotionX_;
+	dy=relativeMotionY_;
+	relativeMotionX_=0.0;
+	relativeMotionY_=0.0;
+	return (0.0!=dx || 0.0!=dy);
+}
+
+void QtInputQueue::SetRelativePointerActive(bool active)
+{
+	relativePointerActive_.store(active,std::memory_order_release);
+}
+
+bool QtInputQueue::RelativePointerActive() const
+{
+	return relativePointerActive_.load(std::memory_order_acquire);
+}
+
+void QtInputQueue::SetDevicePixelRatio(double dpr)
+{
+	devicePixelRatio_.store((0.0<dpr) ? dpr : 1.0,std::memory_order_release);
+}
+
+double QtInputQueue::DevicePixelRatio() const
+{
+	return devicePixelRatio_.load(std::memory_order_acquire);
+}

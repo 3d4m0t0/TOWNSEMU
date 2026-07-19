@@ -140,6 +140,10 @@ void setConsiderVRAMOffsetInMouseIntegration(bool enabled);
 bool differentialMouseIntegration();
 void setDifferentialMouseIntegration(bool enabled);
 
+/*! When Mouse BIOS stops, automatically use differential mouse integration. */
+bool autoDifferentialOnMouseBIOSStop();
+void setAutoDifferentialOnMouseBIOSStop(bool enabled);
+
 int mouseMinX();
 void setMouseMinX(int value);
 int mouseMinY();

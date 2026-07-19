@@ -59,12 +59,16 @@ public Q_SLOTS:
 	                             int max_button_hold_ms1,
 	                             int mouse_integration_speed,
 	                             bool consider_vram_offset_in_mouse_integration,
-	                             bool differential_mouse_integration,
+	                             bool auto_differential_on_mouse_bios_stop,
 	                             int mouse_min_x,
 	                             int mouse_min_y,
 	                             int mouse_max_x,
 	                             int mouse_max_y);
 	Q_INVOKABLE bool differentialMouseIntegration() const;
+	/*! Runtime mouse UI flags: diff, mos, capture_released, feeding, failsafe. */
+	Q_INVOKABLE QVariantMap mouseUiState() const;
+	Q_INVOKABLE void resumeMouseCapture();
+	Q_INVOKABLE void setMouseFailsafeShowHostCursor(bool show);
 	Q_INVOKABLE void setSnapMouseIntegration(bool enabled);
 	Q_INVOKABLE void applySnapMouseSettings(bool enabled,int warmup_frames);
 	Q_INVOKABLE bool snapMouseIntegration() const;

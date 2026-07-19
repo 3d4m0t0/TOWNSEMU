@@ -99,7 +99,9 @@ void TownsThread::VMMainLoopTemplate(
 		case RUNMODE_PAUSE:
 			{
 				auto saveDiffMouseFlag=outside_world->differentialMouseIntegration;
+				auto saveEffDiffMouseFlag=outside_world->effectiveDifferentialMouseIntegration;
 				outside_world->differentialMouseIntegration=false;
+				outside_world->effectiveDifferentialMouseIntegration=false;
 				// Temporarily disable differential mouse integration.
 				// ForceRender will call window->Communicate, where the flag is copied to the window thread.
 
@@ -108,6 +110,7 @@ void TownsThread::VMMainLoopTemplate(
 				townsPtr->ForceRender(render,*outside_world,*window);
 
 				outside_world->differentialMouseIntegration=saveDiffMouseFlag; // Restore differential mouse integration.
+				outside_world->effectiveDifferentialMouseIntegration=saveEffDiffMouseFlag;
 
 				outside_world->DevicePolling(*townsPtr);
 				townsPtr->rex3586.Polling();
@@ -230,6 +233,7 @@ void TownsThread::VMMainLoopTemplate(
 			outside_world->ProcessAppSpecific(*townsPtr);
 			if(townsPtr->state.nextDevicePollingTime<townsPtr->state.townsTime)
 			{
+				outside_world->UpdateEffectiveDifferentialMouseIntegration(*townsPtr);
 				outside_world->UpdateStatusBarInfo(*townsPtr);
 				window->Communicate(outside_world);
 				outside_world->DevicePolling(*townsPtr);

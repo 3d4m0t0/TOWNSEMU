@@ -5,6 +5,7 @@
 #include "ysgamepad.h"
 
 #include <algorithm>
+#include <cmath>
 
 QtOutsideWorld::QtOutsideWorld(QtInputQueue *inputQueue,SharedRgbaFramebuffer *framebuffer)
 	: inputQueue_(inputQueue),framebuffer_(framebuffer)
@@ -138,14 +139,46 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 		winThrEx.primary.lastKnownMouse.mx=lastMouse.mx;
 		winThrEx.primary.lastKnownMouse.my=lastMouse.my;
 
-		const bool differential=(nullptr!=owner_ && true==owner_->differentialMouseIntegration);
+		const bool differential=(nullptr!=owner_ && true==owner_->effectiveDifferentialMouseIntegration);
+		const bool relative_ptr=(nullptr!=inputQueue_ && true==inputQueue_->RelativePointerActive());
 
 		if(true==differential)
 		{
+			if(true==relative_ptr)
+			{
+				double rdx=0.0,rdy=0.0;
+				if(true==inputQueue_->TakeRelativeMotion(rdx,rdy))
+				{
+					// The compositor delivers relative-pointer deltas in physical device pixels,
+					// so undo the desktop (HiDPI) scale to get view/logical-pixel motion that
+					// matches absolute integration, then map view pixels to emulator pixels.
+					const double dpr=inputQueue_->DevicePixelRatio();
+					const double invDpr=(0.0<dpr) ? (1.0/dpr) : 1.0;
+					rdx*=invDpr;
+					rdy*=invDpr;
+					if(0<displayW && 0<displayH && 0<emuWid && 0<emuHei)
+					{
+						winThrEx.primary.mouseMoveXY[0]+=
+						    static_cast<int>(std::lround(rdx*static_cast<double>(emuWid)/static_cast<double>(displayW)));
+						winThrEx.primary.mouseMoveXY[1]+=
+						    static_cast<int>(std::lround(rdy*static_cast<double>(emuHei)/static_cast<double>(displayH)));
+					}
+					else
+					{
+						winThrEx.primary.mouseMoveXY[0]+=static_cast<int>(std::lround(rdx));
+						winThrEx.primary.mouseMoveXY[1]+=static_cast<int>(std::lround(rdy));
+					}
+				}
+				diff_mouse_tracking_ready_=false;
+				inputQueue_->CancelCursorWarp();
+			}
+			else
+			{
 			const int mx=lastViewMouseX;
 			const int my=lastViewMouseY;
 
-			if(true==resetDiffMouse || true!=diff_mouse_tracking_ready_)
+			if(true==resetDiffMouse || true!=diff_mouse_tracking_ready_ ||
+			   true!=prev_effective_differential_)
 			{
 				diffMouseXY[0]=mx;
 				diffMouseXY[1]=my;
@@ -184,11 +217,21 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 				diff_mouse_tracking_ready_=false;
 				inputQueue_->RequestCursorWarp(cx,cy);
 			}
+			}
 		}
 		else
 		{
 			diff_mouse_tracking_ready_=false;
+			if(true==prev_effective_differential_)
+			{
+				inputQueue_->CancelCursorWarp();
+			}
+			if(nullptr!=inputQueue_)
+			{
+				inputQueue_->ClearRelativeMotion();
+			}
 		}
+		prev_effective_differential_=differential;
 
 		{
 			std::lock_guard<std::mutex> lock(renderingLock);
@@ -231,7 +274,7 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 		sharedEx.readyToSend.winWid=winThrEx.primary.winWid;
 		sharedEx.readyToSend.winHei=winThrEx.primary.winHei;
 
-		if(nullptr!=owner_ && true==owner_->differentialMouseIntegration)
+		if(nullptr!=owner_ && true==owner_->effectiveDifferentialMouseIntegration)
 		{
 			sharedEx.readyToSend.mouseMoveXY[0]+=winThrEx.primary.mouseMoveXY[0];
 			sharedEx.readyToSend.mouseMoveXY[1]+=winThrEx.primary.mouseMoveXY[1];

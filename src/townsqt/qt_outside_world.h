@@ -37,6 +37,7 @@ private:
 		QtInputQueue *inputQueue_=nullptr;
 		SharedRgbaFramebuffer *framebuffer_=nullptr;
 		bool diff_mouse_tracking_ready_=false;
+		bool prev_effective_differential_=false;
 	};
 };
 

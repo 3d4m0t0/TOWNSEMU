@@ -12,6 +12,46 @@
     },
     {
       "context": "MainWindow",
+      "source": "Integrated",
+      "translation": "Integrated"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integrated: the host pointer controls the Towns pointer directly.",
+      "translation": "Mouse integrated: the host pointer controls the Towns pointer directly."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Captured",
+      "translation": "Captured"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Middle button to release",
+      "translation": "Middle button to release"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Relative mouse is captured. Press the middle mouse button to release capture.",
+      "translation": "Relative mouse is captured. Press the middle mouse button to release capture."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Released",
+      "translation": "Released"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Click to capture",
+      "translation": "Click to capture"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Relative mouse. Click the screen to start mouse capture; press the middle mouse button to release it.",
+      "translation": "Relative mouse. Click the screen to start mouse capture; press the middle mouse button to release it."
+    },
+    {
+      "context": "MainWindow",
       "source": "Restarting the emulator…",
       "translation": "Restarting the emulator…"
     },
@@ -417,8 +457,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Differential mouse integration",
-      "translation": "Differential mouse integration"
+      "source": "Auto-switch to differential when Mouse BIOS stops",
+      "translation": "Auto-switch to differential when Mouse BIOS stops"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Absolute and instant integration are unavailable while Mouse BIOS is stopped.\nAutomatically switch to differential input to keep the mouse usable.",
+      "translation": "Absolute and instant integration are unavailable while Mouse BIOS is stopped.\nAutomatically switch to differential input to keep the mouse usable."
     },
     {
       "context": "SettingsDialog",
@@ -447,8 +492,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Peripherals",
-      "translation": "Peripherals"
+      "source": "Mouse & Game Pad",
+      "translation": "Mouse & Game Pad"
     },
     {
       "context": "SettingsDialog",
@@ -617,8 +662,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
-      "translation": "Test feature that snaps the guest mouse coordinates to the host immediately.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping."
+      "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nCompared with gradual integration, this reduces mouse input latency.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
+      "translation": "Test feature that snaps the guest mouse coordinates to the host immediately.\nCompared with gradual integration, this reduces mouse input latency.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping."
     },
     {
       "context": "SettingsDialog",

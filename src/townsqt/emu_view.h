@@ -32,6 +32,11 @@ public:
 	void setHostCursorBlank(bool blank);
 	void setMouseDebugCrosshair(bool enabled);
 
+	/*! While mouse capture is released (auto-forced/differential "click to start capture"
+	    state), the click that resumes capture must not be delivered to the guest — it is a UI
+	    gesture, not an in-game click.  MainWindow keeps this in sync with the runtime state. */
+	void setMouseCaptureReleased(bool released);
+
 	/*! Poll host cursor over the view (GUI thread, each input interval). */
 	void pollMousePosition();
 
@@ -107,4 +112,6 @@ private:
 	bool drive_access_valid_=false;
 	bool drive_access_overlay_enabled_=true;
 	bool drive_access_overlay_visible_=false;
+	bool mouse_capture_released_=false;
+	int suppressed_guest_buttons_=0;
 };

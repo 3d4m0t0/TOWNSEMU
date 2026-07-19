@@ -11,6 +11,7 @@
 #include "townsqt_settings.h"
 #include "townsqt_version.h"
 #include "townsqt_wayland_idle_inhibit.h"
+#include "townsqt_wayland_relative_pointer.h"
 
 #if defined(__linux__)
 #include "linux/midi_fluidsynth_host.h"
@@ -37,6 +38,7 @@
 #include <QSaveFile>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <iostream>
 #include <QCursor>
 #include <QLabel>
 #include <QMenu>
@@ -187,6 +189,20 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	setFixedSize(window_w,window_h);
 
 	statusBar()->showMessage(tr("Starting…"));
+	mouse_mode_label_=new QLabel(this);
+	mouse_mode_label_->setTextFormat(Qt::PlainText);
+	statusBar()->addPermanentWidget(mouse_mode_label_);
+	// In the captured/released states the label alternates between the short state word and the
+	// operation hint every few seconds to save width.
+	mouse_mode_alternate_timer_=new QTimer(this);
+	mouse_mode_alternate_timer_->setInterval(5000);
+	connect(mouse_mode_alternate_timer_,&QTimer::timeout,this,[this]()
+	{
+		mouse_mode_phase_^=1;
+		updateMouseModeIndicator();
+	});
+	mouse_mode_alternate_timer_->start();
+	updateMouseModeIndicator();
 	applyDriveAccessVisibility();
 	applyMouseDebugVisibility();
 	applyMidiMonitorVisibility();
@@ -310,6 +326,7 @@ void MainWindow::restartEmulator()
 
 MainWindow::~MainWindow()
 {
+	TownsQtWaylandRelativePointer::Shutdown();
 	TownsQtWaylandIdleInhibit::Shutdown();
 	inputQueue_.CancelCursorWarp();
 	showFullscreenCursor();
@@ -673,7 +690,7 @@ void MainWindow::setGamePort(int port,unsigned int emu)
 		    Q_ARG(int,TownsQtSettings::maxButtonHoldTimeMs(0,1)),
 		    Q_ARG(int,TownsQtSettings::mouseIntegrationSpeed()),
 		    Q_ARG(bool,TownsQtSettings::considerVRAMOffsetInMouseIntegration()),
-		    Q_ARG(bool,TownsQtSettings::differentialMouseIntegration()),
+		    Q_ARG(bool,TownsQtSettings::autoDifferentialOnMouseBIOSStop()),
 		    Q_ARG(int,TownsQtSettings::mouseMinX()),
 		    Q_ARG(int,TownsQtSettings::mouseMinY()),
 		    Q_ARG(int,TownsQtSettings::mouseMaxX()),
@@ -903,7 +920,7 @@ void MainWindow::openSettingsDialog()
 	initial.maxButtonHoldTimeMs1=TownsQtSettings::maxButtonHoldTimeMs(0,1);
 	initial.mouseIntegrationSpeed=TownsQtSettings::mouseIntegrationSpeed();
 	initial.considerVRAMOffsetInMouseIntegration=TownsQtSettings::considerVRAMOffsetInMouseIntegration();
-	initial.differentialMouseIntegration=TownsQtSettings::differentialMouseIntegration();
+	initial.autoDifferentialOnMouseBIOSStop=TownsQtSettings::autoDifferentialOnMouseBIOSStop();
 	initial.snapMouseIntegration=TownsQtSettings::snapMouseIntegration();
 	initial.snapMouseWarmupFrames=TownsQtSettings::snapMouseWarmupFrames();
 	initial.mouseMinX=TownsQtSettings::mouseMinX();
@@ -1073,7 +1090,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setMaxButtonHoldTimeMs(1,1,effective.maxButtonHoldTimeMs1);
 	TownsQtSettings::setMouseIntegrationSpeed(effective.mouseIntegrationSpeed);
 	TownsQtSettings::setConsiderVRAMOffsetInMouseIntegration(effective.considerVRAMOffsetInMouseIntegration);
-	TownsQtSettings::setDifferentialMouseIntegration(effective.differentialMouseIntegration);
+	TownsQtSettings::setAutoDifferentialOnMouseBIOSStop(effective.autoDifferentialOnMouseBIOSStop);
 	TownsQtSettings::setSnapMouseIntegration(effective.snapMouseIntegration);
 	TownsQtSettings::setSnapMouseWarmupFrames(effective.snapMouseWarmupFrames);
 	TownsQtSettings::setMouseMinX(effective.mouseMinX);
@@ -1169,7 +1186,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 		    Q_ARG(int,effective.maxButtonHoldTimeMs1),
 		    Q_ARG(int,effective.mouseIntegrationSpeed),
 		    Q_ARG(bool,effective.considerVRAMOffsetInMouseIntegration),
-		    Q_ARG(bool,effective.differentialMouseIntegration),
+		    Q_ARG(bool,effective.autoDifferentialOnMouseBIOSStop),
 		    Q_ARG(int,effective.mouseMinX),
 		    Q_ARG(int,effective.mouseMinY),
 		    Q_ARG(int,effective.mouseMaxX),
@@ -1546,7 +1563,7 @@ void MainWindow::onCdPathChanged(const QString &path)
 	}
 	else
 	{
-		statusBar()->showMessage(tr("CD: %1").arg(path),5000);
+		statusBar()->showMessage(tr("CD: %1").arg(QFileInfo(path).fileName()),5000);
 	}
 }
 
@@ -1562,7 +1579,7 @@ void MainWindow::onFdPathChanged(int drive,const QString &path)
 	}
 	else
 	{
-		statusBar()->showMessage(tr("FD%1: %2").arg(drive).arg(path),5000);
+		statusBar()->showMessage(tr("FD%1: %2").arg(drive).arg(QFileInfo(path).fileName()),5000);
 	}
 }
 
@@ -1602,15 +1619,13 @@ void MainWindow::onPollTimer()
 		}
 	}
 	const bool was_differential=cached_differential_integration_;
-	cached_differential_integration_=queryDifferentialMouseIntegration();
+	refreshMouseUiState();
+	updateMouseFailsafeFromActivity();
+	syncWaylandRelativePointer();
 	if(was_differential!=cached_differential_integration_)
 	{
-		if(cached_differential_integration_)
-		{
-			host_cursor_hide_by_click_=false;
-		}
 		updateBlankCursor();
-		if(!cached_differential_integration_)
+		if(!cached_differential_integration_ || cached_mouse_capture_released_)
 		{
 			inputQueue_.CancelCursorWarp();
 		}
@@ -1788,6 +1803,12 @@ void MainWindow::updateMouseDebugDisplay()
 		               .arg(guest.value(QStringLiteral("spr_h")).toInt())
 		               .arg(guest.value(QStringLiteral("spr_v")).toInt())
 		               .arg(guest.value(QStringLiteral("hskip")).toInt());
+		meta_text+=QStringLiteral("\nDiff:%1 Forced:%2 Pref:%3 CapRel:%4 Feed:%5")
+		               .arg(guest.value(QStringLiteral("diff_eff")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("diff_forced")).toBool() ? 1 : 0)
+		               .arg(TownsQtSettings::differentialMouseIntegration() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("capture_released")).toBool() ? 1 : 0)
+		               .arg(guest.value(QStringLiteral("feeding")).toBool() ? 1 : 0);
 		meta_text+=QStringLiteral("\nSc:%1,%2 n:%3 Sp:%4 Nr:%5,%6 Hs:%7,%8")
 		               .arg(guest.value(QStringLiteral("spr_cx")).toInt())
 		               .arg(guest.value(QStringLiteral("spr_cy")).toInt())
@@ -2005,7 +2026,11 @@ void MainWindow::onFrameReady()
 	{
 		show();
 	}
-	if(cached_differential_integration_)
+	last_emu_activity_ms_=QDateTime::currentMSecsSinceEpoch();
+	if(cached_differential_integration_ &&
+	   !cached_mouse_capture_released_ &&
+	   !mouse_failsafe_show_cursor_ &&
+	   !inputQueue_.RelativePointerActive())
 	{
 		processPendingMouseWarp();
 	}
@@ -2013,6 +2038,7 @@ void MainWindow::onFrameReady()
 
 void MainWindow::onStatsUpdated(double fps,double emu_hz,int queue_depth,int capture_queue_depth,int present_lag)
 {
+	last_emu_activity_ms_=QDateTime::currentMSecsSinceEpoch();
 	setWindowTitle(tr("Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5")
 	                   .arg(fps,0,'f',1)
 	                   .arg(emu_hz,0,'f',2)
@@ -2108,10 +2134,6 @@ bool MainWindow::eventFilter(QObject *watched,QEvent *event)
 					toggleFullScreen();
 					return true;
 				}
-				if(Qt::Key_Escape==key_event->key() && host_cursor_hide_by_click_ && !fullscreen_)
-				{
-					releaseHostCursorHide();
-				}
 			}
 		}
 	}
@@ -2168,8 +2190,9 @@ void MainWindow::applyFullscreenLayout()
 	{
 		fullscreen_chrome_hide_timer_->stop();
 	}
-	host_cursor_hide_by_click_=false;
-	cached_differential_integration_=queryDifferentialMouseIntegration();
+	host_cursor_blank_=false;
+	mouse_failsafe_show_cursor_=false;
+	refreshMouseUiState();
 	ensureMenuBarDocked();
 	have_last_fullscreen_mouse_global_=false;
 	last_fullscreen_mouse_move_ms_=0;
@@ -2378,6 +2401,9 @@ bool MainWindow::shouldCaptureHostMouse() const
 void MainWindow::processPendingMouseWarp()
 {
 	if(!cached_differential_integration_ ||
+	   cached_mouse_capture_released_ ||
+	   mouse_failsafe_show_cursor_ ||
+	   inputQueue_.RelativePointerActive() ||
 	   !shouldCaptureHostMouse() ||
 	   nullptr==view_)
 	{
@@ -2402,69 +2428,208 @@ void MainWindow::processPendingMouseWarp()
 
 bool MainWindow::queryDifferentialMouseIntegration() const
 {
-	if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
+	const QVariantMap state=queryMouseUiState();
+	if(!state.isEmpty())
 	{
-		bool enabled=false;
-		QMetaObject::invokeMethod(
-		    controller_,
-		    "differentialMouseIntegration",
-		    Qt::BlockingQueuedConnection,
-		    Q_RETURN_ARG(bool,enabled));
-		return enabled;
+		return state.value(QStringLiteral("diff")).toBool();
 	}
 	return TownsQtSettings::differentialMouseIntegration();
 }
 
-void MainWindow::noteEmuPictureClicked()
+QVariantMap MainWindow::queryMouseUiState() const
 {
-	if(cached_differential_integration_ || fullscreen_)
+	QVariantMap state;
+	if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
+	{
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "mouseUiState",
+		    Qt::BlockingQueuedConnection,
+		    Q_RETURN_ARG(QVariantMap,state));
+	}
+	return state;
+}
+
+void MainWindow::refreshMouseUiState()
+{
+	const QVariantMap state=queryMouseUiState();
+	if(state.isEmpty())
+	{
+		cached_differential_integration_=TownsQtSettings::differentialMouseIntegration();
+		cached_mouse_bios_active_=false;
+		cached_mouse_capture_released_=false;
+		if(nullptr!=view_)
+		{
+			view_->setMouseCaptureReleased(false);
+		}
+		updateMouseModeIndicator();
+		return;
+	}
+	cached_differential_integration_=state.value(QStringLiteral("diff")).toBool();
+	cached_mouse_bios_active_=state.value(QStringLiteral("mos")).toBool();
+	cached_mouse_capture_released_=state.value(QStringLiteral("capture_released")).toBool();
+	if(nullptr!=view_)
+	{
+		view_->setMouseCaptureReleased(cached_mouse_capture_released_);
+	}
+	updateMouseModeIndicator();
+}
+
+void MainWindow::updateMouseModeIndicator()
+{
+	if(nullptr==mouse_mode_label_)
 	{
 		return;
 	}
-	host_cursor_hide_by_click_=true;
+	const bool emu_running=
+	    nullptr!=emu_thread_ && emu_thread_->isRunning() && nullptr!=controller_;
+	if(true!=emu_running)
+	{
+		mouse_mode_label_->clear();
+		mouse_mode_label_->setToolTip(QString());
+		mouse_mode_category_=-1;
+		return;
+	}
+
+	// 0 = integrated (absolute/snap), 1 = captured (differential), 2 = released (differential).
+	// Check capture-released first: while capture is released the runtime reports diff=false
+	// (it stops feeding), so keying off diff alone would misread the released state (differential
+	// with capture off, e.g. the non-TBIOS forced-differential case) as integrated.
+	int category;
+	if(true==cached_mouse_capture_released_)
+	{
+		category=2;
+	}
+	else if(true==cached_differential_integration_)
+	{
+		category=1;
+	}
+	else
+	{
+		category=0;
+	}
+	// Restart from the state word whenever the state changes.
+	if(category!=mouse_mode_category_)
+	{
+		mouse_mode_category_=category;
+		mouse_mode_phase_=0;
+	}
+
+	QString text;
+	QString tip;
+	switch(category)
+	{
+	case 0:
+		// Absolute/snap: the host pointer maps straight onto the Towns pointer.  Static.
+		text=tr("Integrated");
+		tip=tr("Mouse integrated: the host pointer controls the Towns pointer directly.");
+		break;
+	case 1:
+		// Differential, captured: alternate the state word with the release hint.
+		text=(0==mouse_mode_phase_) ? tr("Captured") : tr("Middle button to release");
+		tip=tr("Relative mouse is captured. "
+		       "Press the middle mouse button to release capture.");
+		break;
+	default:
+		// Differential, released: alternate the state word with the capture hint.
+		text=(0==mouse_mode_phase_) ? tr("Released") : tr("Click to capture");
+		tip=tr("Relative mouse. Click the screen to start mouse capture; "
+		       "press the middle mouse button to release it.");
+		break;
+	}
+	mouse_mode_label_->setText(text);
+	mouse_mode_label_->setToolTip(tip);
+}
+
+void MainWindow::updateMouseFailsafeFromActivity()
+{
+	const bool emu_running=
+	    nullptr!=emu_thread_ && emu_thread_->isRunning() && nullptr!=controller_;
+	bool want_failsafe=false;
+	if(emu_running)
+	{
+		if(0==last_emu_activity_ms_)
+		{
+			last_emu_activity_ms_=QDateTime::currentMSecsSinceEpoch();
+		}
+		else
+		{
+			const qint64 idle_ms=QDateTime::currentMSecsSinceEpoch()-last_emu_activity_ms_;
+			// No frame/stats for 2s while the emu thread is supposedly running.
+			want_failsafe=(idle_ms>2000);
+		}
+	}
+	if(want_failsafe==mouse_failsafe_show_cursor_)
+	{
+		return;
+	}
+	mouse_failsafe_show_cursor_=want_failsafe;
+	if(nullptr!=controller_ && emu_running)
+	{
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "setMouseFailsafeShowHostCursor",
+		    Qt::QueuedConnection,
+		    Q_ARG(bool,want_failsafe));
+	}
 	updateBlankCursor();
 }
 
-void MainWindow::releaseHostCursorHide()
+void MainWindow::noteEmuPictureClicked()
 {
-	if(!host_cursor_hide_by_click_)
+	if(cached_mouse_capture_released_ &&
+	   nullptr!=controller_ &&
+	   nullptr!=emu_thread_ &&
+	   emu_thread_->isRunning())
 	{
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "resumeMouseCapture",
+		    Qt::QueuedConnection);
+		cached_mouse_capture_released_=false;
+		if(nullptr!=view_)
+		{
+			view_->setMouseCaptureReleased(false);
+		}
+		syncWaylandRelativePointer();
+		updateBlankCursor();
+		updateMouseModeIndicator();
 		return;
 	}
-	host_cursor_hide_by_click_=false;
 	updateBlankCursor();
 }
 
 void MainWindow::syncDifferentialMouseCursor()
 {
-	cached_differential_integration_=queryDifferentialMouseIntegration();
+	refreshMouseUiState();
+	syncWaylandRelativePointer();
 	updateBlankCursor();
 }
 
 void MainWindow::updateBlankCursor()
 {
 	const bool active=shouldCaptureHostMouse();
-	const bool differential=cached_differential_integration_ && active;
+	// Only the failsafe (VM appears hung) shows the host cursor.  Normal and differential
+	// integration hide it over the emulator picture regardless of capture on/off state —
+	// including the capture-released "click to start" state of auto-forced differential.
+	const bool show_host=mouse_failsafe_show_cursor_;
 
-	bool want_blank=differential;
-	if(!differential && active && nullptr!=view_)
+	bool want_blank=false;
+	if(!show_host && active && nullptr!=view_)
 	{
 		const QPoint view_pos=view_->hostCursorInView();
-		if(fullscreen_)
+		if(fullscreen_ && isCursorNearFullscreenMenu())
 		{
-			if(isCursorNearFullscreenMenu())
-			{
-				want_blank=false;
-			}
-			else if(view_->isPointOnEmuPicture(view_pos))
-			{
-				want_blank=true;
-			}
+			want_blank=false;
 		}
-		else if(host_cursor_hide_by_click_ &&
-		        view_->isPointOnEmuPicture(view_pos) &&
-		        !isCursorOverUiChrome())
+		else if(cached_differential_integration_)
 		{
+			want_blank=true;
+		}
+		else if(view_->isPointOnEmuPicture(view_pos) && !isCursorOverUiChrome())
+		{
+			// Absolute/snap, or capture-released differential: hide the host cursor
+			// over the picture.  The user clicks (blind) anywhere on it to capture.
 			want_blank=true;
 		}
 	}
@@ -2727,6 +2892,71 @@ void MainWindow::syncWaylandIdleInhibit()
 {
 	const bool want=TownsQtSettings::waylandIdleInhibit() && isVisible() && !isMinimized();
 	TownsQtWaylandIdleInhibit::Apply(want ? windowHandle() : nullptr,want);
+}
+
+void MainWindow::syncWaylandRelativePointer()
+{
+	const bool want=
+	    cached_differential_integration_ &&
+	    !cached_mouse_capture_released_ &&
+	    !mouse_failsafe_show_cursor_ &&
+	    shouldCaptureHostMouse() &&
+	    isVisible() &&
+	    !isMinimized();
+
+	auto logCapture=[&](bool on,const QString &method)
+	{
+		std::cout << "Tsugaru_QT: Mouse capture is " << (on ? "ON" : "OFF")
+		          << " (method=" << method.toLocal8Bit().constData() << ").\n";
+		std::cout.flush();
+	};
+
+	if(!want)
+	{
+		if(wayland_capture_want_)
+		{
+			logCapture(false,wayland_capture_method_.isEmpty()
+			                     ? QStringLiteral("cursor-warp")
+			                     : wayland_capture_method_);
+		}
+		TownsQtWaylandRelativePointer::Stop();
+		wayland_capture_want_=false;
+		wayland_capture_method_.clear();
+		return;
+	}
+
+	QWindow *win=windowHandle();
+	if(nullptr==win)
+	{
+		if(wayland_capture_want_)
+		{
+			logCapture(false,wayland_capture_method_.isEmpty()
+			                     ? QStringLiteral("cursor-warp")
+			                     : wayland_capture_method_);
+		}
+		TownsQtWaylandRelativePointer::Stop();
+		wayland_capture_want_=false;
+		wayland_capture_method_.clear();
+		return;
+	}
+
+	QString method=QStringLiteral("cursor-warp");
+	if(TownsQtWaylandRelativePointer::Active())
+	{
+		method=QStringLiteral("wayland-relative-pointer");
+	}
+	else if(TownsQtWaylandRelativePointer::Available() &&
+	        TownsQtWaylandRelativePointer::Start(win,&inputQueue_))
+	{
+		method=QStringLiteral("wayland-relative-pointer");
+	}
+
+	if(!wayland_capture_want_ || wayland_capture_method_!=method)
+	{
+		logCapture(true,method);
+	}
+	wayland_capture_want_=true;
+	wayland_capture_method_=method;
 }
 
 void MainWindow::cleanupStoppedEmulator(EmulatorController *stopping)

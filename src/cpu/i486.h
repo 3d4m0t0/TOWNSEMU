@@ -1032,6 +1032,12 @@ public:
 
 		bool halt;
 
+		/*! Interrupt-service nesting depth: incremented on Interrupt() entry, decremented on
+		    IRET, reset on HLT.  Used (outside the CPU) to tell reads made from an interrupt
+		    handler (e.g. the TBIOS soft-cursor VSYNC redraw) apart from an application's
+		    main-loop reads.  Best-effort/bounded; drift is self-corrected at HLT. */
+		unsigned int inInterruptDepth=0;
+
 		// [1] pp.26-211 in the description of the MOV instruction
 		// "Loading to SS register inhibits all interrupts until after the execution of the next instruction"
 		bool holdIRQ;

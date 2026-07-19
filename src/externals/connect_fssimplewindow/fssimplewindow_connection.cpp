@@ -166,6 +166,8 @@ std::string FsSimpleWindowConnection::GetProgramResourceDirectory(void) const
 
 /* virtual */ void FsSimpleWindowConnection::DevicePolling(class FMTownsCommon &towns)
 {
+	UpdateEffectiveDifferentialMouseIntegration(towns);
+
 	// WindosInterface class is now in charge of updating device status.
 	// Before DevicePolling is called, TownsThread::VMMainLoop calls WindowInterface::Communicate
 	// to transfer cached events and device status to this->windowEvent.
@@ -208,7 +210,7 @@ std::string FsSimpleWindowConnection::GetProgramResourceDirectory(void) const
 
 		if(FSMOUSEEVENT_MBUTTONDOWN==mos.evt)
 		{
-			this->commandQueue.push("TOGGLE DIFFMOUSE");
+			HandleMouseIntegrationMiddleButton(towns);
 		}
 	}
 
@@ -1153,7 +1155,11 @@ std::string FsSimpleWindowConnection::GetProgramResourceDirectory(void) const
 			}
 		}
 
-		if(TOWNS_APPSPECIFIC_DAIKOUKAIJIDAI2==towns.state.appSpecificSetting &&
+		if(true!=mouseFeedingEnabled_)
+		{
+			towns.DontControlMouse();
+		}
+		else if(TOWNS_APPSPECIFIC_DAIKOUKAIJIDAI2==towns.state.appSpecificSetting &&
 		   true==towns.Daikoukai2_ControlMouseByArrowKeys(
 			    lb,mb,rb,mx,my,
 			    windowEvent.keyState[FSKEY_LEFT],
@@ -1411,7 +1417,7 @@ std::string FsSimpleWindowConnection::GetProgramResourceDirectory(void) const
 					mx=mx*100/scalingX;
 					my=my*100/scalingY;
 				}
-				if(true!=differentialMouseIntegration)
+				if(true!=effectiveDifferentialMouseIntegration)
 				{
 					this->ProcessMouse(towns,lb,mb,rb,mx,my);
 				}
@@ -1780,6 +1786,15 @@ void FsSimpleWindowConnection::WindowConnection::Interval(void)
 		// Next FsGetMouseEvent may lag from FsSetMousePosition if more events are in the queue.
 		// Therefore mouse position for differentialMouseIntegration should be polled separately.
 
+		if(true!=sharedDifferentialMouseInited_ ||
+		   true!=prevSharedDifferentialMouseIntegration_)
+		{
+			diffMouseXY[0]=mx;
+			diffMouseXY[1]=my;
+			sharedDifferentialMouseInited_=true;
+			prevSharedDifferentialMouseIntegration_=true;
+		}
+
 		const int rawDx=mx-diffMouseXY[0];
 		const int rawDy=my-diffMouseXY[1];
 		if(0!=shared.scalingX && 0!=shared.scalingY)
@@ -1813,13 +1828,17 @@ void FsSimpleWindowConnection::WindowConnection::Interval(void)
 			FsSetMousePosition(cx,cy);
 		}
 	}
+	else
+	{
+		prevSharedDifferentialMouseIntegration_=false;
+	}
 
 	PollGamePads();
 
 	{
 		std::lock_guard <std::mutex> lock(deviceStateLock);
 
-		bool mouseCursorVisible=(true!=shared.differentialMouseIntegration && true==shared.showMouseCursor);
+		bool mouseCursorVisible=(true==shared.showMouseCursor);
 		if(mouseCursorVisible!=(FsIsMouseCursorVisible()!=0))
 		{
 			if(true==mouseCursorVisible)
@@ -2064,7 +2083,7 @@ void FsSimpleWindowConnection::WindowConnection::Communicate(Outside_World *ow)
 
 		shared.gamePadsNeedUpdate=outside_world->gamePadsNeedUpdate;
 		shared.showMouseCursor=outside_world->showMouseCursor;
-		shared.differentialMouseIntegration=outside_world->differentialMouseIntegration;
+		shared.differentialMouseIntegration=outside_world->effectiveDifferentialMouseIntegration;
 
 		outside_world->closeWindow=closeWindow;
 	}

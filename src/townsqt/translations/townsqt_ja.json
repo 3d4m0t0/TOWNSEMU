@@ -12,6 +12,46 @@
     },
     {
       "context": "MainWindow",
+      "source": "Integrated",
+      "translation": "マウス統合"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integrated: the host pointer controls the Towns pointer directly.",
+      "translation": "マウス統合：ホストのポインタがTownsのポインタを直接動かします。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Captured",
+      "translation": "捕捉中"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Middle button to release",
+      "translation": "中ボタンで解除"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Relative mouse is captured. Press the middle mouse button to release capture.",
+      "translation": "相対マウスをキャプチャ中。中ボタン（ボタン3）で解除します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Released",
+      "translation": "解除中"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Click to capture",
+      "translation": "クリックで開始"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Relative mouse. Click the screen to start mouse capture; press the middle mouse button to release it.",
+      "translation": "相対マウス。画面クリックでキャプチャ開始、中ボタン（ボタン3）で解除します。"
+    },
+    {
+      "context": "MainWindow",
       "source": "Restarting the emulator…",
       "translation": "エミュレータを再起動しています…"
     },
@@ -417,8 +457,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Differential mouse integration",
-      "translation": "差分マウス統合"
+      "source": "Auto-switch to differential when Mouse BIOS stops",
+      "translation": "Mouse BIOS停止時に差分統合へ自動切替"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Absolute and instant integration are unavailable while Mouse BIOS is stopped.\nAutomatically switch to differential input to keep the mouse usable.",
+      "translation": "Mouse BIOS停止中は通常／即時統合を使用できません。\n差分入力へ自動的に切り替え、マウス操作を継続します。"
     },
     {
       "context": "SettingsDialog",
@@ -447,8 +492,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Peripherals",
-      "translation": "周辺機器"
+      "source": "Mouse & Game Pad",
+      "translation": "マウスとパッド"
     },
     {
       "context": "SettingsDialog",
@@ -617,8 +662,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
-      "translation": "ゲストのマウス座標をホストに即座に合わせるテスト機能です。\n有効にした直後はウォームアップ期間、段階的統合を行ってから即時統合に切り替わります。"
+      "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nCompared with gradual integration, this reduces mouse input latency.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
+      "translation": "ゲストのマウス座標をホストに即座に合わせるテスト機能です。\n段階的な統合に比べ、マウス入力の遅延を緩和します。\n有効にした直後はウォームアップ期間、段階的統合を行ってから即時統合に切り替わります。"
     },
     {
       "context": "SettingsDialog",

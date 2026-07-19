@@ -61,6 +61,20 @@ public:
 	/*! Drop any pending warp (e.g. differential mode off or window inactive). */
 	void CancelCursorWarp();
 
+	/*! Wayland relative-pointer: accumulate compositor-accelerated deltas (view pixels). */
+	void AddRelativeMotion(double dx,double dy);
+	void ClearRelativeMotion();
+	/*! Drain accumulated relative motion (view pixels). Returns true if any motion. */
+	bool TakeRelativeMotion(double &dx,double &dy);
+	void SetRelativePointerActive(bool active);
+	bool RelativePointerActive() const;
+
+	/*! Desktop (HiDPI) display scale of the view's screen.  The Wayland relative-pointer deltas
+	    arrive in physical device pixels, so the differential path divides by this to get the
+	    view/logical-pixel motion that matches absolute integration.  Set from the GUI thread. */
+	void SetDevicePixelRatio(double dpr);
+	double DevicePixelRatio() const;
+
 private:
 	std::mutex mutex_;
 	int viewWid_=640;
@@ -79,6 +93,10 @@ private:
 	int lastViewMouseX_=0;
 	int lastViewMouseY_=0;
 	bool resetDiffMouse_=false;
+	double relativeMotionX_=0.0;
+	double relativeMotionY_=0.0;
+	std::atomic<bool> relativePointerActive_{false};
+	std::atomic<double> devicePixelRatio_{1.0};
 
 	std::atomic<bool> pendingWarp_{false};
 	std::atomic<int> pendingWarpX_{0};

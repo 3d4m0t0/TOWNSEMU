@@ -116,6 +116,7 @@ void EmuView::syncInputDisplayLayout()
 	int x=0,y=0,dst_w=0,dst_h=0;
 	queryDisplayRect(x,y,dst_w,dst_h);
 	inputQueue_->SetDisplayLayout(emu_wid_,emu_hei_,x,y,dst_w,dst_h);
+	inputQueue_->SetDevicePixelRatio(devicePixelRatioF());
 	if(nullptr!=gl_view_)
 	{
 		gl_view_->setLogicalDisplayRect(x,y,dst_w,dst_h);
@@ -297,10 +298,29 @@ void EmuView::pollMousePosition()
 	{
 		gl_view_->setMouseDebugCrosshairEmuPos(emu_pos.x(),emu_pos.y());
 	}
+	bool lb=(buttons & Qt::LeftButton)!=0;
+	bool mb=(buttons & Qt::MiddleButton)!=0;
+	bool rb=(buttons & Qt::RightButton)!=0;
+	// The live button poll bypasses the discrete press/release suppression, so re-apply it here:
+	// while capture is released no button reaches the guest (the host cursor drives the UI), and a
+	// button whose press only resumed capture stays masked until it is physically released — so
+	// the click that starts capture never registers as an in-game click.
+	if(true==mouse_capture_released_)
+	{
+		lb=false;
+		mb=false;
+		rb=false;
+	}
+	else
+	{
+		if(0!=(suppressed_guest_buttons_&QtInputQueue::MOUSE_BTN_LEFT))   { lb=false; }
+		if(0!=(suppressed_guest_buttons_&QtInputQueue::MOUSE_BTN_RIGHT))  { rb=false; }
+		if(0!=(suppressed_guest_buttons_&QtInputQueue::MOUSE_BTN_MIDDLE)) { mb=false; }
+	}
 	inputQueue_->PollMouseState(
-	    (buttons & Qt::LeftButton)!=0,
-	    (buttons & Qt::MiddleButton)!=0,
-	    (buttons & Qt::RightButton)!=0,
+	    lb,
+	    mb,
+	    rb,
 	    view_pos.x(),
 	    view_pos.y(),
 	    emu_pos.x(),
@@ -664,7 +684,19 @@ void EmuView::mousePressEvent(QMouseEvent *event)
 		}
 		if(0!=btn)
 		{
-			inputQueue_->MousePress(btn,view_pos.x(),view_pos.y(),emu_pos.x(),emu_pos.y());
+			// A click while capture is released only resumes capture (below); don't pass it to
+			// the guest, or it would register as a stray in-game click.  Remember the button so
+			// its release is swallowed too.
+			const bool resumeClick=
+			    true==mouse_capture_released_ && true==isPointOnEmuPicture(view_pos);
+			if(true==resumeClick)
+			{
+				suppressed_guest_buttons_|=btn;
+			}
+			else
+			{
+				inputQueue_->MousePress(btn,view_pos.x(),view_pos.y(),emu_pos.x(),emu_pos.y());
+			}
 		}
 	}
 	if(isPointOnEmuPicture(view_pos))
@@ -697,10 +729,30 @@ void EmuView::mouseReleaseEvent(QMouseEvent *event)
 		}
 		if(0!=btn)
 		{
-			inputQueue_->MouseRelease(btn,view_pos.x(),view_pos.y(),emu_pos.x(),emu_pos.y());
+			if(0!=(suppressed_guest_buttons_&btn))
+			{
+				// Matching release of a click that only resumed capture — swallow it too.
+				suppressed_guest_buttons_&=~btn;
+			}
+			else
+			{
+				inputQueue_->MouseRelease(btn,view_pos.x(),view_pos.y(),emu_pos.x(),emu_pos.y());
+			}
 		}
 	}
 	event->accept();
+}
+
+void EmuView::setMouseCaptureReleased(bool released)
+{
+	// Clear stale swallow bits when (re-)entering the released state, not when leaving it: the
+	// release of the resuming click usually arrives after the runtime has already flipped the
+	// state back to captured, and that release still needs to be swallowed.
+	if(true==released && true!=mouse_capture_released_)
+	{
+		suppressed_guest_buttons_=0;
+	}
+	mouse_capture_released_=released;
 }
 
 void EmuView::mouseMoveEvent(QMouseEvent *event)

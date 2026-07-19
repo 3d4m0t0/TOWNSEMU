@@ -215,6 +215,7 @@ void EmulatorController::run()
 	};
 
 	impl_->outside_world=new QtOutsideWorld(inputQueue_,framebuffer_);
+	impl_->outside_world->hostLogPrefix="Tsugaru_QT: ";
 	impl_->sound=impl_->outside_world->CreateSound();
 	if(auto *qt_sound=dynamic_cast<QtSyncSoundConnection *>(impl_->sound))
 	{
@@ -251,7 +252,7 @@ void EmulatorController::run()
 		    TownsQtSettings::maxButtonHoldTimeMs(0,1),
 		    TownsQtSettings::mouseIntegrationSpeed(),
 		    TownsQtSettings::considerVRAMOffsetInMouseIntegration(),
-		    TownsQtSettings::differentialMouseIntegration(),
+		    TownsQtSettings::autoDifferentialOnMouseBIOSStop(),
 		    TownsQtSettings::mouseMinX(),
 		    TownsQtSettings::mouseMinY(),
 		    TownsQtSettings::mouseMaxX(),
@@ -497,9 +498,10 @@ void EmulatorController::loadFdImage(int drive,const QString &path)
 	const bool write_protect=TownsQtSettings::fdWriteProtect(drive);
 	if(write_protect)
 	{
+		// CUI names are FD0WP / FD1WP (not FD0WRITEPROTECT).
 		impl_->cmdThread.EnqueueCommand(
 		    *impl_->outside_world,
-		    (0==drive) ? "FD0WRITEPROTECT" : "FD1WRITEPROTECT");
+		    (0==drive) ? "FD0WP" : "FD1WP");
 	}
 	Q_EMIT fdWriteProtectChanged(drive,write_protect);
 }
@@ -531,11 +533,11 @@ void EmulatorController::setFdWriteProtect(int drive,bool write_protect)
 		const char *cmd=nullptr;
 		if(0==drive)
 		{
-			cmd=write_protect ? "FD0WRITEPROTECT" : "FD0WRITEUNPROTECT";
+			cmd=write_protect ? "FD0WP" : "FD0UP";
 		}
 		else
 		{
-			cmd=write_protect ? "FD1WRITEPROTECT" : "FD1WRITEUNPROTECT";
+			cmd=write_protect ? "FD1WP" : "FD1UP";
 		}
 		impl_->cmdThread.EnqueueCommand(*impl_->outside_world,cmd);
 	}
@@ -859,7 +861,7 @@ void EmulatorController::applyPeripheralSettings(unsigned int game_port0,
                                                  int max_button_hold_ms1,
                                                  int mouse_integration_speed,
                                                  bool consider_vram_offset_in_mouse_integration,
-                                                 bool differential_mouse_integration,
+                                                 bool auto_differential_on_mouse_bios_stop,
                                                  int mouse_min_x,
                                                  int mouse_min_y,
                                                  int mouse_max_x,
@@ -870,7 +872,9 @@ void EmulatorController::applyPeripheralSettings(unsigned int game_port0,
 		return;
 	}
 
-		impl_->outside_world->differentialMouseIntegration=differential_mouse_integration;
+		impl_->outside_world->SetDifferentialMouseIntegrationPreference(
+		    TownsQtSettings::differentialMouseIntegration(),towns_);
+		impl_->outside_world->autoDifferentialOnMouseBIOSStop=auto_differential_on_mouse_bios_stop;
 		impl_->outside_world->snapMouseIntegration=TownsQtSettings::snapMouseIntegration();
 		impl_->outside_world->snapMouseWarmupFrames=TownsQtSettings::snapMouseWarmupFrames();
 		if(true==impl_->outside_world->snapMouseIntegration)
@@ -881,6 +885,7 @@ void EmulatorController::applyPeripheralSettings(unsigned int game_port0,
 		{
 			impl_->outside_world->snapMouseWarmupRemaining=0;
 		}
+		impl_->outside_world->UpdateEffectiveDifferentialMouseIntegration(*towns_);
 
 	towns_->state.mouseIntegrationSpeed=static_cast<unsigned int>(std::clamp(mouse_integration_speed,32,256));
 	towns_->var.considerVRAMOffsetInMouseIntegration=consider_vram_offset_in_mouse_integration;
@@ -909,9 +914,51 @@ bool EmulatorController::differentialMouseIntegration() const
 {
 	if(nullptr!=impl_->outside_world)
 	{
-		return impl_->outside_world->differentialMouseIntegration;
+		// Runtime path (may auto-force after Mouse BIOS stop); not the settings preference alone.
+		return impl_->outside_world->effectiveDifferentialMouseIntegration;
 	}
 	return TownsQtSettings::differentialMouseIntegration();
+}
+
+QVariantMap EmulatorController::mouseUiState() const
+{
+	QVariantMap result;
+	result[QStringLiteral("diff")]=false;
+	result[QStringLiteral("mos")]=false;
+	result[QStringLiteral("capture_released")]=false;
+	result[QStringLiteral("feeding")]=true;
+	result[QStringLiteral("failsafe")]=false;
+	result[QStringLiteral("pref_diff")]=TownsQtSettings::differentialMouseIntegration();
+	if(nullptr==impl_->outside_world)
+	{
+		return result;
+	}
+	const auto &ow=*impl_->outside_world;
+	result[QStringLiteral("diff")]=ow.effectiveDifferentialMouseIntegration;
+	result[QStringLiteral("mos")]=ow.debugMouseBIOSActive;
+	result[QStringLiteral("capture_released")]=ow.mouseCaptureReleased_;
+	result[QStringLiteral("feeding")]=ow.mouseFeedingEnabled_;
+	result[QStringLiteral("failsafe")]=ow.mouseFailsafeShowHostCursor_;
+	result[QStringLiteral("pref_diff")]=ow.differentialMouseIntegration;
+	return result;
+}
+
+void EmulatorController::resumeMouseCapture()
+{
+	if(nullptr==impl_->outside_world || nullptr==towns_)
+	{
+		return;
+	}
+	impl_->outside_world->ResumeMouseCapture(*towns_);
+}
+
+void EmulatorController::setMouseFailsafeShowHostCursor(bool show)
+{
+	if(nullptr==impl_->outside_world)
+	{
+		return;
+	}
+	impl_->outside_world->SetMouseFailsafeShowHostCursor(show);
 }
 
 void EmulatorController::setSnapMouseIntegration(bool enabled)
@@ -1072,6 +1119,14 @@ QVariantMap EmulatorController::guestMouseCoords() const
 	result[QStringLiteral("tbios_x")]=ow.debugTbiosMx;
 	result[QStringLiteral("tbios_y")]=ow.debugTbiosMy;
 	result[QStringLiteral("mouse_bios")]=ow.debugMouseBIOSActive;
+	result[QStringLiteral("diff_eff")]=ow.debugEffectiveDifferential;
+	result[QStringLiteral("diff_forced")]=ow.debugForcedDifferentialByMouseBIOSStop;
+	result[QStringLiteral("diff_mos_unused")]=ow.debugForcedDifferentialByMosUnused;
+	result[QStringLiteral("mos_probe")]=ow.debugMosUsageObserving;
+	result[QStringLiteral("mos_reads")]=static_cast<uint>(ow.debugMosCoordAppReads);
+	result[QStringLiteral("gp_packets")]=static_cast<uint>(ow.debugGameportMousePackets);
+	result[QStringLiteral("capture_released")]=ow.debugMouseCaptureReleased;
+	result[QStringLiteral("feeding")]=ow.debugMouseFeedingEnabled;
 	result[QStringLiteral("tbios_version")]=static_cast<uint>(ow.debugTBIOSVersion);
 	result[QStringLiteral("app_specific")]=static_cast<uint>(ow.debugAppSpecific);
 	result[QStringLiteral("mos_work")]=static_cast<uint>(ow.debugMosWorkPhysAddr);

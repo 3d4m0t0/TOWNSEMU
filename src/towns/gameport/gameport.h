@@ -107,6 +107,8 @@ public:
 		int zAxisCopy; // For CyberStick
 		int wAxisCopy; // For CyberStick
 		bool monitorMouse=false;
+		/*! Guest completed a non-zero mouse motion nibble sequence (usage heuristic). */
+		unsigned int mouseMotionPacketCount=0;
 
 		long long int lastAccessTime;
 		long long int lastStateChangeTime;

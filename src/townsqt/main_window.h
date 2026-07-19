@@ -79,6 +79,7 @@ private:
 	void applyFullscreenVsync();
 	void applyWindowScale(int scale,bool auto_scaling,bool maintain_aspect);
 	void syncWaylandIdleInhibit();
+	void syncWaylandRelativePointer();
 	void syncMenuChecks();
 	void syncFastModeMenu();
 	void syncGuestFastModeFromEmulator();
@@ -103,7 +104,9 @@ private:
 	void syncDifferentialMouseCursor();
 	void updateBlankCursor();
 	void noteEmuPictureClicked();
-	void releaseHostCursorHide();
+	void refreshMouseUiState();
+	void updateMouseModeIndicator();
+	void updateMouseFailsafeFromActivity();
 	void updateFullscreenNormalIntegrationChrome();
 	void updateMouseDebugDisplay();
 	void applyMouseDebugVisibility();
@@ -119,6 +122,7 @@ private:
 	void updateOpenCdMenuLabel();
 	void updateOpenFdMenuLabel(int drive);
 	bool queryDifferentialMouseIntegration() const;
+	QVariantMap queryMouseUiState() const;
 	bool isMouseInsideWindow(const QPoint &global_pos) const;
 	bool shouldCaptureHostMouse() const;
 	bool isCursorOverUiChrome() const;
@@ -172,8 +176,17 @@ private:
 	bool fullscreen_=false;
 	bool fullscreen_cursor_hidden_=false;
 	bool cached_differential_integration_=false;
+	bool cached_mouse_bios_active_=false;
+	bool cached_mouse_capture_released_=false;
+	QLabel *mouse_mode_label_=nullptr;
+	QTimer *mouse_mode_alternate_timer_=nullptr;
+	int mouse_mode_category_=-1;
+	int mouse_mode_phase_=0;
 	bool host_cursor_blank_=false;
-	bool host_cursor_hide_by_click_=false;
+	bool mouse_failsafe_show_cursor_=false;
+	bool wayland_capture_want_=false;
+	QString wayland_capture_method_;
+	qint64 last_emu_activity_ms_=0;
 	bool have_last_fullscreen_mouse_global_=false;
 	qint64 last_fullscreen_mouse_move_ms_=0;
 	qint64 last_fullscreen_menubar_show_ms_=0;

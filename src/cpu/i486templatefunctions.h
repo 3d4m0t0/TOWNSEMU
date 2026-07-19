@@ -16,6 +16,11 @@ inline void i486DXFidelityLayer <FIDELITY>::Interrupt(unsigned int INTNum,Memory
 
 	state.halt=false;
 
+	if(state.inInterruptDepth<16)
+	{
+		++state.inInterruptDepth;
+	}
+
 	if(IsInRealMode())
 	{
 		Push(mem,16,cpputil::LowWord(state.EFLAGS),state.CS().value,state.EIP+numInstBytesForReturn);

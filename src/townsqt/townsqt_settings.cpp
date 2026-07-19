@@ -56,6 +56,7 @@ constexpr char kMaxButtonHoldMsKey[]="peripheral/max_button_hold_ms";
 constexpr char kMouseIntegrationSpeedKey[]="peripheral/mouse_integration_speed";
 constexpr char kMouseIntegrVramOffsetKey[]="peripheral/mouse_integr_vram_offset";
 constexpr char kDifferentialMouseKey[]="peripheral/differential_mouse";
+constexpr char kAutoDiffOnMouseBiosStopKey[]="peripheral/auto_diff_on_mouse_bios_stop";
 constexpr char kMouseMinXKey[]="peripheral/mouse_min_x";
 constexpr char kMouseMinYKey[]="peripheral/mouse_min_y";
 constexpr char kMouseMaxXKey[]="peripheral/mouse_max_x";
@@ -1089,6 +1090,24 @@ void TownsQtSettings::setDifferentialMouseIntegration(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kDifferentialMouseKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::autoDifferentialOnMouseBIOSStop()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(!settings.contains(QString::fromLatin1(kAutoDiffOnMouseBiosStopKey)))
+	{
+		setAutoDifferentialOnMouseBIOSStop(true);
+		return true;
+	}
+	return settings.value(QString::fromLatin1(kAutoDiffOnMouseBiosStopKey),true).toBool();
+}
+
+void TownsQtSettings::setAutoDifferentialOnMouseBIOSStop(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kAutoDiffOnMouseBiosStopKey),enabled);
 	settings.sync();
 }
 

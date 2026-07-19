@@ -596,9 +596,26 @@ void FMTownsCommon::State::Reset(void)
 	TBIOS_physicalAddr=0;
 	MOS_work_linearAddr=0;
 	MOS_work_physicalAddr=0;
+	MOS_code_CS=0;
 	mouseBIOSActive=false;
 	mouseBIOSStartSerial=0;
 	mouseDisplayPage=0;
+	mosCoordAppReadCount=0;
+	mosCoordTbiosSelfReadCount=0;
+	mosCoordSystemCSCount=0;
+	for(auto &cs : mosCoordSystemCS)
+	{
+		cs=0;
+	}
+	mosCoordAppReadCSCount=0;
+	for(auto &cs : mosCoordAppReadCS)
+	{
+		cs=0;
+	}
+	for(auto &h : mosCoordAppReadCSHits)
+	{
+		h=0;
+	}
 
 	serialROMBitCount=0;
 	lastSerialROMCommand=0;
@@ -1232,9 +1249,14 @@ void FMTownsCommon::PowerOn(void)
 void FMTownsCommon::Reset(void)
 {
 	auto &cpu=CPU();
+	StopMosCoordUsageProbe();
 	var.Reset();
 	state.Reset();
 	cpu.Reset();
+	for(auto &p : gameport.state.ports)
+	{
+		p.mouseMotionPacketCount=0;
+	}
 	for(auto devPtr : allDevices)
 	{
 		if(devPtr!=this)
@@ -1269,6 +1291,29 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 /* virtual */ void FMTownsCommon::InterceptMouseBIOS(void)
 {
 	auto &cpu=CPU();
+
+	// Count application MOS BIOS calls (other than init/end) made from a non-interrupt,
+	// non-system caller.  This detects apps that read the mouse through the BIOS API rather
+	// than reading the coordinate memory directly (see state.mosBIOSAppCallCount).
+	if(true==state.mouseBIOSActive)
+	{
+		const unsigned int ah=cpu.GetAH();
+		if(0x00!=ah && 0x01!=ah)
+		{
+			const unsigned int csVal=cpu.state.CS().value;
+			const bool systemCaller=
+			    0<cpu.state.inInterruptDepth ||
+			    csVal<0x100 ||
+			    0xF000<=csVal ||
+			    0x110==csVal ||
+			    0x110==(csVal&0xFFF8);
+			if(true!=systemCaller)
+			{
+				++state.mosBIOSAppCallCount;
+			}
+		}
+	}
+
 	if(0==cpu.GetAH())
 	{
 		if(TownsEventLog::MODE_RECORDING==eventLog.mode || TownsEventLog::MODE_PLAYBACK==eventLog.mode)
@@ -1279,6 +1324,7 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 		unsigned int excType,excCode;
 		state.MOS_work_linearAddr=cpu.state.GS().baseLinearAddr+cpu.GetEDI();
 		state.MOS_work_physicalAddr=cpu.DebugLinearAddressToPhysicalAddress(excType,excCode,state.MOS_work_linearAddr,mem);
+		state.MOS_code_CS=cpu.state.CS().value;
 
 		i486DXCommon::SegmentRegister CS;
 		cpu.DebugLoadSegmentRegister(CS,0x110,mem,i486DXCommon::MODE_NATIVE);
@@ -1289,6 +1335,10 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 		state.mouseBIOSActive=true;
 		++state.mouseBIOSStartSerial;
 		state.mouseDisplayPage=0;
+		// Begin MOS-usage probing immediately so NOWAIT cannot skip the soft-cursor window.
+		state.mosCoordSystemCSCount=0;
+		var.mosUsageLearnSystemCS=true;
+		StartMosCoordUsageProbe();
 
 		// Director / multimedia titles may leave sprite H/V offset set.  ATTR_OFFS cursor
 		// sprites then appear shifted while MOS coordinates (hit testing) stay correct.
@@ -1353,6 +1403,8 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 		}
 		std::cout << "Mouse BIOS stopped." << std::endl;
 		state.mouseBIOSActive=false;
+		StopMosCoordUsageProbe();
+		var.mosUsageLearnSystemCS=false;
 		state.tbiosVersion=TBIOS_UNKNOWN;
 	}
 }

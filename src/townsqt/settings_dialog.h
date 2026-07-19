@@ -66,7 +66,7 @@ public:
 		int maxButtonHoldTimeMs1=0;
 		int mouseIntegrationSpeed=256;
 		bool considerVRAMOffsetInMouseIntegration=true;
-		bool differentialMouseIntegration=false;
+		bool autoDifferentialOnMouseBIOSStop=true;
 		bool snapMouseIntegration=false;
 		int snapMouseWarmupFrames=30;
 		int mouseMinX=0;
@@ -185,7 +185,7 @@ private:
 	QSlider *mouse_speed_slider_=nullptr;
 	QLabel *mouse_speed_value_=nullptr;
 	QCheckBox *mouse_vram_offset_=nullptr;
-	QCheckBox *diff_mouse_integration_=nullptr;
+	QCheckBox *auto_diff_on_mouse_bios_stop_=nullptr;
 	QSpinBox *mouse_min_x_=nullptr;
 	QSpinBox *mouse_min_y_=nullptr;
 	QSpinBox *mouse_max_x_=nullptr;

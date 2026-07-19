@@ -162,7 +162,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.maxButtonHoldTimeMs1=0;
 	v.mouseIntegrationSpeed=256;
 	v.considerVRAMOffsetInMouseIntegration=true;
-	v.differentialMouseIntegration=false;
+	v.autoDifferentialOnMouseBIOSStop=true;
 	v.snapMouseIntegration=false;
 	v.snapMouseWarmupFrames=30;
 	v.mouseMinX=TownsStartParameters::DEFAULT_MOUSE_MINX;
@@ -484,7 +484,6 @@ void SettingsDialog::buildUi()
 		auto *range_layout=new QGridLayout(range_box);
 		CompactGrid(range_layout);
 		mouse_vram_offset_=new QCheckBox(tr("Consider VRAM offset"),range_box);
-		diff_mouse_integration_=new QCheckBox(tr("Differential mouse integration"),range_box);
 		mouse_min_x_=new QSpinBox(range_box);
 		mouse_min_y_=new QSpinBox(range_box);
 		mouse_max_x_=new QSpinBox(range_box);
@@ -498,7 +497,6 @@ void SettingsDialog::buildUi()
 		range_layout->addWidget(mouse_min_x_,0,2);
 		range_layout->addWidget(new QLabel(tr("MinY"),range_box),0,3);
 		range_layout->addWidget(mouse_min_y_,0,4);
-		range_layout->addWidget(diff_mouse_integration_,1,0);
 		range_layout->addWidget(new QLabel(tr("MaxX"),range_box),1,1);
 		range_layout->addWidget(mouse_max_x_,1,2);
 		range_layout->addWidget(new QLabel(tr("MaxY"),range_box),1,3);
@@ -506,11 +504,24 @@ void SettingsDialog::buildUi()
 		range_layout->setColumnStretch(0,1);
 		v->addWidget(range_box);
 
+		auto *mouse_integration_separator=new QFrame(page);
+		mouse_integration_separator->setFrameShape(QFrame::HLine);
+		mouse_integration_separator->setFrameShadow(QFrame::Sunken);
+		v->addWidget(mouse_integration_separator);
+
+		auto_diff_on_mouse_bios_stop_=new QCheckBox(
+		    tr("Auto-switch to differential when Mouse BIOS stops"),page);
+		v->addWidget(auto_diff_on_mouse_bios_stop_);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("Absolute and instant integration are unavailable while Mouse BIOS is stopped.\n"
+		       "Automatically switch to differential input to keep the mouse usable.")));
+
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
 		    tr("Changes take effect immediately when you press Apply or OK.")));
 		peripheral_page_=page;
-		tabs_->addTab(page,tr("Peripherals"));
+		tabs_->addTab(page,tr("Mouse & Game Pad"));
 	}
 
 	{
@@ -695,6 +706,7 @@ void SettingsDialog::buildUi()
 		v->addWidget(MakeIndentedNote(
 		    page,
 		    tr("Test feature that snaps the guest mouse coordinates to the host immediately.\n"
+		       "Compared with gradual integration, this reduces mouse input latency.\n"
 		       "After enabling, a warm-up period uses gradual integration before switching to instant snapping.")));
 
 		auto *warmup_row=new QHBoxLayout();
@@ -1300,9 +1312,9 @@ void SettingsDialog::loadFromValues(const Values &values)
 	{
 		mouse_vram_offset_->setChecked(values.considerVRAMOffsetInMouseIntegration);
 	}
-	if(nullptr!=diff_mouse_integration_)
+	if(nullptr!=auto_diff_on_mouse_bios_stop_)
 	{
-		diff_mouse_integration_->setChecked(values.differentialMouseIntegration);
+		auto_diff_on_mouse_bios_stop_->setChecked(values.autoDifferentialOnMouseBIOSStop);
 	}
 	if(nullptr!=mouse_min_x_)
 	{
@@ -1459,9 +1471,9 @@ void SettingsDialog::applyToValues(Values &out) const
 	{
 		out.considerVRAMOffsetInMouseIntegration=mouse_vram_offset_->isChecked();
 	}
-	if(nullptr!=diff_mouse_integration_)
+	if(nullptr!=auto_diff_on_mouse_bios_stop_)
 	{
-		out.differentialMouseIntegration=diff_mouse_integration_->isChecked();
+		out.autoDifferentialOnMouseBIOSStop=auto_diff_on_mouse_bios_stop_->isChecked();
 	}
 	if(nullptr!=mouse_min_x_)
 	{
@@ -1579,9 +1591,9 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		{
 			mouse_vram_offset_->setChecked(default_values_.considerVRAMOffsetInMouseIntegration);
 		}
-		if(nullptr!=diff_mouse_integration_)
+		if(nullptr!=auto_diff_on_mouse_bios_stop_)
 		{
-			diff_mouse_integration_->setChecked(default_values_.differentialMouseIntegration);
+			auto_diff_on_mouse_bios_stop_->setChecked(default_values_.autoDifferentialOnMouseBIOSStop);
 		}
 		if(nullptr!=mouse_min_x_)
 		{
