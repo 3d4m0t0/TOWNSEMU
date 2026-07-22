@@ -144,6 +144,7 @@ void TownsCDROM::State::Reset(void)
 	CDDAState=CDDA_IDLE;
 	nextCDDAPollingTime=0;
 	CDDAEndTime.Set(0,2,0);
+	CDDARepeat=false;
 
 	CDDAWave.clear();
 	CDDAPlayPointer=0;
@@ -166,10 +167,9 @@ void TownsCDROM::UpdateCDDAStateInternal(long long int townsTime)
 	{
 		if(state.CDDAWave.size()<=state.CDDAPlayPointer)
 		{
-			if(true!=state.CDDAWave.empty() &&
-			   (true==state.CDDARepeat || true==var.cddaCacheDuringDataRead))
+			if(true!=state.CDDAWave.empty() && true==state.CDDARepeat)
 			{
-				// Cache ON: loop in place — keep PLAYING (do not fall through to IDLE).
+				// CDDARepeat: seamless wrap (cache ON or OFF).
 				state.CDDAPlayPointer=0;
 			}
 			else
@@ -200,9 +200,21 @@ void TownsCDROM::UpdateCDDAStateInternal(long long int townsTime)
 	   state.CDDAWave.size()<=state.CDDAPlayPointer &&
 	   CDDA_PLAYING!=state.CDDAState)
 	{
-		if(true!=state.CDDAWave.empty() &&
-		   (true==state.CDDARepeat || true==var.cddaCacheDuringDataRead))
+		if(true!=state.CDDAWave.empty() && true==state.CDDARepeat)
 		{
+			// CDDARepeat: seamless wrap while guest is not PLAYING
+			// (e.g. cache bridge / host-only mix with Repeat still set).
+			state.CDDAPlayPointer=0;
+		}
+		else if(true!=state.CDDAWave.empty() && true==var.cddaCacheDuringDataRead &&
+		        (true==state.CDDACacheBridgingDataRead || true==state.dataTransferActive))
+		{
+			// Bridging MODE read: silent host rewind (guest already sees IDLE).
+			state.CDDAPlayPointer=0;
+		}
+		else if(true!=state.CDDAWave.empty() && true==var.cddaCacheDuringDataRead)
+		{
+			// Host-only mix after data-read (guest IDLE): keep host loop.
 			state.CDDAPlayPointer=0;
 		}
 		else
@@ -290,6 +302,7 @@ bool TownsCDROM::CacheHostMixAfterDataRead(void)
 	}
 	if(true!=CacheWaveRemaining())
 	{
+		// Host mix only: Repeat seamless, or cache bridge continuity. Does not set CDDARepeat.
 		if(true==state.CDDARepeat || true==var.cddaCacheDuringDataRead)
 		{
 			state.CDDAPlayPointer=0;
@@ -2413,12 +2426,10 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 	if(true==var.CDDAmute)
 	{
 		state.CDDAPlayPointer+=numSamples*4;
-		if(true==state.CDDARepeat || true==var.cddaCacheDuringDataRead)
+		// Only CDDARepeat wraps here. Cache alone must not imply Repeat.
+		if(true==state.CDDARepeat && 0<CDDAWaveSize)
 		{
-			if(0<CDDAWaveSize)
-			{
-				state.CDDAPlayPointer%=CDDAWaveSize;
-			}
+			state.CDDAPlayPointer%=CDDAWaveSize;
 		}
 	}
 	else
@@ -2517,8 +2528,8 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 
 				writePtr+=4;
 				state.CDDAPlayPointer+=4;
-				if((true==state.CDDARepeat || true==var.cddaCacheDuringDataRead) &&
-				   CDDAWaveSize<=state.CDDAPlayPointer)
+				// Only CDDARepeat wraps. Cache alone must not imply Repeat.
+				if(true==state.CDDARepeat && CDDAWaveSize<=state.CDDAPlayPointer)
 				{
 					state.CDDAPlayPointer=0;
 				}
@@ -2549,8 +2560,7 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 
 				writePtr+=4;
 				state.CDDAPlayPointer+=4;
-				if((true==state.CDDARepeat || true==var.cddaCacheDuringDataRead) &&
-				   CDDAWaveSize<=state.CDDAPlayPointer)
+				if(true==state.CDDARepeat && CDDAWaveSize<=state.CDDAPlayPointer)
 				{
 					state.CDDAPlayPointer=0;
 				}
@@ -2558,15 +2568,16 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 		}
 	}
 
+	// Repeat OFF + guest still PLAYING/STOPPING: natural end.
+	// Host-only cache mix (guest IDLE): leave AudioOutput; UpdateCDDAState rewinds.
 	if(true!=state.CDDARepeat &&
-	   true!=var.cddaCacheDuringDataRead &&
 	   CDDAWaveSize<=state.CDDAPlayPointer)
 	{
 		if(true==CDDAIsPlaying())
 		{
 			state.CDDAState=CDDA_STOPPING;
 		}
-		else
+		else if(true!=var.cddaCacheDuringDataRead || true==state.CDDAWave.empty())
 		{
 			state.CDDAAudioOutput=false;
 		}
