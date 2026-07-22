@@ -210,6 +210,20 @@ void QtSyncSoundConnection::CatchUpContract()
 	{
 		DrainPendingToSpsc(push_goal);
 	}
+	else if(0<pending)
+	{
+		// Staged audio is not in the contract backlog; drain whenever the ring has headroom
+		// so pending_pcm_ cannot wedge FMPCMChannelPlaying and block ProcessSound synthesis.
+		const int spsc_free=static_cast<int>(spsc_.Free());
+		if(0<spsc_free)
+		{
+			const int drain=std::min({pending,period_frames_,spsc_free});
+			if(0<drain)
+			{
+				DrainPendingToSpsc(drain);
+			}
+		}
+	}
 }
 
 void QtSyncSoundConnection::PrepareAudioSleep(unsigned long long sleep_time_ns)
@@ -509,14 +523,12 @@ void QtSyncSoundConnection::FMPCMPlayStop(void)
 
 bool QtSyncSoundConnection::FMPCMChannelPlaying(void)
 {
+	// Backpressure for FMPCMPlay only: the SPSC ring is what the DAC consumes.
+	// pending_pcm_ is VM staging drained by CatchUpContract; counting it here wedged
+	// synthesis while staged audio had not yet reached the ring.
 	const int in_spsc=static_cast<int>(spsc_.Avail());
-	const int pending=static_cast<int>(PendingFrames());
 	const int high_water=static_cast<int>(sample_rate_)*kHighWaterMs/1000;
-	if(in_spsc+pending>=high_water)
-	{
-		return true;
-	}
-	return in_spsc+pending>=max_spsc_frames_;
+	return in_spsc>=high_water;
 }
 
 void QtSyncSoundConnection::BeepPlay(int samplingRate,std::vector<unsigned char> &wave)

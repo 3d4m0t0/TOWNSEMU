@@ -1387,55 +1387,62 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 		mouseBIOSStoppedForcedDiff_=allowForced;
 	}
 
-	// Auto-engaged differential (heuristic guess) must not grab the host mouse on its
-	// own: begin with capture released so the host cursor stays visible, and let the
-	// user start capture by clicking the emulator screen (ResumeMouseCapture).
-	// Applied once per force episode so a later click-to-capture is not overridden.
 	const bool autoForcedDiff=
 	    (true==mosActive && true==mosUnusedForcedDiff_) ||
 	    (true!=mosActive && true==mouseBIOSStoppedForcedDiff_);
-	if(true==autoForcedDiff)
-	{
-		if(true!=forcedDiffReleaseApplied_)
-		{
-			forcedDiffReleaseApplied_=true;
-			mouseCaptureReleased_=true;
-		}
-	}
-	else
-	{
-		forcedDiffReleaseApplied_=false;
-		// MOS owns the policy again — cancel a no-MOS capture release, but only once the
-		// probe concludes.  MI2 launcher→game stops then restarts MOS: preserving the
-		// released state across the observe window avoids a capture grab/release flicker
-		// (and normal absolute titles that never released stay captured throughout).
-		if(true==mosActive && true!=mosUsageObserving_)
-		{
-			mouseCaptureReleased_=false;
-		}
-	}
 
-	bool nextDiff=false;
-	bool feeding=true;
-	if(true==mouseCaptureReleased_)
+	// Decide differential vs absolute/snap first. Capture on/off applies only to
+	// differential; absolute/snap always feeds while the host window is focused.
+	bool nextDiffWanted=false;
+	if(true!=mosActive)
 	{
-		feeding=false;
-		nextDiff=false;
-	}
-	else if(true!=mosActive)
-	{
-		nextDiff=mouseBIOSStoppedForcedDiff_;
+		nextDiffWanted=mouseBIOSStoppedForcedDiff_;
 	}
 	else if(true==mosUnusedForcedDiff_)
 	{
 		// MOS-alive-but-unused titles (e.g. Monkey Island 2's game).
-		nextDiff=true;
+		nextDiffWanted=true;
 	}
 	else
 	{
 		// Includes the read-count probe window (mosUsageObserving_): start/stay absolute so
 		// a MOS-using app can read the coordinate we maintain and be detected.
-		nextDiff=differentialMouseIntegration;
+		nextDiffWanted=differentialMouseIntegration;
+	}
+
+	if(true==nextDiffWanted)
+	{
+		// Auto-engaged differential must not grab the host mouse on its own: begin with
+		// capture released so the user starts capture by clicking (ResumeMouseCapture).
+		// Applied once per force episode so a later click-to-capture is not overridden.
+		if(true==autoForcedDiff)
+		{
+			if(true!=forcedDiffReleaseApplied_)
+			{
+				forcedDiffReleaseApplied_=true;
+				mouseCaptureReleased_=true;
+			}
+		}
+		else
+		{
+			forcedDiffReleaseApplied_=false;
+		}
+	}
+	else
+	{
+		// Absolute/snap integration: never keep a stale differential capture-off.
+		forcedDiffReleaseApplied_=false;
+		mouseCaptureReleased_=false;
+	}
+
+	bool nextDiff=nextDiffWanted;
+	bool feeding=true;
+	if(true==nextDiffWanted && true==mouseCaptureReleased_)
+	{
+		// Differential with capture released: stop feeding until click/middle resume.
+		// Report diff=false so the absolute polling path is idle; UI keys off capture_released.
+		feeding=false;
+		nextDiff=false;
 	}
 
 	if(nextDiff!=effectiveDifferentialMouseIntegration ||
@@ -1468,8 +1475,7 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 
 void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns)
 {
-	// Any capture-released state (MOS-off differential, or auto-forced differential):
-	// the middle button resumes capture, mirroring a screen click.
+	// Differential capture-released: middle button resumes capture (same as a screen click).
 	if(true==mouseCaptureReleased_)
 	{
 		ResumeMouseCapture(towns);
@@ -1484,9 +1490,12 @@ void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &town
 	if(true==mosActive && true!=autoForcedDiff)
 	{
 		// MOS active and user-controlled: toggle absolute/snap <-> differential.
-		// Both modes are integrated (host cursor hidden); there is no capture on/off
-		// state here, so the message must not report one.
+		// Absolute/snap has no capture on/off — only differential does.
 		differentialMouseIntegration=(true!=differentialMouseIntegration);
+		if(true!=differentialMouseIntegration)
+		{
+			mouseCaptureReleased_=false;
+		}
 		UpdateEffectiveDifferentialMouseIntegration(towns);
 		std::string msg="Differential mouse integration is ";
 		msg+=cpputil::BoolToOnOffStr(differentialMouseIntegration);
@@ -1496,8 +1505,7 @@ void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &town
 		return;
 	}
 
-	// MOS off, or auto-forced differential: the middle button releases capture
-	// (host cursor freed; a click or the middle button resumes it).
+	// Differential (MOS off or auto-forced): middle button releases capture only.
 	mouseCaptureReleased_=true;
 	UpdateEffectiveDifferentialMouseIntegration(towns);
 	LogHostMessage("Mouse capture is OFF (method=manual-release).");
@@ -1511,18 +1519,23 @@ void Outside_World::ResumeMouseCapture(class FMTownsCommon &towns)
 	}
 	mouseCaptureReleased_=false;
 	UpdateEffectiveDifferentialMouseIntegration(towns);
-	std::string msg="Mouse capture is ON (method=manual-resume";
+	// Capture on/off exists only for differential.  Stale release cleared while
+	// absolute/snap is active stays silent.
 	if(true==effectiveDifferentialMouseIntegration)
 	{
-		msg+=", mode=differential";
+		LogHostMessage("Mouse capture is ON (method=manual-resume, mode=differential).");
 	}
-	msg+=").";
-	LogHostMessage(msg);
 }
 
 void Outside_World::SetDifferentialMouseIntegrationPreference(bool enabled,class FMTownsCommon *towns)
 {
 	differentialMouseIntegration=enabled;
+	if(true!=enabled)
+	{
+		// Leaving differential: drop capture-off so absolute/snap feeds immediately.
+		mouseCaptureReleased_=false;
+		forcedDiffReleaseApplied_=false;
+	}
 	if(nullptr!=towns)
 	{
 		UpdateEffectiveDifferentialMouseIntegration(*towns);

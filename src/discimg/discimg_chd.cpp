@@ -511,6 +511,8 @@ bool DiscImageChdBackend::Read(uint64_t offset,unsigned char *buf,size_t len) co
 		return false;
 	}
 
+	// Lock per hunk so a long CDDA GetWave does not stall MODE1/2 sector reads
+	// (and the VM thread) for the entire audio range.
 	size_t written=0;
 	while(written<len)
 	{
@@ -520,15 +522,18 @@ bool DiscImageChdBackend::Read(uint64_t offset,unsigned char *buf,size_t len) co
 		const uint32_t hunk=static_cast<uint32_t>(frame/sectors_per_hunk_);
 		const uint32_t hunk_sector_ofs=static_cast<uint32_t>(frame%sectors_per_hunk_);
 
-		if(true!=ReadHunk(hunk))
-		{
-			return false;
-		}
-
 		const size_t src_ofs=static_cast<size_t>(hunk_sector_ofs)*bytes_per_frame_+frame_byte_ofs;
 		const size_t avail=bytes_per_frame_-frame_byte_ofs;
 		const size_t to_copy=std::min(len-written,avail);
-		std::memcpy(buf+written,hunk_cache_.data()+src_ofs,to_copy);
+
+		{
+			std::lock_guard<std::mutex> lock(io_mutex_);
+			if(true!=ReadHunk(hunk))
+			{
+				return false;
+			}
+			std::memcpy(buf+written,hunk_cache_.data()+src_ofs,to_copy);
+		}
 		written+=to_copy;
 	}
 	return true;

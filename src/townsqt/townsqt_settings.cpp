@@ -66,14 +66,18 @@ constexpr char kMouseIntegrationDebugKey[]="debug/mouse_integration_coords";
 constexpr char kCpuDebugKey[]="debug/cpu_cseip";
 constexpr char kDriveAccessOverlayKey[]="display/drive_access_overlay";
 constexpr char kMidiMonitorKey[]="debug/midi_monitor";
+constexpr char kCdromMonitorKey[]="debug/cdrom_monitor";
 constexpr char kSnapMouseIntegrationKey[]="function/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesKey[]="function/snap_mouse_warmup_frames";
+constexpr char kCddaCacheDuringDataReadKey[]="function/cdda_cache_during_data_read";
+constexpr char kCddaCachePostReadGraceSecKey[]="function/cdda_cache_post_read_grace_sec";
 constexpr char kHddEnabledKeyPrefix[]="hdd/";
 constexpr char kHddPathKeySuffix[]="/path";
 constexpr char kHddEnabledKeySuffix[]="/enabled";
 constexpr char kSnapMouseIntegrationLegacyKey[]="debug/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesLegacyKey[]="debug/snap_mouse_warmup_frames";
 constexpr int kSnapMouseWarmupFramesDefault=30;
+constexpr int kCddaCachePostReadGraceSecDefault=3;
 constexpr int kCpuFreqDefaultMhz=33;
 constexpr int kMemSizeDefaultMb=4;
 constexpr int kChipVolumeMax=8192;
@@ -1259,6 +1263,19 @@ void TownsQtSettings::setMidiMonitor(bool enabled)
 	settings.sync();
 }
 
+bool TownsQtSettings::cdromMonitor()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kCdromMonitorKey),false).toBool();
+}
+
+void TownsQtSettings::setCdromMonitor(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kCdromMonitorKey),enabled);
+	settings.sync();
+}
+
 bool TownsQtSettings::snapMouseIntegration()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -1302,6 +1319,34 @@ void TownsQtSettings::setSnapMouseWarmupFrames(int frames)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kSnapMouseWarmupFramesKey),std::clamp(frames,0,600));
+	settings.sync();
+}
+
+bool TownsQtSettings::cddaCacheDuringDataRead()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kCddaCacheDuringDataReadKey),true).toBool();
+}
+
+void TownsQtSettings::setCddaCacheDuringDataRead(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kCddaCacheDuringDataReadKey),enabled);
+	settings.sync();
+}
+
+int TownsQtSettings::cddaCachePostReadGraceSec()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return std::clamp(
+	    settings.value(QString::fromLatin1(kCddaCachePostReadGraceSecKey),kCddaCachePostReadGraceSecDefault).toInt(),
+	    1,60);
+}
+
+void TownsQtSettings::setCddaCachePostReadGraceSec(int sec)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kCddaCachePostReadGraceSecKey),std::clamp(sec,1,60));
 	settings.sync();
 }
 

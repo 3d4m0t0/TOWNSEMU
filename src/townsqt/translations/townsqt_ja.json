@@ -202,6 +202,41 @@
     },
     {
       "context": "MainWindow",
+      "source": "CD-ROM monitor",
+      "translation": "CD-ROM モニタ"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "CD-ROM",
+      "translation": "CD-ROM"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "CDDA",
+      "translation": "CDDA"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "CDDA cache",
+      "translation": "CDDAキャッシュ"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "PCM",
+      "translation": "PCM"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "VM / stall",
+      "translation": "VM / 停止疑い"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Log CD-ROM commands, CDDA play/stop, and data-sector access.",
+      "translation": "CD-ROM コマンド、CDDA 再生/停止、データセクタアクセスをログ出力します。"
+    },
+    {
+      "context": "MainWindow",
       "source": "CPU / CS:EIP history",
       "translation": "CPU / CS:EIP 履歴"
     },
@@ -664,6 +699,21 @@
       "context": "SettingsDialog",
       "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nCompared with gradual integration, this reduces mouse input latency.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
       "translation": "ゲストのマウス座標をホストに即座に合わせるテスト機能です。\n段階的な統合に比べ、マウス入力の遅延を緩和します。\n有効にした直後はウォームアップ期間、段階的統合を行ってから即時統合に切り替わります。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CDDA cache:",
+      "translation": "CDDAキャッシュ:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " s",
+      "translation": " 秒"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "EMU feature: bulk-cache the audio track on play at host speed (not\nlimited by CD-ROM speed).  Data-sector reads keep music playing from\nthe cache while guest status/SubQ look like a normal stop.  Same-track\nplay reuses the cache; a different track or disc change discards it.\nThe value on the right is how long host cache mixing continues after\na data-read burst without an explicit PLAY/RESUME.",
+      "translation": "EMU独自機能: 再生時にオーディオトラックをホスト最速で一括先読みします（CD-ROM速度設定の影響なし）。データセクタ読み取り中もキャッシュから音楽を継続し、ゲストからは通常の停止に見えるステータス／SubQを返します。同一トラックはキャッシュを再利用し、別トラックやディスク交換では破棄して再先読みします。右の値は、データ読み取り後に PLAY/RESUME が無い場合、ホスト側キャッシュ演奏を継続する秒数です。"
     },
     {
       "context": "SettingsDialog",

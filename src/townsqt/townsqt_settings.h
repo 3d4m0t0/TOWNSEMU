@@ -168,11 +168,21 @@ void setShowDriveAccessOverlay(bool enabled);
 bool midiMonitor();
 void setMidiMonitor(bool enabled);
 
+bool cdromMonitor();
+void setCdromMonitor(bool enabled);
+
 bool snapMouseIntegration();
 void setSnapMouseIntegration(bool enabled);
 
 int snapMouseWarmupFrames();
 void setSnapMouseWarmupFrames(int frames);
+
+/*! Bulk-cache CDDA at host speed; keep playing through data reads (guest looks stopped). */
+bool cddaCacheDuringDataRead();
+void setCddaCacheDuringDataRead(bool enabled);
+/*! Seconds to keep host cache mixing after a data-read burst without PLAY/RESUME. */
+int cddaCachePostReadGraceSec();
+void setCddaCachePostReadGraceSec(int sec);
 
 /*! Hard-disk images for SCSI IDs 0..6 (TownsStartParameters::MAX_NUM_SCSI_DEVICES). */
 constexpr int kHddSlotCount=7;

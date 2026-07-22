@@ -46,6 +46,8 @@ add_executable(${TARGET_NAME}
 	emu_gl_view.cpp
 	debug_text_window.h
 	debug_text_window.cpp
+	cdrom_monitor_window.h
+	cdrom_monitor_window.cpp
 	townsqt_drive_access_overlay.h
 	townsqt_drive_access_overlay.cpp
 	shared_rgba_framebuffer.cpp

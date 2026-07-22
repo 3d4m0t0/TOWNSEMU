@@ -9,6 +9,8 @@
 
 #include <libchdr/chd.h>
 
+#include <mutex>
+
 struct DiscImageChdTrack
 {
 	unsigned int track_type=0;
@@ -61,6 +63,8 @@ private:
 
 	mutable uint32_t cached_hunk_=0xffffffff;
 	mutable std::vector<unsigned char> hunk_cache_;
+	/*! Serializes CHD hunk cache + chd_read (CDDA async GetWave vs data ReadSector). */
+	mutable std::mutex io_mutex_;
 
 	bool ReadHunk(uint32_t hunk) const;
 };

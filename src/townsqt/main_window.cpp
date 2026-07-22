@@ -1,6 +1,7 @@
 #include "main_window.h"
 
 #include "debug_text_window.h"
+#include "cdrom_monitor_window.h"
 #include "emulator_controller.h"
 #include "townsargv.h"
 #include "townsqt_argv_from_settings.h"
@@ -206,6 +207,7 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	applyDriveAccessVisibility();
 	applyMouseDebugVisibility();
 	applyMidiMonitorVisibility();
+	applyCdromMonitorVisibility();
 	applyCpuDebugVisibility();
 	if(nullptr!=view_)
 	{
@@ -585,6 +587,27 @@ void MainWindow::setupMenuBar()
 			updateMidiMonitorDisplay();
 		}
 	});
+	cdrom_monitor_action_=debugMenu->addAction(tr("CD-ROM monitor"));
+	cdrom_monitor_action_->setCheckable(true);
+	cdrom_monitor_action_->setChecked(TownsQtSettings::cdromMonitor());
+	cdrom_monitor_action_->setToolTip(
+	    tr("Log CD-ROM commands, CDDA play/stop, and data-sector access."));
+	connect(cdrom_monitor_action_,&QAction::toggled,this,[this](bool enabled){
+		TownsQtSettings::setCdromMonitor(enabled);
+		if(nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setCdromMonitor",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,enabled));
+		}
+		applyCdromMonitorVisibility();
+		if(enabled)
+		{
+			updateCdromMonitorDisplay();
+		}
+	});
 	cpu_debug_action_=debugMenu->addAction(tr("CPU / CS:EIP history"));
 	cpu_debug_action_->setCheckable(true);
 	cpu_debug_action_->setChecked(TownsQtSettings::showCpuDebug());
@@ -766,6 +789,7 @@ void MainWindow::syncMenuChecks()
 	applyDriveAccessVisibility();
 	applyMouseDebugVisibility();
 	applyMidiMonitorVisibility();
+	applyCdromMonitorVisibility();
 	applyCpuDebugVisibility();
 	syncFdDriveMenus();
 }
@@ -923,6 +947,8 @@ void MainWindow::openSettingsDialog()
 	initial.autoDifferentialOnMouseBIOSStop=TownsQtSettings::autoDifferentialOnMouseBIOSStop();
 	initial.snapMouseIntegration=TownsQtSettings::snapMouseIntegration();
 	initial.snapMouseWarmupFrames=TownsQtSettings::snapMouseWarmupFrames();
+	initial.cddaCacheDuringDataRead=TownsQtSettings::cddaCacheDuringDataRead();
+	initial.cddaCachePostReadGraceSec=TownsQtSettings::cddaCachePostReadGraceSec();
 	initial.mouseMinX=TownsQtSettings::mouseMinX();
 	initial.mouseMinY=TownsQtSettings::mouseMinY();
 	initial.mouseMaxX=TownsQtSettings::mouseMaxX();
@@ -947,7 +973,17 @@ void MainWindow::openSettingsDialog()
 	    QString::fromStdString(argv_.ROMPath);
 	SettingsDialog dlg(initial,rom_dir,this);
 	connect(&dlg,&SettingsDialog::settingsApplied,this,&MainWindow::applySettings);
-	if(QDialog::Accepted!=dlg.exec())
+	const bool poll_was_active=poll_timer_.isActive();
+	if(poll_was_active)
+	{
+		poll_timer_.stop();
+	}
+	const int dlg_result=dlg.exec();
+	if(poll_was_active)
+	{
+		poll_timer_.start();
+	}
+	if(QDialog::Accepted!=dlg_result)
 	{
 		return;
 	}
@@ -1093,6 +1129,8 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setAutoDifferentialOnMouseBIOSStop(effective.autoDifferentialOnMouseBIOSStop);
 	TownsQtSettings::setSnapMouseIntegration(effective.snapMouseIntegration);
 	TownsQtSettings::setSnapMouseWarmupFrames(effective.snapMouseWarmupFrames);
+	TownsQtSettings::setCddaCacheDuringDataRead(effective.cddaCacheDuringDataRead);
+	TownsQtSettings::setCddaCachePostReadGraceSec(effective.cddaCachePostReadGraceSec);
 	TownsQtSettings::setMouseMinX(effective.mouseMinX);
 	TownsQtSettings::setMouseMinY(effective.mouseMinY);
 	TownsQtSettings::setMouseMaxX(effective.mouseMaxX);
@@ -1197,6 +1235,12 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 		    Qt::QueuedConnection,
 		    Q_ARG(bool,effective.snapMouseIntegration),
 		    Q_ARG(int,effective.snapMouseWarmupFrames));
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "applyCddaCacheSettings",
+		    Qt::QueuedConnection,
+		    Q_ARG(bool,effective.cddaCacheDuringDataRead),
+		    Q_ARG(int,effective.cddaCachePostReadGraceSec));
 		syncDifferentialMouseCursor();
 	}
 	if(needs_emu_restart)
@@ -1609,6 +1653,13 @@ void MainWindow::onPollTimer()
 			inputQueue_.ClearMouseButtons();
 		}
 	}
+	// Nested modal loops (settings, file dialogs, menus) still run the UI timer.
+	// BlockingQueuedConnection to the emu thread here can deadlock with pollWindow.
+	if(nullptr!=QApplication::activeModalWidget() ||
+	   nullptr!=QApplication::activePopupWidget())
+	{
+		return;
+	}
 	if(nullptr!=controller_)
 	{
 		QMetaObject::invokeMethod(controller_,&EmulatorController::pollWindow,Qt::BlockingQueuedConnection);
@@ -1637,6 +1688,7 @@ void MainWindow::onPollTimer()
 	}
 	updateMouseDebugDisplay();
 	updateMidiMonitorDisplay();
+	updateCdromMonitorDisplay();
 	updateCpuDebugDisplay();
 }
 
@@ -1941,6 +1993,83 @@ void MainWindow::updateMidiMonitorDisplay()
 	}
 }
 
+void MainWindow::ensureCdromMonitorWindow()
+{
+	if(nullptr!=cdrom_monitor_window_)
+	{
+		return;
+	}
+	cdrom_monitor_window_=new CdromMonitorWindow(this);
+	connect(cdrom_monitor_window_,&DebugTextWindow::windowClosed,this,[this](){
+		TownsQtSettings::setCdromMonitor(false);
+		if(nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setCdromMonitor",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,false));
+		}
+		applyCdromMonitorVisibility();
+	});
+}
+
+void MainWindow::applyCdromMonitorVisibility()
+{
+	const bool show=TownsQtSettings::cdromMonitor();
+	if(nullptr!=cdrom_monitor_action_ && cdrom_monitor_action_->isChecked()!=show)
+	{
+		cdrom_monitor_action_->blockSignals(true);
+		cdrom_monitor_action_->setChecked(show);
+		cdrom_monitor_action_->blockSignals(false);
+	}
+	if(show)
+	{
+		ensureCdromMonitorWindow();
+		if(nullptr!=cdrom_monitor_window_)
+		{
+			cdrom_monitor_window_->show();
+			cdrom_monitor_window_->raise();
+		}
+	}
+	else if(nullptr!=cdrom_monitor_window_)
+	{
+		cdrom_monitor_window_->hide();
+	}
+}
+
+void MainWindow::updateCdromMonitorDisplay()
+{
+	if(!TownsQtSettings::cdromMonitor())
+	{
+		return;
+	}
+	ensureCdromMonitorWindow();
+	if(nullptr==cdrom_monitor_window_ ||
+	   nullptr==controller_ ||
+	   nullptr==emu_thread_ ||
+	   !emu_thread_->isRunning())
+	{
+		return;
+	}
+
+	// Fetch on the emu thread — monitorLines_ are written from the VM thread.
+	QStringList lines;
+	const bool ok=QMetaObject::invokeMethod(
+	    controller_,
+	    "takeCdromMonitorLines",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(QStringList,lines));
+	if(!ok)
+	{
+		return;
+	}
+	for(const QString &line : lines)
+	{
+		cdrom_monitor_window_->appendMonitorLine(line);
+	}
+}
+
 void MainWindow::ensureCpuDebugWindow()
 {
 	if(nullptr!=cpu_debug_window_)
@@ -2038,7 +2167,8 @@ void MainWindow::onFrameReady()
 
 void MainWindow::onStatsUpdated(double fps,double emu_hz,int queue_depth,int capture_queue_depth,int present_lag)
 {
-	last_emu_activity_ms_=QDateTime::currentMSecsSinceEpoch();
+	// Do not touch last_emu_activity_ms_ here: pollWindow emits stats even while the VM
+	// is stalled (e.g. disc I/O).  Only onFrameReady means the emu is actually advancing.
 	setWindowTitle(tr("Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5")
 	                   .arg(fps,0,'f',1)
 	                   .arg(emu_hz,0,'f',2)
@@ -2398,6 +2528,17 @@ bool MainWindow::shouldCaptureHostMouse() const
 	       !isCursorOverUiChrome();
 }
 
+bool MainWindow::shouldKeepDifferentialWaylandCapture() const
+{
+	// Once differential capture is active, do not drop it when the (locked) cursor
+	// is reported over chrome — that Start/Stop oscillation freezes input.
+	return isVisible() &&
+	       !isMinimized() &&
+	       isActiveWindow() &&
+	       nullptr==QApplication::activeModalWidget() &&
+	       nullptr==QApplication::activePopupWidget();
+}
+
 void MainWindow::processPendingMouseWarp()
 {
 	if(!cached_differential_integration_ ||
@@ -2577,6 +2718,8 @@ void MainWindow::updateMouseFailsafeFromActivity()
 
 void MainWindow::noteEmuPictureClicked()
 {
+	// Capture resume is for differential only. Absolute/snap clears any stale
+	// capture-released flag in UpdateEffectiveDifferentialMouseIntegration.
 	if(cached_mouse_capture_released_ &&
 	   nullptr!=controller_ &&
 	   nullptr!=emu_thread_ &&
@@ -2628,8 +2771,7 @@ void MainWindow::updateBlankCursor()
 		}
 		else if(view_->isPointOnEmuPicture(view_pos) && !isCursorOverUiChrome())
 		{
-			// Absolute/snap, or capture-released differential: hide the host cursor
-			// over the picture.  The user clicks (blind) anywhere on it to capture.
+			// Absolute/snap: hide the host cursor over the picture while focused.
 			want_blank=true;
 		}
 	}
@@ -2896,13 +3038,13 @@ void MainWindow::syncWaylandIdleInhibit()
 
 void MainWindow::syncWaylandRelativePointer()
 {
+	const bool focus_ok=shouldKeepDifferentialWaylandCapture();
 	const bool want=
 	    cached_differential_integration_ &&
 	    !cached_mouse_capture_released_ &&
 	    !mouse_failsafe_show_cursor_ &&
-	    shouldCaptureHostMouse() &&
-	    isVisible() &&
-	    !isMinimized();
+	    focus_ok &&
+	    (wayland_capture_want_ || shouldCaptureHostMouse());
 
 	auto logCapture=[&](bool on,const QString &method)
 	{
@@ -2918,10 +3060,10 @@ void MainWindow::syncWaylandRelativePointer()
 			logCapture(false,wayland_capture_method_.isEmpty()
 			                     ? QStringLiteral("cursor-warp")
 			                     : wayland_capture_method_);
+			TownsQtWaylandRelativePointer::Stop();
+			wayland_capture_want_=false;
+			wayland_capture_method_.clear();
 		}
-		TownsQtWaylandRelativePointer::Stop();
-		wayland_capture_want_=false;
-		wayland_capture_method_.clear();
 		return;
 	}
 
@@ -2933,10 +3075,15 @@ void MainWindow::syncWaylandRelativePointer()
 			logCapture(false,wayland_capture_method_.isEmpty()
 			                     ? QStringLiteral("cursor-warp")
 			                     : wayland_capture_method_);
+			TownsQtWaylandRelativePointer::Stop();
+			wayland_capture_want_=false;
+			wayland_capture_method_.clear();
 		}
-		TownsQtWaylandRelativePointer::Stop();
-		wayland_capture_want_=false;
-		wayland_capture_method_.clear();
+		return;
+	}
+
+	if(wayland_capture_want_ && TownsQtWaylandRelativePointer::Active())
+	{
 		return;
 	}
 

@@ -202,6 +202,41 @@
     },
     {
       "context": "MainWindow",
+      "source": "CD-ROM monitor",
+      "translation": "CD-ROM monitor"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "CD-ROM",
+      "translation": "CD-ROM"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "CDDA",
+      "translation": "CDDA"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "CDDA cache",
+      "translation": "CDDA cache"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "PCM",
+      "translation": "PCM"
+    },
+    {
+      "context": "CdromMonitorWindow",
+      "source": "VM / stall",
+      "translation": "VM / stall"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Log CD-ROM commands, CDDA play/stop, and data-sector access.",
+      "translation": "Log CD-ROM commands, CDDA play/stop, and data-sector access."
+    },
+    {
+      "context": "MainWindow",
       "source": "CPU / CS:EIP history",
       "translation": "CPU / CS:EIP history"
     },
@@ -664,6 +699,16 @@
       "context": "SettingsDialog",
       "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nCompared with gradual integration, this reduces mouse input latency.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
       "translation": "Test feature that snaps the guest mouse coordinates to the host immediately.\nCompared with gradual integration, this reduces mouse input latency.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CDDA cache:",
+      "translation": "CDDA cache:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "EMU feature: bulk-cache the audio track on play at host speed (not\nlimited by CD-ROM speed).  Data-sector reads keep music playing from\nthe cache while guest status/SubQ look like a normal stop.  Same-track\nplay reuses the cache; a different track or disc change discards it.\nThe value on the right is how long host cache mixing continues after\na data-read burst without an explicit PLAY/RESUME.",
+      "translation": "EMU feature: bulk-cache the audio track on play at host speed (not\nlimited by CD-ROM speed).  Data-sector reads keep music playing from\nthe cache while guest status/SubQ look like a normal stop.  Same-track\nplay reuses the cache; a different track or disc change discards it.\nThe value on the right is how long host cache mixing continues after\na data-read burst without an explicit PLAY/RESUME."
     },
     {
       "context": "SettingsDialog",

@@ -1280,6 +1280,9 @@ void FMTownsCommon::NotifyDiskRead(void)
 {
 	keyboard.BootSequenceStarted();
 	gameport.BootSequenceStarted();
+	// Arm real-time wait after disk I/O (noWaitStandby, usually false).
+	// Do not force noWait while cache CDDA plays: that left noWait stuck true for the
+	// rest of the track, warped guest timing, and looked like a core freeze.
 	state.noWait=var.noWaitStandby;
 }
 

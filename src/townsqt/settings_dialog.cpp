@@ -165,6 +165,8 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.autoDifferentialOnMouseBIOSStop=true;
 	v.snapMouseIntegration=false;
 	v.snapMouseWarmupFrames=30;
+	v.cddaCacheDuringDataRead=true;
+	v.cddaCachePostReadGraceSec=3;
 	v.mouseMinX=TownsStartParameters::DEFAULT_MOUSE_MINX;
 	v.mouseMinY=TownsStartParameters::DEFAULT_MOUSE_MINY;
 	v.mouseMaxX=TownsStartParameters::DEFAULT_MOUSE_MAXX;
@@ -722,6 +724,25 @@ void SettingsDialog::buildUi()
 		    page,
 		    tr("Set to 0 to skip warm-up and use instant integration from the start.")));
 		connect(snap_mouse_integration_,&QCheckBox::toggled,snap_mouse_warmup_,&QWidget::setEnabled);
+
+		auto *cdda_cache_row=new QHBoxLayout();
+		cdda_cache_during_data_read_=new QCheckBox(tr("CDDA cache:"),page);
+		cdda_cache_post_read_grace_sec_=new QSpinBox(page);
+		cdda_cache_post_read_grace_sec_->setRange(1,60);
+		cdda_cache_post_read_grace_sec_->setSuffix(tr(" s"));
+		cdda_cache_row->addWidget(cdda_cache_during_data_read_);
+		cdda_cache_row->addStretch();
+		cdda_cache_row->addWidget(cdda_cache_post_read_grace_sec_);
+		v->addLayout(cdda_cache_row);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("EMU feature: bulk-cache the audio track on play at host speed (not\n"
+		       "limited by CD-ROM speed).  Data-sector reads keep music playing from\n"
+		       "the cache while guest status/SubQ look like a normal stop.  Same-track\n"
+		       "play reuses the cache; a different track or disc change discards it.\n"
+		       "The value on the right is how long host cache mixing continues after\n"
+		       "a data-read burst without an explicit PLAY/RESUME.")));
+		connect(cdda_cache_during_data_read_,&QCheckBox::toggled,cdda_cache_post_read_grace_sec_,&QWidget::setEnabled);
 
 		auto *separator=new QFrame(page);
 		separator->setFrameShape(QFrame::HLine);
@@ -1283,6 +1304,15 @@ void SettingsDialog::loadFromValues(const Values &values)
 		snap_mouse_warmup_->setValue(std::clamp(values.snapMouseWarmupFrames,0,600));
 		snap_mouse_warmup_->setEnabled(values.snapMouseIntegration);
 	}
+	if(nullptr!=cdda_cache_during_data_read_)
+	{
+		cdda_cache_during_data_read_->setChecked(values.cddaCacheDuringDataRead);
+	}
+	if(nullptr!=cdda_cache_post_read_grace_sec_)
+	{
+		cdda_cache_post_read_grace_sec_->setValue(std::clamp(values.cddaCachePostReadGraceSec,1,60));
+		cdda_cache_post_read_grace_sec_->setEnabled(values.cddaCacheDuringDataRead);
+	}
 	if(nullptr!=gameport0_)
 	{
 		TownsQtGamePortOptions::PopulateCombo(gameport0_,values.gamePort0);
@@ -1441,6 +1471,14 @@ void SettingsDialog::applyToValues(Values &out) const
 	if(nullptr!=snap_mouse_warmup_)
 	{
 		out.snapMouseWarmupFrames=snap_mouse_warmup_->value();
+	}
+	if(nullptr!=cdda_cache_during_data_read_)
+	{
+		out.cddaCacheDuringDataRead=cdda_cache_during_data_read_->isChecked();
+	}
+	if(nullptr!=cdda_cache_post_read_grace_sec_)
+	{
+		out.cddaCachePostReadGraceSec=cdda_cache_post_read_grace_sec_->value();
 	}
 	out.spriteTransferMode=sprite_group_->checkedId();
 	if(out.spriteTransferMode<0)
@@ -1687,6 +1725,14 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		if(nullptr!=snap_mouse_warmup_)
 		{
 			snap_mouse_warmup_->setValue(default_values_.snapMouseWarmupFrames);
+		}
+		if(nullptr!=cdda_cache_during_data_read_)
+		{
+			cdda_cache_during_data_read_->setChecked(default_values_.cddaCacheDuringDataRead);
+		}
+		if(nullptr!=cdda_cache_post_read_grace_sec_)
+		{
+			cdda_cache_post_read_grace_sec_->setValue(default_values_.cddaCachePostReadGraceSec);
 		}
 		updateFunctionTab();
 	}

@@ -21,6 +21,7 @@ class EmulatorController;
 class QLabel;
 class QMenu;
 class DebugTextWindow;
+class CdromMonitorWindow;
 
 class MainWindow : public QMainWindow
 {
@@ -114,6 +115,9 @@ private:
 	void updateMidiMonitorDisplay();
 	void applyMidiMonitorVisibility();
 	void ensureMidiMonitorWindow();
+	void updateCdromMonitorDisplay();
+	void applyCdromMonitorVisibility();
+	void ensureCdromMonitorWindow();
 	void updateCpuDebugDisplay();
 	void applyCpuDebugVisibility();
 	void ensureCpuDebugWindow();
@@ -125,6 +129,8 @@ private:
 	QVariantMap queryMouseUiState() const;
 	bool isMouseInsideWindow(const QPoint &global_pos) const;
 	bool shouldCaptureHostMouse() const;
+	/*! Focus check for keeping an already-active differential Wayland capture. */
+	bool shouldKeepDifferentialWaylandCapture() const;
 	bool isCursorOverUiChrome() const;
 	bool isCursorNearFullscreenMenu() const;
 	bool isSignificantFullscreenMouseMove(const QPoint &global_pos) const;
@@ -166,11 +172,13 @@ private:
 	QAction *fullscreen_action_=nullptr;
 	QAction *drive_access_action_=nullptr;
 	QAction *midi_monitor_action_=nullptr;
+	QAction *cdrom_monitor_action_=nullptr;
 	QAction *mouse_debug_action_=nullptr;
 	QAction *cpu_debug_action_=nullptr;
 	QTimer *fullscreen_chrome_hide_timer_=nullptr;
 	DebugTextWindow *mouse_debug_window_=nullptr;
 	DebugTextWindow *midi_monitor_window_=nullptr;
+	CdromMonitorWindow *cdrom_monitor_window_=nullptr;
 	DebugTextWindow *cpu_debug_window_=nullptr;
 
 	bool fullscreen_=false;

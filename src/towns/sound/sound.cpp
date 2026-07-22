@@ -17,6 +17,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "sound.h"
 #include "towns.h"
 #include "outside_world.h"
+#include "cdrom.h"
 
 
 
@@ -352,156 +353,160 @@ inline bool TownsSound::IsHighResPCMPlaying(void) const
 
 void TownsSound::ProcessSound(void)
 {
+	if(nullptr!=outside_world)
+	{
+		// Drain staged PCM before backpressure checks so pending_pcm_ cannot wedge synthesis.
+		outside_world->SyncPcmContract(townsPtr->state.townsTime);
+	}
+
 	const bool sourcePlaying=(true==IsFMPlaying() ||
 	                          true==IsPCMPlaying() ||
 	                          true==IsPCMRecording() ||
 	                          true==IsHighResPCMPlaying() ||
-	                          true==cdrom->CDDAIsPlaying() ||
+	                          true==cdrom->CDDAAudioShouldOutput() ||
 	                          true==scsi->CDDAIsPlaying());
 	const bool withinClearWindow=(townsPtr->state.townsTime<lastFMPCMActivityTime+RINGBUFFER_CLEAR_TIME);
 	const bool ym2612WarmKeepalive=(nullptr!=outside_world && true!=sourcePlaying && true!=withinClearWindow);
 
 	if((true==sourcePlaying || true==withinClearWindow || true==ym2612WarmKeepalive) &&
-	   nullptr!=outside_world)
+	   nullptr!=outside_world &&
+	   true==nextFMPCMWave.empty())
 	{
-		if(true==nextFMPCMWave.empty())
+		const unsigned int WAVE_OUT_SAMPLING_RATE=YM2612::WAVE_SAMPLING_RATE; // Align with YM2612.
+		const uint32_t numSamplesPerWave=FM_PCM_MILLISEC_PER_WAVE*WAVE_OUT_SAMPLING_RATE/1000;
+
+		nextFMPCMWave.resize(numSamplesPerWave*4);
+		memset(nextFMPCMWave.data(),0,nextFMPCMWave.size());
+
+		bool wavGenerated=false;
+		bool realSourceWave=false;
+		if(true==sourcePlaying || true==withinClearWindow)
 		{
-			const unsigned int WAVE_OUT_SAMPLING_RATE=YM2612::WAVE_SAMPLING_RATE; // Align with YM2612.
-			const uint32_t numSamplesPerWave=FM_PCM_MILLISEC_PER_WAVE*WAVE_OUT_SAMPLING_RATE/1000;
-
-			nextFMPCMWave.resize(numSamplesPerWave*4);
-			memset(nextFMPCMWave.data(),0,nextFMPCMWave.size());
-
-			bool wavGenerated=false;
-			bool realSourceWave=false;
-			if(true==sourcePlaying || true==withinClearWindow)
+			if(true==IsFMPlaying())
 			{
-				if(true==IsFMPlaying())
+				if(0!=(state.muteFlag&2) && 0!=(state.audioFlag&64))
 				{
-					if(0!=(state.muteFlag&2) && 0!=(state.audioFlag&64))
-					{
-						state.ym2612.MakeWaveForNSamples(nextFMPCMWave.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
-					}
-					else
-					{
-						// Even when YM2612 is muted, it needs to MakeWaveForNSamples because it does update time-dependent state variables.
-						std::vector <unsigned char> dummy;
-						dummy.resize(numSamplesPerWave*4);
-						state.ym2612.MakeWaveForNSamples(dummy.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
-					}
-					wavGenerated=true;
-					realSourceWave=true;
+					state.ym2612.MakeWaveForNSamples(nextFMPCMWave.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
 				}
-				if(true==IsPCMPlaying())
+				else
 				{
-					const unsigned int WAVE_OUT_SAMPLING_RATE=YM2612::WAVE_SAMPLING_RATE; // Align with YM2612.
-
-					// Brandish expects PCM interrupt even when muted.
-					// Therefore, PCM wave must be generated and played for making IRQ.
-					if(0!=(state.muteFlag&1) && 0!=(state.audioFlag&64))
-					{
-						state.rf5c68.AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE,lastFMPCMWaveGenTime);
-					}
-					else
-					{
-						// AddWaveForNumSamples will set IRQAfterThisPlayBack flag.
-						std::vector <unsigned char> dummy;
-						dummy.resize(numSamplesPerWave*4);
-						state.rf5c68.AddWaveForNumSamples(dummy.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE,lastFMPCMWaveGenTime);
-					}
-
-					for(unsigned int chNum=0; chNum<RF5C68::NUM_CHANNELS; ++chNum)
-					{
-						auto &ch=state.rf5c68.state.ch[chNum];
-						if(true==ch.IRQAfterThisPlayBack)
-						{
-							state.rf5c68.SetIRQBank(ch.IRQBank);
-							ch.IRQAfterThisPlayBack=false;
-						}
-					}
-					wavGenerated=true;
-					realSourceWave=true;
+					// Even when YM2612 is muted, it needs to MakeWaveForNSamples because it does update time-dependent state variables.
+					std::vector <unsigned char> dummy;
+					dummy.resize(numSamplesPerWave*4);
+					state.ym2612.MakeWaveForNSamples(dummy.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
 				}
-				if(true==IsHighResPCMPlaying())
-				{
-					auto &highResPCM=townsPtr->highResPCM;
-					if(true==highResPCM.var.mute || 0==(state.audioFlag&64))
-					{
-						highResPCM.DropWaveForNumSamples(numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
-					}
-					else
-					{
-						highResPCM.AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
-					}
-					wavGenerated=true;
-					realSourceWave=true;
-				}
-				if(true==cdrom->CDDAIsPlaying() && 0!=(state.audioFlag&64))
-				{
-					cdrom->AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
-					wavGenerated=true;
-					realSourceWave=true;
-				}
-				if(true==scsi->CDDAIsPlaying())
-				{
-					scsi->AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
-					wavGenerated=true;
-					realSourceWave=true;
-				}
-				if(true==IsPCMRecording())
-				{
-					int balance=0;
-					for(int fill=0; fill<numSamplesPerWave; ++fill)
-					{
-						int sum=0;
-						if(0<var.waveToBeSentToVM.GetNumChannel() && var.PCMSamplePlayed<var.waveToBeSentToVM.GetNumSamplePerChannel())
-						{
-							for(int i=0; i<var.waveToBeSentToVM.GetNumChannel(); ++i)
-							{
-								sum+=var.waveToBeSentToVM.GetSignedValue16(i,var.PCMSamplePlayed);
-							}
-							sum/=var.waveToBeSentToVM.GetNumChannel();
-						}
-						int32_t L=cpputil::GetSignedWord(nextFMPCMWave.data()+fill*4);
-						int32_t R=cpputil::GetSignedWord(nextFMPCMWave.data()+fill*4+2);
-						L+=sum;
-						R+=sum;
-						if(L<0)
-						{
-							L+=65536;
-						}
-						if(R<0)
-						{
-							R+=65536;
-						}
-						cpputil::PutWord(nextFMPCMWave.data()+fill*4,L);
-						cpputil::PutWord(nextFMPCMWave.data()+fill*4+2,R);
-
-						balance+=var.waveToBeSentToVM.PlayBackRate();
-						while(YM2612::WAVE_SAMPLING_RATE<=balance)
-						{
-							++var.PCMSamplePlayed;
-							balance-=YM2612::WAVE_SAMPLING_RATE;
-						}
-					}
-					wavGenerated=true;
-					realSourceWave=true;
-				}
-			}
-			if(true==ym2612WarmKeepalive)
-			{
-				std::vector <unsigned char> dummy;
-				dummy.resize(numSamplesPerWave*4);
-				state.ym2612.MakeWaveForNSamples(dummy.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
 				wavGenerated=true;
+				realSourceWave=true;
 			}
-			if(true==wavGenerated)
+			if(true==IsPCMPlaying())
 			{
-				lastFMPCMWaveGenTime=townsPtr->state.townsTime;
-				if(true==realSourceWave)
+				const unsigned int WAVE_OUT_SAMPLING_RATE=YM2612::WAVE_SAMPLING_RATE; // Align with YM2612.
+
+				// Brandish expects PCM interrupt even when muted.
+				// Therefore, PCM wave must be generated and played for making IRQ.
+				if(0!=(state.muteFlag&1) && 0!=(state.audioFlag&64))
 				{
-					lastFMPCMActivityTime=lastFMPCMWaveGenTime;
+					state.rf5c68.AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE,lastFMPCMWaveGenTime);
 				}
+				else
+				{
+					// AddWaveForNumSamples will set IRQAfterThisPlayBack flag.
+					std::vector <unsigned char> dummy;
+					dummy.resize(numSamplesPerWave*4);
+					state.rf5c68.AddWaveForNumSamples(dummy.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE,lastFMPCMWaveGenTime);
+				}
+
+				for(unsigned int chNum=0; chNum<RF5C68::NUM_CHANNELS; ++chNum)
+				{
+					auto &ch=state.rf5c68.state.ch[chNum];
+					if(true==ch.IRQAfterThisPlayBack)
+					{
+						state.rf5c68.SetIRQBank(ch.IRQBank);
+						ch.IRQAfterThisPlayBack=false;
+					}
+				}
+				wavGenerated=true;
+				realSourceWave=true;
+			}
+			if(true==IsHighResPCMPlaying())
+			{
+				auto &highResPCM=townsPtr->highResPCM;
+				if(true==highResPCM.var.mute || 0==(state.audioFlag&64))
+				{
+					highResPCM.DropWaveForNumSamples(numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
+				}
+				else
+				{
+					highResPCM.AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
+				}
+				wavGenerated=true;
+				realSourceWave=true;
+			}
+			if(true==cdrom->CDDAAudioShouldOutput() && 0!=(state.audioFlag&64))
+			{
+				cdrom->AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
+				wavGenerated=true;
+				realSourceWave=true;
+			}
+			if(true==scsi->CDDAIsPlaying())
+			{
+				scsi->AddWaveForNumSamples(nextFMPCMWave.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE);
+				wavGenerated=true;
+				realSourceWave=true;
+			}
+			if(true==IsPCMRecording())
+			{
+				int balance=0;
+				for(int fill=0; fill<numSamplesPerWave; ++fill)
+				{
+					int sum=0;
+					if(0<var.waveToBeSentToVM.GetNumChannel() && var.PCMSamplePlayed<var.waveToBeSentToVM.GetNumSamplePerChannel())
+					{
+						for(int i=0; i<var.waveToBeSentToVM.GetNumChannel(); ++i)
+						{
+							sum+=var.waveToBeSentToVM.GetSignedValue16(i,var.PCMSamplePlayed);
+						}
+						sum/=var.waveToBeSentToVM.GetNumChannel();
+					}
+					int32_t L=cpputil::GetSignedWord(nextFMPCMWave.data()+fill*4);
+					int32_t R=cpputil::GetSignedWord(nextFMPCMWave.data()+fill*4+2);
+					L+=sum;
+					R+=sum;
+					if(L<0)
+					{
+						L+=65536;
+					}
+					if(R<0)
+					{
+						R+=65536;
+					}
+					cpputil::PutWord(nextFMPCMWave.data()+fill*4,L);
+					cpputil::PutWord(nextFMPCMWave.data()+fill*4+2,R);
+
+					balance+=var.waveToBeSentToVM.PlayBackRate();
+					while(YM2612::WAVE_SAMPLING_RATE<=balance)
+					{
+						++var.PCMSamplePlayed;
+						balance-=YM2612::WAVE_SAMPLING_RATE;
+					}
+				}
+				wavGenerated=true;
+				realSourceWave=true;
+			}
+		}
+		if(true==ym2612WarmKeepalive)
+		{
+			std::vector <unsigned char> dummy;
+			dummy.resize(numSamplesPerWave*4);
+			state.ym2612.MakeWaveForNSamples(dummy.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
+			wavGenerated=true;
+		}
+		if(true==wavGenerated)
+		{
+			lastFMPCMWaveGenTime=townsPtr->state.townsTime;
+			if(true==realSourceWave)
+			{
+				lastFMPCMActivityTime=lastFMPCMWaveGenTime;
 			}
 		}
 	}
@@ -512,7 +517,6 @@ void TownsSound::ProcessSound(void)
 		int rightOut=cpputil::GetSignedWord(nextFMPCMWave.data()+2);
 		state.lastAudioOut=(leftOut+rightOut)/2;
 
-		// Hopefully FMPCM channel finishes play back previous wave piece before nextFMPCMWaveGenTime.
 		if(true==recordFMandPCM)
 		{
 			FMPCMrecording.insert(FMPCMrecording.end(),nextFMPCMWave.begin(),nextFMPCMWave.end());

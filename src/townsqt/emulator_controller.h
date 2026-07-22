@@ -50,6 +50,8 @@ public Q_SLOTS:
 	void applyMidiBoard(bool enabled);
 	void setMidiMonitor(bool enabled);
 	Q_INVOKABLE QStringList takeMidiMonitorLines();
+	void setCdromMonitor(bool enabled);
+	Q_INVOKABLE QStringList takeCdromMonitorLines();
 	void setCpuDebugMonitor(bool enabled);
 	Q_INVOKABLE QString cpuDebugSnapshot() const;
 	void restartAudioOutput(void);
@@ -72,6 +74,7 @@ public Q_SLOTS:
 	Q_INVOKABLE void setSnapMouseIntegration(bool enabled);
 	Q_INVOKABLE void applySnapMouseSettings(bool enabled,int warmup_frames);
 	Q_INVOKABLE bool snapMouseIntegration() const;
+	Q_INVOKABLE void applyCddaCacheSettings(bool enabled,int post_read_grace_sec);
 
 Q_SIGNALS:
 	void frameReady();

@@ -1569,16 +1569,23 @@ int DiscImage::GetTrackFromMSF(MinSecFrm MSF) const
 	if(0<tracks.size())
 	{
 		int tLow=0,tHigh=(int)tracks.size()-1;
-		while(tLow!=tHigh)
+		while(tLow<tHigh)
 		{
-			auto tMid=(tLow+tHigh)/2;
+			auto tMid=tLow+(tHigh-tLow)/2;
 			if(MSF<tracks[tMid].start)
 			{
 				tHigh=tMid;
 			}
 			else if(tracks[tMid].end<MSF)
 			{
-				tLow=tMid;
+				if(tMid==tLow)
+				{
+					++tLow;
+				}
+				else
+				{
+					tLow=tMid;
+				}
 			}
 			else
 			{

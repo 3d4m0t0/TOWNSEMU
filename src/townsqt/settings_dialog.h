@@ -69,6 +69,8 @@ public:
 		bool autoDifferentialOnMouseBIOSStop=true;
 		bool snapMouseIntegration=false;
 		int snapMouseWarmupFrames=30;
+		bool cddaCacheDuringDataRead=true;
+		int cddaCachePostReadGraceSec=3;
 		int mouseMinX=0;
 		int mouseMinY=0;
 		int mouseMaxX=1023;
@@ -177,6 +179,8 @@ private:
 	QCheckBox *idle_inhibit_=nullptr;
 	QCheckBox *snap_mouse_integration_=nullptr;
 	QSpinBox *snap_mouse_warmup_=nullptr;
+	QCheckBox *cdda_cache_during_data_read_=nullptr;
+	QSpinBox *cdda_cache_post_read_grace_sec_=nullptr;
 
 	QComboBox *gameport0_=nullptr;
 	QComboBox *gameport1_=nullptr;

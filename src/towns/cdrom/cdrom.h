@@ -21,6 +21,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <string>
 #include <thread>
 #include <mutex>
+#include <deque>
 #include <algorithm>
 #include "discimg.h"
 #include "device.h"
@@ -196,6 +197,7 @@ public:
 		std::vector <unsigned char> wave;
 		DiscImage *discImg;
 		DiscImage::MinSecFrm from,to;
+		bool restartRequested=false;
 
 	public:
 		AsyncWaveReader();
@@ -272,6 +274,21 @@ public:
 		std::vector <unsigned char> CDDAWave;
 		unsigned int CDDAPlayPointer=0;
 
+		DiscImage::MinSecFrm CDDAWaveBaseTime;
+		bool CDDAAudioOutput=false;  // EMU mix flag; independent of CDDAState
+
+		// Host-only after short MODE read:
+		//  - before PAUSED/PLAYING → keep host mix immediately (guest idle)
+		//  - before STOP/ENDED/IDLE → arm grace; same-track PLAY within grace continues
+		//  - grace expired without PLAY → mute host
+		long long int CDDACacheStopAfterTownsTime=0;
+		bool CDDACacheBridgingDataRead=false;
+		unsigned int CDDAStateBeforeDataRead=CDDA_IDLE;
+
+		// MODE1/2/RAW sector transfer in progress (protect schedule from GETSTATE).
+		bool dataTransferActive=false;
+		unsigned char dataTransferCmd=0;
+
 	private:
 		DiscImage *imgPtr;
 	public:
@@ -308,6 +325,11 @@ public:
 		bool debugBreakOnDataReady=false;
 
 		unsigned int sectorReadTimeDelay=0;
+
+		// Host-only: keep mixing cached CDDA through short MODE1/2/RAW reads.
+		// Guest CDDAState/status always follow the hardware model (unaffected).
+		bool cddaCacheDuringDataRead=true;
+		unsigned int cddaCachePostReadGraceSec=3;
 
 		// If debugBreakOnCommandWrite==true and 0xffff!=debugBreakOnSpecificCommand,
 		// it breaks the VM only if a specific command is sent.
@@ -361,11 +383,29 @@ public:
 	}
 private:
 	void UpdateCDDAStateInternal(long long int townsTime);
+	bool CacheSameTrack(DiscImage::MinSecFrm msfBegin) const;
+	bool CacheWaveRemaining(void) const;
+	bool CacheHostMixAfterDataRead(void);
+	void CacheClearStopDeadline(void);
+	void CacheArmStopIfNoPlay(void);
+	void CacheOnDataReadStarted(unsigned int numSectors);
+	void CacheOnDataReadFinished(void);
+	void PushGetStateStatus(void);
+	bool TryHandleGetStateWithoutStealingSchedule(unsigned char newCmdByte,unsigned char keepCmd);
+	void LogMonitorLine(const std::string &line);
+
+	std::mutex monitorMutex;
+	std::deque <std::string> monitorLines;
+
 public:
 	inline bool CDDAIsPlaying(void) const
 	{
 		return (CDDA_PLAYING==state.CDDAState || CDDA_STOPPING==state.CDDAState);
 	}
+
+	bool CDDAAudioShouldOutput(void) const;
+	void DiscardCDDAWaveCache(void);
+	std::vector <std::string> TakeMonitorLines(void);
 
 	inline bool DiscLoadedAndLidClosed(void) const
 	{

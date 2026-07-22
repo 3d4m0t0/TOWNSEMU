@@ -26,6 +26,7 @@
 #include <QVariantMap>
 
 #include <algorithm>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -263,11 +264,15 @@ void EmulatorController::run()
 		    TownsQtSettings::damperWireLine(),
 		    TownsQtSettings::scanLineEffectIn15KHz(),
 		    TownsQtSettings::spriteTransferMode());
+		applyCddaCacheSettings(
+		    TownsQtSettings::cddaCacheDuringDataRead(),
+		    TownsQtSettings::cddaCachePostReadGraceSec());
 		if(nullptr!=towns_)
 		{
 			last_fast_mode_lamp_revision_=towns_->var.fastModeLampRevision.load(std::memory_order_acquire);
 			last_fast_mode_lamp_=towns_->FASTModeLamp();
 			towns_->midi.midiMonitor=TownsQtSettings::midiMonitor();
+			towns_->cdrom.var.debugMonitorCommandWrite=TownsQtSettings::cdromMonitor();
 		}
 		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
 
@@ -640,6 +645,28 @@ QStringList EmulatorController::takeMidiMonitorLines()
 	return lines;
 }
 
+void EmulatorController::setCdromMonitor(bool enabled)
+{
+	if(nullptr!=towns_)
+	{
+		towns_->cdrom.var.debugMonitorCommandWrite=enabled;
+	}
+}
+
+QStringList EmulatorController::takeCdromMonitorLines()
+{
+	QStringList lines;
+	if(nullptr==towns_)
+	{
+		return lines;
+	}
+	for(const auto &line : towns_->cdrom.TakeMonitorLines())
+	{
+		lines<<QString::fromStdString(line);
+	}
+	return lines;
+}
+
 void EmulatorController::setCpuDebugMonitor(bool enabled)
 {
 	cpu_debug_ui_enabled_=enabled;
@@ -665,84 +692,107 @@ QString EmulatorController::cpuDebugSnapshot() const
 		return out;
 	}
 
-	auto &cpu=towns_->CPU();
-	auto &debugger=towns_->debugger;
+	try
+	{
+		auto &cpu=towns_->CPU();
+		auto &debugger=towns_->debugger;
 
-	out+=QStringLiteral("=== Registers ===\n");
-	for(const auto &line : cpu.GetStateText())
-	{
-		out+=QString::fromStdString(line);
-		out+=QLatin1Char('\n');
-	}
-
-	out+=QStringLiteral("\n=== Current instruction ===\n");
-	if(nullptr!=cpu.debuggerPtr)
-	{
-		i486DXCommon::InstructionAndOperand instOp;
-		MemoryAccess::ConstMemoryWindow emptyMemWindow;
-		cpu.DebugFetchInstruction(emptyMemWindow,instOp,towns_->mem);
-		const std::string disasm=cpu.Disassemble(
-		    instOp.inst,
-		    instOp.op1,
-		    instOp.op2,
-		    cpu.state.CS(),
-		    cpu.state.EIP,
-		    towns_->mem,
-		    debugger.GetSymTable(),
-		    debugger.GetIOTable());
-		out+=QString::fromStdString(disasm);
-		out+=QLatin1Char('\n');
-	}
-	else
-	{
-		out+=QStringLiteral("(debugger not attached — open this window to enable)\n");
-	}
-
-	out+=QStringLiteral("\n=== CS:EIP history (newest first) ===\n");
-	constexpr unsigned int kHistorySteps=64;
-	const auto hist=debugger.GetCSEIPLog(kHistorySteps);
-	const auto &symTable=debugger.GetSymTable();
-	for(auto iter=hist.rbegin(); iter!=hist.rend(); ++iter)
-	{
-		if(0==iter->SEG && 0==iter->OFFSET && 0==iter->count)
+		out+=QStringLiteral("=== Registers ===\n");
+		for(const auto &line : cpu.GetStateText())
 		{
-			continue;
-		}
-		out+=QString::fromStdString(
-		    cpputil::Ustox(iter->SEG)+":"+cpputil::Uitox(iter->OFFSET)+
-		    "  SS="+cpputil::Ustox(iter->SS)+
-		    "  ESP="+cpputil::Uitox(iter->ESP));
-		if(1<iter->count)
-		{
-			out+=QStringLiteral(" (%1)").arg(static_cast<qulonglong>(iter->count));
-		}
-		if(const auto *sym=symTable.Find(iter->SEG,iter->OFFSET))
-		{
-			out+=QLatin1Char(' ');
-			out+=QString::fromStdString(sym->Format());
-		}
-		out+=QLatin1Char('\n');
-	}
-
-	out+=QStringLiteral("\n=== Call stack ===\n");
-	const auto stack=debugger.GetCallStackText(cpu);
-	constexpr size_t kMaxStackLines=48;
-	const size_t start=(stack.size()>kMaxStackLines) ? (stack.size()-kMaxStackLines) : 0;
-	if(stack.empty())
-	{
-		out+=QStringLiteral("(empty)\n");
-	}
-	else
-	{
-		if(0<start)
-		{
-			out+=QStringLiteral("... (%1 older frames omitted)\n").arg(static_cast<qulonglong>(start));
-		}
-		for(size_t i=start; i<stack.size(); ++i)
-		{
-			out+=QString::fromStdString(stack[i]);
+			out+=QString::fromStdString(line);
 			out+=QLatin1Char('\n');
 		}
+
+		out+=QStringLiteral("\n=== Current instruction ===\n");
+		if(nullptr!=cpu.debuggerPtr)
+		{
+			try
+			{
+				i486DXCommon::InstructionAndOperand instOp;
+				MemoryAccess::ConstMemoryWindow emptyMemWindow;
+				// Racy vs VM thread: may see a torn instruction.  Catch and keep going.
+				cpu.DebugFetchInstruction(emptyMemWindow,instOp,towns_->mem);
+				const std::string disasm=cpu.Disassemble(
+				    instOp.inst,
+				    instOp.op1,
+				    instOp.op2,
+				    cpu.state.CS(),
+				    cpu.state.EIP,
+				    towns_->mem,
+				    debugger.GetSymTable(),
+				    debugger.GetIOTable());
+				out+=QString::fromStdString(disasm);
+				out+=QLatin1Char('\n');
+			}
+			catch(const std::exception &e)
+			{
+				out+=QStringLiteral("(disassembly unavailable: %1)\n").arg(QString::fromUtf8(e.what()));
+			}
+			catch(...)
+			{
+				out+=QStringLiteral("(disassembly unavailable: torn CPU state)\n");
+			}
+		}
+		else
+		{
+			out+=QStringLiteral("(debugger not attached — open this window to enable)\n");
+		}
+
+		out+=QStringLiteral("\n=== CS:EIP history (newest first) ===\n");
+		constexpr unsigned int kHistorySteps=64;
+		const auto hist=debugger.GetCSEIPLog(kHistorySteps);
+		const auto &symTable=debugger.GetSymTable();
+		for(auto iter=hist.rbegin(); iter!=hist.rend(); ++iter)
+		{
+			if(0==iter->SEG && 0==iter->OFFSET && 0==iter->count)
+			{
+				continue;
+			}
+			out+=QString::fromStdString(
+			    cpputil::Ustox(iter->SEG)+":"+cpputil::Uitox(iter->OFFSET)+
+			    "  SS="+cpputil::Ustox(iter->SS)+
+			    "  ESP="+cpputil::Uitox(iter->ESP));
+			if(1<iter->count)
+			{
+				out+=QStringLiteral(" (%1)").arg(static_cast<qulonglong>(iter->count));
+			}
+			if(const auto *sym=symTable.Find(iter->SEG,iter->OFFSET))
+			{
+				out+=QLatin1Char(' ');
+				out+=QString::fromStdString(sym->Format());
+			}
+			out+=QLatin1Char('\n');
+		}
+
+		out+=QStringLiteral("\n=== Call stack ===\n");
+		const auto stack=debugger.GetCallStackText(cpu);
+		constexpr size_t kMaxStackLines=48;
+		const size_t start=(stack.size()>kMaxStackLines) ? (stack.size()-kMaxStackLines) : 0;
+		if(stack.empty())
+		{
+			out+=QStringLiteral("(empty)\n");
+		}
+		else
+		{
+			if(0<start)
+			{
+				out+=QStringLiteral("... (%1 older frames omitted)\n").arg(static_cast<qulonglong>(start));
+			}
+			for(size_t i=start; i<stack.size(); ++i)
+			{
+				out+=QString::fromStdString(stack[i]);
+				out+=QLatin1Char('\n');
+			}
+		}
+	}
+	catch(const std::exception &e)
+	{
+		out+=QStringLiteral("\n(cpu debug snapshot failed: %1)\n").arg(QString::fromUtf8(e.what()));
+	}
+	catch(...)
+	{
+		out+=QStringLiteral("\n(cpu debug snapshot failed)\n");
 	}
 
 	return out;
@@ -849,6 +899,9 @@ void EmulatorController::applyAudioVolumes(int fm_chip_volume,int pcm_chip_volum
 	{
 		if(auto *qt_sound=dynamic_cast<QtSyncSoundConnection *>(impl_->sound))
 		{
+			// Host CDDA slider; emulated CDDA is mixed in ProcessSound via SetCDDAUserGain
+			// and guest electric-volume.  CDDASetVolume only affects the unused legacy
+			// QtSyncSoundConnection::CDDAPlay / FillAudio path.
 			const float cdda_vol=static_cast<float>(cdda_volume_percent)/100.0f;
 			qt_sound->CDDASetVolume(cdda_vol,cdda_vol);
 		}
@@ -993,6 +1046,23 @@ bool EmulatorController::snapMouseIntegration() const
 		return impl_->outside_world->snapMouseIntegration;
 	}
 	return TownsQtSettings::snapMouseIntegration();
+}
+
+void EmulatorController::applyCddaCacheSettings(bool enabled,int post_read_grace_sec)
+{
+	post_read_grace_sec=std::clamp(post_read_grace_sec,1,60);
+	TownsQtSettings::setCddaCacheDuringDataRead(enabled);
+	TownsQtSettings::setCddaCachePostReadGraceSec(post_read_grace_sec);
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->cdrom.var.cddaCacheDuringDataRead=enabled;
+	towns_->cdrom.var.cddaCachePostReadGraceSec=static_cast<unsigned int>(post_read_grace_sec);
+	if(true!=enabled)
+	{
+		towns_->cdrom.state.CDDAAudioOutput=false;
+	}
 }
 
 void EmulatorController::applyDisplayOptions(bool damperWireLine,bool scanLineEffectIn15KHz,int spriteTransferMode)
