@@ -2858,24 +2858,40 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					clocksPassed=24;
 
 					int32_t DXAX=cpputil::WordPairToSigned32(GetAX(),GetDX());
+					// INT32_MIN / -1 overflows signed 32-bit and SIGFPEs on host idiv.
+					if(-1==denom && DXAX==(int32_t)0x80000000)
+					{
+						Interrupt(0,mem,0,0,false);
+						EIPIncrement=0;
+					}
+					else
+					{
+						int quo=DXAX/denom;
+						int rem=DXAX%denom;
 
-					int quo=DXAX/denom;
-					int rem=DXAX%denom;
-
-					SetAX(cpputil::LowWord(quo));
-					SetDX(cpputil::LowWord(rem));
+						SetAX(cpputil::LowWord(quo));
+						SetDX(cpputil::LowWord(rem));
+					}
 				}
 				else if(32==inst.operandSize)
 				{
 					clocksPassed=40;
 
 					int64_t EDXEAX=cpputil::DwordPairToSigned64(GetEAX(),GetEDX());
+					// INT64_MIN / -1 overflows signed 64-bit and SIGFPEs on host idiv.
+					if(-1==denom && EDXEAX==(int64_t)0x8000000000000000LL)
+					{
+						Interrupt(0,mem,0,0,false);
+						EIPIncrement=0;
+					}
+					else
+					{
+						int64_t quo=EDXEAX/denom;
+						int64_t rem=EDXEAX%denom;
 
-					int64_t quo=EDXEAX/denom;
-					int64_t rem=EDXEAX%denom;
-
-					SetEAX(cpputil::LowDword(quo));
-					SetEDX(cpputil::LowDword(rem));
+						SetEAX(cpputil::LowDword(quo));
+						SetEDX(cpputil::LowDword(rem));
+					}
 				}
 			}
 			break;
@@ -3084,13 +3100,24 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			clocksPassed=15;
 			auto AL=GetAL();
-			auto quo=AL/inst.EvalUimm8();
-			auto rem=AL%inst.EvalUimm8();
-			SetAH(quo);
-			SetAL(rem);
-			SetZF(0==GetAL());   // ?
-			SetSF(0!=(GetAH()&0x80));
-			SetPF(CheckParity(GetAL()));
+			auto base=inst.EvalUimm8();
+			// AAM with base 0 raises #DE on real hardware; without this guard the
+			// host DIV instruction SIGFPEs and kills the emulator process.
+			if(0==base)
+			{
+				Interrupt(0,mem,0,0,false);
+				EIPIncrement=0;
+			}
+			else
+			{
+				auto quo=AL/base;
+				auto rem=AL%base;
+				SetAH(quo);
+				SetAL(rem);
+				SetZF(0==GetAL());   // ?
+				SetSF(0!=(GetAH()&0x80));
+				SetPF(CheckParity(GetAL()));
+			}
 		}
 		break;
 
