@@ -198,6 +198,8 @@ public:
 		DiscImage *discImg;
 		DiscImage::MinSecFrm from,to;
 		bool restartRequested=false;
+		/*! Abandon in-flight/prefetch result without blocking the VM on GetWave. */
+		bool cancelRequested=false;
 
 	public:
 		AsyncWaveReader();
@@ -205,6 +207,8 @@ public:
 		unsigned int GetState(void);
 		void Start(DiscImage *discImg,DiscImage::MinSecFrm from,DiscImage::MinSecFrm to);
 		std::vector <unsigned char> &GetWave(void);
+		/*! Drop ready data immediately; if BUSY, finish GetWave then go IDLE (no DATAREADY). */
+		void RequestCancel(void);
 
 	private:
 		void ThreadFunc(void);
@@ -288,6 +292,11 @@ public:
 		// MODE1/2/RAW sector transfer in progress (protect schedule from GETSTATE).
 		bool dataTransferActive=false;
 		unsigned char dataTransferCmd=0;
+		/*! MODE armed but waiting for CDDA prefetch to release the disc (ON or OFF). */
+		bool CDDAPrefetchWaitForMode=false;
+		uint64_t modeDeferredSeekTime=0;
+		/*! Soft retries when a MODE sector read returns empty (disc contention). */
+		unsigned int modeSectorEmptyRetries=0;
 
 	private:
 		DiscImage *imgPtr;
@@ -455,6 +464,9 @@ public:
 	*/
 	void RunScheduledTask(unsigned long long int townsTime);
 private:
+	/*! Push No-Error and schedule the first MODE sector after optional CDDA-prefetch wait. */
+	void StartModeSectorTransfer(uint64_t seekTime);
+
 	void SetStatusDriveNotReadyOrDiscChangedOrNoError(void);
 	bool SetStatusDriveNotReadyOrDiscChanged(void);
 	void SetStatusNoError(void);
