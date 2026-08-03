@@ -96,6 +96,8 @@ private:
 	SharedRgbaFramebuffer *framebuffer_=nullptr;
 	QtInputQueue *inputQueue_=nullptr;
 	std::atomic<bool> running_{false};
+	/*! Drop overlapping Queued pollWindow calls (modal Settings keeps UI timer alive). */
+	std::atomic<bool> poll_window_busy_{false};
 	uint64_t last_frame_serial_=0;
 	QString cd_path_;
 	QString fd_path_[2];

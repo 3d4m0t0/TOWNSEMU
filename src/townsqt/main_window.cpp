@@ -973,16 +973,9 @@ void MainWindow::openSettingsDialog()
 	    QString::fromStdString(argv_.ROMPath);
 	SettingsDialog dlg(initial,rom_dir,this);
 	connect(&dlg,&SettingsDialog::settingsApplied,this,&MainWindow::applySettings);
-	const bool poll_was_active=poll_timer_.isActive();
-	if(poll_was_active)
-	{
-		poll_timer_.stop();
-	}
+	// Keep poll_timer_ running: onPollTimer uses QueuedConnection while modal so
+	// frames still present without BlockingQueued deadlock risk.
 	const int dlg_result=dlg.exec();
-	if(poll_was_active)
-	{
-		poll_timer_.start();
-	}
 	if(QDialog::Accepted!=dlg_result)
 	{
 		return;
@@ -1653,21 +1646,37 @@ void MainWindow::onPollTimer()
 			inputQueue_.ClearMouseButtons();
 		}
 	}
-	// Nested modal loops (settings, file dialogs, menus) still run the UI timer.
-	// BlockingQueuedConnection to the emu thread here can deadlock with pollWindow.
-	if(nullptr!=QApplication::activeModalWidget() ||
-	   nullptr!=QApplication::activePopupWidget())
-	{
-		return;
-	}
+
+	const bool nestedUi=
+	    nullptr!=QApplication::activeModalWidget() ||
+	    nullptr!=QApplication::activePopupWidget();
 	if(nullptr!=controller_)
 	{
-		QMetaObject::invokeMethod(controller_,&EmulatorController::pollWindow,Qt::BlockingQueuedConnection);
-		if(nullptr!=view_)
+		if(true==nestedUi)
 		{
-			drive_access_status_=controller_->driveAccessStatus();
-			view_->updateDriveAccessIndicators(drive_access_status_,currentDriveAccessPresence());
+			// Nested modal/popup loops: never BlockingQueued into the emu thread
+			// (deadlock risk).  QueuedConnection still presents frames via frameReady.
+			QMetaObject::invokeMethod(
+			    controller_,
+			    &EmulatorController::pollWindow,
+			    Qt::QueuedConnection);
 		}
+		else
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    &EmulatorController::pollWindow,
+			    Qt::BlockingQueuedConnection);
+			if(nullptr!=view_)
+			{
+				drive_access_status_=controller_->driveAccessStatus();
+				view_->updateDriveAccessIndicators(drive_access_status_,currentDriveAccessPresence());
+			}
+		}
+	}
+	if(true==nestedUi)
+	{
+		return;
 	}
 	const bool was_differential=cached_differential_integration_;
 	refreshMouseUiState();

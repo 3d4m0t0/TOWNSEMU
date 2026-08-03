@@ -1113,6 +1113,17 @@ void EmulatorController::presentDueFrames()
 
 void EmulatorController::pollWindow()
 {
+	// Modal UI loops use QueuedConnection; coalesce if the timer outruns us.
+	if(true==poll_window_busy_.exchange(true,std::memory_order_acq_rel))
+	{
+		return;
+	}
+	struct ClearBusy
+	{
+		std::atomic<bool> &busy;
+		~ClearBusy(){busy.store(false,std::memory_order_release);}
+	} clear{poll_window_busy_};
+
 	if(nullptr==impl_->window)
 	{
 		return;
