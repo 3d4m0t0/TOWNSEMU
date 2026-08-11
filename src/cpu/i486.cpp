@@ -2291,6 +2291,8 @@ void i486DXCommon::PushCallStack(
 	{
 		if(0x21==INTNum)
 		{
+			// Path string for call-stack display only.  InterceptINT21H runs from
+			// Interrupt() via NotifyINT21HIfNeeded (even when call stack is off).
 			if((0x3D00==(AX&0xFF00) || 0x4B00==(AX&0xFF00)))
 			{
 				if(true==IsInRealMode() || true==GetVM())
@@ -2302,16 +2304,33 @@ void i486DXCommon::PushCallStack(
 					callStack.back().str=DebugFetchString(32,state.DS(),GetEDX(),mem);
 				}
 			}
-			if(nullptr!=int21HInterceptorPtr)
-			{
-				int21HInterceptorPtr->InterceptINT21H(GetAX(),callStack.back().str);
-			}
 		}
 	}
 	if(nullptr!=debuggerPtr && debuggerPtr->breakOnCallStackDepth<=callStack.size())
 	{
 		debuggerPtr->ExternalBreak("Call Stack Depth Exceeds Threshold.");
 	}
+}
+void i486DXCommon::NotifyINT21HIfNeeded(unsigned int INTNum,const Memory &mem)
+{
+	if(0x21!=INTNum || nullptr==int21HInterceptorPtr)
+	{
+		return;
+	}
+	const unsigned int AX=GetAX();
+	std::string fName;
+	if(0x3D00==(AX&0xFF00) || 0x4B00==(AX&0xFF00))
+	{
+		if(true==IsInRealMode() || true==GetVM())
+		{
+			fName=DebugFetchString(16,state.DS(),GetDX(),mem);
+		}
+		else
+		{
+			fName=DebugFetchString(32,state.DS(),GetEDX(),mem);
+		}
+	}
+	int21HInterceptorPtr->InterceptINT21H(AX,fName);
 }
 void i486DXCommon::PopCallStack(unsigned int CS,unsigned int EIP)
 {

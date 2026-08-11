@@ -1157,7 +1157,11 @@ std::string FsSimpleWindowConnection::GetProgramResourceDirectory(void) const
 
 		if(true!=mouseFeedingEnabled_)
 		{
+			// Capture released / feeding paused: motion idle and buttons up.
+			// DontControlMouse alone leaves a stuck gameport button if the host
+			// up-event was lost during the mode switch.
 			towns.DontControlMouse();
+			towns.SetMouseButtonState(false,false);
 		}
 		else if(TOWNS_APPSPECIFIC_DAIKOUKAIJIDAI2==towns.state.appSpecificSetting &&
 		   true==towns.Daikoukai2_ControlMouseByArrowKeys(

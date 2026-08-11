@@ -663,9 +663,18 @@ std::string i486DXCommon::Operand::DisassembleAsAddr(uint32_t cs,uint32_t eip,co
 	std::string disasm;
 	disasm.push_back('[');
 
+	auto safeRegName=[](short reg)->const char *
+	{
+		if(reg<0 || REG_TOTAL_NUMBER_OF_REGISTERS<=reg || nullptr==RegToStr[reg])
+		{
+			return "?";
+		}
+		return RegToStr[reg];
+	};
+
 	if(REG_NULL!=baseReg)
 	{
-		disasm+=RegToStr[baseReg];
+		disasm+=safeRegName(baseReg);
 		empty=false;
 	}
 
@@ -675,7 +684,7 @@ std::string i486DXCommon::Operand::DisassembleAsAddr(uint32_t cs,uint32_t eip,co
 		{
 			disasm.push_back('+');
 		}
-		disasm+=RegToStr[indexReg];
+		disasm+=safeRegName(indexReg);
 		if(0!=indexShift)
 		{
 			disasm.push_back('*');
@@ -750,6 +759,10 @@ std::string i486DXCommon::Operand::DisassembleAsFarAddr(uint32_t cs,uint32_t eip
 }
 std::string i486DXCommon::Operand::DisassembleAsReg(void) const
 {
+	if(reg<0 || REG_TOTAL_NUMBER_OF_REGISTERS<=reg || nullptr==RegToStr[reg])
+	{
+		return "?";
+	}
 	return RegToStr[reg];
 }
 /* static */ std::string i486DXCommon::Operand::GetSizeQualifierToDisassembly(const Operand &op,int operandSize)

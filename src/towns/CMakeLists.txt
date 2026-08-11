@@ -1,4 +1,4 @@
-add_library(towns towns.h towns.cpp townsstate.cpp tbiosid.cpp townscmos.cpp townsio.cpp townsio.h townsvmif.cpp townsthread.cpp townsthread.h tbiosid.h townsapp_dunmas.cpp townsapp_daikoukai.cpp townsapp_daikoukai2.cpp townsapp_ab2.cpp mos_coord_probe.cpp mos_coord_probe.h)
+add_library(towns towns.h towns.cpp townsstate.cpp tbiosid.cpp townscmos.cpp townsio.cpp townsio.h townsvmif.cpp townsthread.cpp townsthread.h tbiosid.h townsapp_dunmas.cpp townsapp_daikoukai.cpp townsapp_daikoukai2.cpp townsapp_ab2.cpp mos_coord_probe.cpp mos_coord_probe.h mouse_coord_write_scan.cpp mouse_coord_write_scan.h)
 target_link_libraries(towns cpu vmbase device inout ramrom townscdrom townssound townsmidi townsgameport townstimer townsmem townskeyboard townsrtc townspic townsdmac townscrtc townssprite townsrender townsfdc townsscsi townsserial townsvndrv townstgdrv townshighrespcm rex3586 fmt3631 d77 townsdef townsparam townseventlog outside_world lineParser townscommand miscutil)
 target_include_directories(towns PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

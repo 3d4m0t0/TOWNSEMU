@@ -91,6 +91,11 @@ void MosCoordReadProbe::NoteRead(unsigned int physAddr) const
 
 	++townsPtr->state.mosCoordAppReadCount;
 
+	if(true==townsPtr->var.mouseCoordWriteScanEnabled)
+	{
+		townsPtr->mouseCoordWriteScan.OnSoftCursorAppRead();
+	}
+
 	// Diagnostic: remember which CS selectors are counted as application reads so the
 	// usage-probe log can show whether the "app" reads come from the game code or a
 	// mis-classified soft-cursor / system module.

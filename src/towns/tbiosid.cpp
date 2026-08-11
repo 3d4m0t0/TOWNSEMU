@@ -725,7 +725,7 @@ bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMo
 	hostMouseX=std::min(hostMouseX,var.mouseMaxX);
 	hostMouseY=std::min(hostMouseY,var.mouseMaxY);
 
-	int mx,my;
+	int mx=0,my=0;
 	int slowDownRange=0;
 	var.lastKnownMouseX=hostMouseX;
 	var.lastKnownMouseY=hostMouseY;
@@ -737,8 +737,248 @@ bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMo
 	}
 	// Windows 3.1 <<
 
-	if(true==GetMouseCoordinate(mx,my,tbiosid) && true==var.mouseIntegration)
+	const bool haveGuest=GetMouseCoordinate(mx,my,tbiosid);
+	if(true==var.mouseIntegration)
 	{
+		// CD mouse-coord profile: map emulator-image coords → soft-cursor space, then
+		// feed host−soft deltas via gameport.  Skip TransformHostMouse — CRTC zoom often
+		// leaves 640-space while soft cursor is 320-logical.
+		if(true==var.mouseCoordProfileApply)
+		{
+			const auto p=mouseCoordWriteScan.GetActiveProfile();
+			// MOS mode must never use this path (WantsProfileAbsolute excludes it).
+			// Phys (DW poke / GF Δ): follow profile settings as-is.
+			// MOS alive under app-specific: immediate soft coordinate write
+			// (no wait-feedback / no warmup grace).
+			const int rawHostX=hostMouseX;
+			const int rawHostY=hostMouseY;
+
+			auto clampDiffToScreen=[&](void)
+			{
+				int screenW=0,screenH=0;
+				if(true!=mouseCoordWriteScan.TryGuestScreenSize(screenW,screenH))
+				{
+					return;
+				}
+				const int maxX=screenW-1;
+				const int maxY=screenH-1;
+				if(true==p.invertX)
+				{
+					if(0>diffX && mx>=maxX)
+					{
+						diffX=0;
+					}
+					if(0<diffX && mx<=0)
+					{
+						diffX=0;
+					}
+				}
+				else
+				{
+					if(0<diffX && mx>=maxX)
+					{
+						diffX=0;
+					}
+					if(0>diffX && mx<=0)
+					{
+						diffX=0;
+					}
+				}
+				if(true==p.invertY)
+				{
+					if(0>diffY && my>=maxY)
+					{
+						diffY=0;
+					}
+					if(0<diffY && my<=0)
+					{
+						diffY=0;
+					}
+				}
+				else
+				{
+					if(0<diffY && my>=maxY)
+					{
+						diffY=0;
+					}
+					if(0>diffY && my<=0)
+					{
+						diffY=0;
+					}
+				}
+			};
+
+			auto waitFeedbackHold=[&](bool waitFb)->bool
+			{
+				if(true!=waitFb)
+				{
+					var.profileDeltaInFlight=false;
+					return false;
+				}
+				constexpr int PROFILE_DELTA_WAIT_MAX=32;
+				constexpr int PROFILE_DELTA_PORT_IDLE_GRACE=3;
+				if(true!=var.profileDeltaInFlight)
+				{
+					return false;
+				}
+				bool portIdle=true;
+				for(const auto &port : gameport.state.ports)
+				{
+					if(TownsGamePort::MOUSE==port.device &&
+					   (0!=port.mouseMotion.x() || 0!=port.mouseMotion.y()))
+					{
+						portIdle=false;
+						break;
+					}
+				}
+				const bool ackX=
+				    true!=var.profileWaitFeedbackX ||
+				    mx!=var.profilePrevFeedbackX;
+				const bool ackY=
+				    true!=var.profileWaitFeedbackY ||
+				    my!=var.profilePrevFeedbackY;
+				++var.profileDeltaWait;
+				if(true==ackX && true==ackY)
+				{
+					var.profileDeltaInFlight=false;
+					return false;
+				}
+				if(true==portIdle &&
+				   var.profileDeltaWait>=PROFILE_DELTA_PORT_IDLE_GRACE)
+				{
+					var.profileDeltaInFlight=false;
+					return false;
+				}
+				if(var.profileDeltaWait>=PROFILE_DELTA_WAIT_MAX)
+				{
+					var.profileDeltaInFlight=false;
+					return false;
+				}
+				return true;
+			};
+
+			auto noteFeedbackSent=[&](bool waitFb)
+			{
+				if(true!=waitFb)
+				{
+					var.profileDeltaInFlight=false;
+					return;
+				}
+				bool sentX=false,sentY=false;
+				for(auto &port : gameport.state.ports)
+				{
+					if(TownsGamePort::MOUSE==port.device)
+					{
+						sentX=sentX || (0!=port.mouseMotion.x());
+						sentY=sentY || (0!=port.mouseMotion.y());
+					}
+				}
+				var.profilePrevFeedbackX=mx;
+				var.profilePrevFeedbackY=my;
+				var.profileWaitFeedbackX=sentX;
+				var.profileWaitFeedbackY=sentY;
+				var.profileDeltaInFlight=(sentX || sentY);
+				var.profileDeltaWait=0;
+			};
+
+			// MOS side under app-specific: immediate soft write (no grace / wait).
+			auto runMosImmediateWrite=[&](void)->bool
+			{
+				int mosHostX=rawHostX,mosHostY=rawHostY;
+				int originX=0,originY=0,zoom2xX=2,zoom2xY=2,page=0;
+				TransformHostMouseForIntegration(
+				    mosHostX,mosHostY,
+				    mosHostX,mosHostY,
+				    originX,originY,zoom2xX,zoom2xY,page);
+				diffX=mosHostX-mx;
+				diffY=mosHostY-my;
+				var.mouseCoordProfileApply=false;
+				const bool ok=SetMouseCoordinate(mosHostX,mosHostY,tbiosid);
+				var.mouseCoordProfileApply=true;
+				if(true==ok)
+				{
+					SyncMouseCursorSpritesToCoord(mosHostX,mosHostY);
+					SyncMouseCursorDrawCoordinate(mosHostX,mosHostY);
+				}
+				DontControlMouse();
+				return ok;
+			};
+
+			if(true==p.HasDirectWriteTarget())
+			{
+				// Absolute poke does not need a usable guest Phys read.  Game Phys often
+				// starts as signed junk; requiring GetMouseCoordinate first + store-guard
+				// deadlocks (host never writes, guest cannot init).
+				int mappedX=rawHostX;
+				int mappedY=rawHostY;
+				mouseCoordWriteScan.MapHostToProfileCoords(mappedX,mappedY);
+				const int targetX=true==p.invertX ? -(mappedX+p.offsetX) : (mappedX+p.offsetX);
+				const int targetY=true==p.invertY ? -(mappedY+p.offsetY) : (mappedY+p.offsetY);
+				if(true==haveGuest)
+				{
+					diffX=targetX-mx;
+					diffY=targetY-my;
+				}
+				else
+				{
+					diffX=0;
+					diffY=0;
+				}
+				const bool wrotePhys=
+				    mouseCoordWriteScan.WriteAppCursorCoords(targetX,targetY);
+				if(true!=state.mouseBIOSActive)
+				{
+					var.profileDeltaInFlight=false;
+					DontControlMouse();
+					return wrotePhys;
+				}
+				if(true==p.stopSoftWrite)
+				{
+					var.profileDeltaInFlight=false;
+					DontControlMouse();
+					return wrotePhys;
+				}
+				return runMosImmediateWrite();
+			}
+			if(true!=haveGuest)
+			{
+				var.profileDeltaInFlight=false;
+				return false;
+			}
+			if(true==p.HasGameFeedbackTarget())
+			{
+				int mappedX=rawHostX;
+				int mappedY=rawHostY;
+				mouseCoordWriteScan.MapHostToProfileCoords(mappedX,mappedY);
+				mouseCoordWriteScan.LogSoftCursorIfChanged(mx,my);
+				const int signedGuestX=true==p.invertX ? -mx : mx;
+				const int signedGuestY=true==p.invertY ? -my : my;
+				diffX=mappedX-signedGuestX+p.offsetX;
+				diffY=mappedY-signedGuestY+p.offsetY;
+
+				// Phys GF: honor waitFeedback setting only (not forced by MOS).
+				if(true==waitFeedbackHold(p.waitFeedback))
+				{
+					return true;
+				}
+				clampDiffToScreen();
+				const bool gfOk=ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
+				noteFeedbackSent(p.waitFeedback);
+				if(true!=state.mouseBIOSActive || true==p.stopSoftWrite)
+				{
+					return gfOk;
+				}
+				// MOS alive: immediate soft write (independent of Phys gameport Δ).
+				(void)runMosImmediateWrite();
+				return true;
+			}
+			var.profileDeltaInFlight=false;
+		}
+		if(true!=haveGuest)
+		{
+			return false;
+		}
+
 		int originX=0,originY=0,zoom2xX=2,zoom2xY=2,page=0;
 		TransformHostMouseForIntegration(
 		    hostMouseX,hostMouseY,
@@ -904,6 +1144,20 @@ void FMTownsCommon::SyncMouseCursorDrawCoordinate(int mx,int my)
 	(void)my;
 }
 
+void FMTownsCommon::SyncMouseInfoPrevDrawToCurrent(void)
+{
+	if(0==state.TBIOS_physicalAddr || 0==state.TBIOS_mouseInfoOffset)
+	{
+		return;
+	}
+	const unsigned int base=state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset;
+	const unsigned int x=mem.FetchWord(base+0x0C);
+	const unsigned int y=mem.FetchWord(base+0x0E);
+	// Clean TOS keeps +22/+24 at 0 — do not mirror position into those words.
+	mem.StoreWord(base+0x10,x);
+	mem.StoreWord(base+0x12,y);
+}
+
 bool FMTownsCommon::SetMouseCoordinate(int mx,int my,unsigned int tbiosid)
 {
 	struct SuppressMosProbe
@@ -933,6 +1187,22 @@ bool FMTownsCommon::SetMouseCoordinate(int mx,int my,unsigned int tbiosid)
 		return true;
 	}
 
+	if(true==var.mouseCoordProfileApply)
+	{
+		const auto p=mouseCoordWriteScan.GetActiveProfile();
+		// Direct-write: pair only (never soft).
+		if(true==p.HasDirectWriteTarget())
+		{
+			return mouseCoordWriteScan.WriteAppCursorCoords(mx,my);
+		}
+		if(true==p.HasGameFeedbackTarget())
+		{
+			// Game-port mode does not poke soft here; ControlMouse MOS snap
+			// clears profileApply before calling SetMouseCoordinate.
+			return false;
+		}
+	}
+
 	const bool useUltimaUnderworldMouse=(
 	    TOWNS_APPSPECIFIC_ULTIMAUNDERWORLD==state.appSpecificSetting &&
 	    0!=state.appSpecific_MousePtrX);
@@ -942,36 +1212,61 @@ bool FMTownsCommon::SetMouseCoordinate(int mx,int my,unsigned int tbiosid)
 		switch(tbiosid)
 		{
 		case TBIOS_V31L22A:
+			if(0==state.MOS_work_physicalAddr)
+			{
+				return false;
+			}
 			mem.StoreWord(state.MOS_work_physicalAddr+0x52,mx);
 			mem.StoreWord(state.MOS_work_physicalAddr+0x54,my);
 			return true;
 		case TBIOS_V31L23A:
 		case TBIOS_V31L31_90:
+			if(0==state.MOS_work_physicalAddr)
+			{
+				return false;
+			}
 			mem.StoreWord(state.MOS_work_physicalAddr+0x56,mx);
 			mem.StoreWord(state.MOS_work_physicalAddr+0x58,my);
 			return true;
 		case TBIOS_V31L31_91:
+			if(0==state.TBIOS_physicalAddr)
+			{
+				return false;
+			}
 			mem.StoreWord(state.TBIOS_physicalAddr+0x56C,mx);
 			mem.StoreWord(state.TBIOS_physicalAddr+0x56E,my);
 			return true;
 		case TBIOS_V31L31_92:
 		case TBIOS_V31L31_93:
+			if(0==state.TBIOS_physicalAddr)
+			{
+				return false;
+			}
 			mem.StoreWord(state.TBIOS_physicalAddr+0x510,mx);
 			mem.StoreWord(state.TBIOS_physicalAddr+0x512,my);
 			return true;
 		case TBIOS_V31L35:
-			if(0!=state.TBIOS_physicalAddr && 0!=state.TBIOS_mouseInfoOffset)
 			{
-				mem.StoreWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0C,mx);
-				mem.StoreWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0E,my);
+				bool wrote=false;
+				if(0!=state.TBIOS_physicalAddr && 0!=state.TBIOS_mouseInfoOffset)
+				{
+					mem.StoreWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0C,mx);
+					mem.StoreWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0E,my);
+					wrote=true;
+				}
+				if(0!=state.MOS_work_physicalAddr)
+				{
+					mem.StoreWord(state.MOS_work_physicalAddr+0x56,mx);
+					mem.StoreWord(state.MOS_work_physicalAddr+0x58,my);
+					wrote=true;
+				}
+				if(true!=wrote)
+				{
+					return false;
+				}
+				SyncMouseCursorDrawCoordinate(mx,my);
+				return true;
 			}
-			if(0!=state.MOS_work_physicalAddr)
-			{
-				mem.StoreWord(state.MOS_work_physicalAddr+0x56,mx);
-				mem.StoreWord(state.MOS_work_physicalAddr+0x58,my);
-			}
-			SyncMouseCursorDrawCoordinate(mx,my);
-			return true;
 		}
 	}
 	else
@@ -1062,7 +1357,7 @@ bool FMTownsCommon::ControlMouseInVMCoord(int goalMouseX,int goalMouseY,unsigned
 	return false;
 }
 
-bool FMTownsCommon::ControlMouseByDiff(int diffX,int diffY,unsigned int tbiosid,int slowDownRange)
+bool FMTownsCommon::ControlMouseByDiff(int diffX,int diffY,unsigned int tbiosid,int slowDownRange,bool instant)
 {
 	if(state.MOS_pulsePerPixelH<8)
 	{
@@ -1075,34 +1370,44 @@ bool FMTownsCommon::ControlMouseByDiff(int diffX,int diffY,unsigned int tbiosid,
 		diffY/=8;
 	}
 
-	int speed=state.mouseIntegrationSpeed;
-	if(TOWNS_APPSPECIFIC_OPERATIONWOLF==state.appSpecificSetting)
+	int dx,dy;
+	if(true==instant)
 	{
-		speed*=2;
+		// Already shaped by caller (ClampStep).  Only enforce gameport ±127.
+		dx=std::max(std::min(diffX,127),-127);
+		dy=std::max(std::min(diffY,127),-127);
 	}
+	else
+	{
+		int speed=state.mouseIntegrationSpeed;
+		if(TOWNS_APPSPECIFIC_OPERATIONWOLF==state.appSpecificSetting)
+		{
+			speed*=2;
+		}
 
-	auto dx=ScaleStep(ClampStep(diffX),speed);
-	auto dy=ScaleStep(ClampStep(diffY),speed);
-	if(-slowDownRange<=dx && dx<=slowDownRange)
-	{
-		if(dx<0)
+		dx=ScaleStep(ClampStep(diffX),speed);
+		dy=ScaleStep(ClampStep(diffY),speed);
+		if(-slowDownRange<=dx && dx<=slowDownRange)
 		{
-			dx=-1;
+			if(dx<0)
+			{
+				dx=-1;
+			}
+			else if(0<dx)
+			{
+				dx=1;
+			}
 		}
-		else if(0<dx)
+		if(-slowDownRange<=dy && dy<=slowDownRange)
 		{
-			dx=1;
-		}
-	}
-	if(-slowDownRange<=dy && dy<=slowDownRange)
-	{
-		if(dy<0)
-		{
-			dy=-1;
-		}
-		else if(0<dy)
-		{
-			dy=1;
+			if(dy<0)
+			{
+				dy=-1;
+			}
+			else if(0<dy)
+			{
+				dy=1;
+			}
 		}
 	}
 	for(auto &p : gameport.state.ports)
@@ -1306,6 +1611,15 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 		return true;
 	}
 
+	if(true==var.mouseCoordProfileApply)
+	{
+		const auto p=mouseCoordWriteScan.GetActiveProfile();
+		if(true==p.HasDirectWriteTarget() || true==p.HasGameFeedbackTarget())
+		{
+			return mouseCoordWriteScan.ReadProfileCoords(mx,my);
+		}
+	}
+
 	// Custom Mouse Integration <<
 
 	const bool useUltimaUnderworldMouse=(
@@ -1317,6 +1631,10 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 		switch(tbiosid)
 		{
 		case TBIOS_V31L22A:
+			if(0==state.MOS_work_physicalAddr)
+			{
+				return false;
+			}
 			// 0110:0000FA88 8A6F44                    MOV     CH,[EDI+44H]
 			// 0110:0000FA8B 8B5752                    MOV     EDX,[EDI+52H]
 			// 0110:0000FA8E 0FA4D310                  SHLD    EBX,EDX,10H
@@ -1328,6 +1646,10 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 			my=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x54);
 			return true;
 		case TBIOS_V31L23A:
+			if(0==state.MOS_work_physicalAddr)
+			{
+				return false;
+			}
 			// 0110:000103B8 8A6F44                    MOV     CH,[EDI+44H]
 			// 0110:000103BB 8B5756                    MOV     EDX,[EDI+56H]
 			// 0110:000103BE 0FA4D310                  SHLD    EBX,EDX,10H
@@ -1339,6 +1661,10 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 			my=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x58);
 			return true;
 		case TBIOS_V31L31_90:
+			if(0==state.MOS_work_physicalAddr)
+			{
+				return false;
+			}
 			// 0110:000103B8 8A6F44                    MOV     CH,[EDI+44H]
 			// 0110:000103BB 8B5756                    MOV     EDX,[EDI+56H]
 			// 0110:000103BE 0FA4D310                  SHLD    EBX,EDX,10H
@@ -1350,6 +1676,10 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 			my=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x58);
 			return true;
 		case TBIOS_V31L31_91:
+			if(0==state.TBIOS_physicalAddr)
+			{
+				return false;
+			}
 			// 0110:00011064 648A2D1C050000            MOV     CH,FS:[0000051CH]
 			// 0110:0001106B 648B156C050000            MOV     EDX,FS:[0000056CH]
 			// 0110:00011072 0FA4D310                  SHLD    EBX,EDX,10H
@@ -1362,6 +1692,10 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 			return true;
 		case TBIOS_V31L31_92:
 		case TBIOS_V31L31_93:
+			if(0==state.TBIOS_physicalAddr)
+			{
+				return false;
+			}
 			// 0110:00011D50 268A2D28050000            MOV     CH,ES:[00000528H]
 			// 0110:00011D57 268B1510050000            MOV     EDX,ES:[00000510H]
 			// 0110:00011D5E 0FA4D310                  SHLD    EBX,EDX,10H
@@ -1373,18 +1707,23 @@ bool FMTownsCommon::GetMouseCoordinate(int &mx,int &my,unsigned int tbiosid) con
 			return true;
 		case TBIOS_V31L35:
 			// V2.1 L31 / L50 — mouse X/Y at [EDI+0CH] / [EDI+0EH]
-			if(0!=state.TBIOS_physicalAddr && 0!=state.TBIOS_mouseInfoOffset)
 			{
-				mx=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0C);
-				my=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0E);
+				bool got=false;
+				if(0!=state.TBIOS_physicalAddr && 0!=state.TBIOS_mouseInfoOffset)
+				{
+					mx=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0C);
+					my=(int)mem.FetchWord(state.TBIOS_physicalAddr+state.TBIOS_mouseInfoOffset+0x0E);
+					got=true;
+				}
+				if(0!=state.MOS_work_physicalAddr &&
+				   (0==state.TBIOS_mouseInfoOffset || (0==mx && 0==my)))
+				{
+					mx=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x56);
+					my=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x58);
+					got=true;
+				}
+				return got;
 			}
-			if(0!=state.MOS_work_physicalAddr &&
-			   (0==state.TBIOS_mouseInfoOffset || (0==mx && 0==my)))
-			{
-				mx=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x56);
-				my=(int)mem.FetchWord(state.MOS_work_physicalAddr+0x58);
-			}
-			return true;
 		}
 	}
 	else

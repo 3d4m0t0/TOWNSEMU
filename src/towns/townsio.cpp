@@ -214,7 +214,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 		}
 		break;
 	case TOWNSIO_CPU_MISC3: // 0x24
-		if(TOWNSTYPE_2_UG<=townsType)
+		if(TOWNSTYPE_2_UG<=townsType || true==ugGenerationIO)
 		{
 			return 0x07;
 		}

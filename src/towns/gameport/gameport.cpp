@@ -831,6 +831,30 @@ void TownsGamePort::State::Reset(void)
 		}
 		else
 		{
+			if(MOUSE==state.ports[0].device)
+			{
+				auto &cpu=townsPtr->CPU();
+				const unsigned int csVal=cpu.state.CS().value;
+				const bool tbiosCaller=
+				    0x110==csVal ||
+				    0x110==(csVal&0xFFF8);
+				const bool appCaller=
+				    0==cpu.state.inInterruptDepth &&
+				    csVal>=0x100 &&
+				    csVal<0xF000 &&
+				    true!=tbiosCaller;
+				// MOS-usage counting stays app-only.
+				if(true==appCaller)
+				{
+					++townsPtr->state.gameportMouseReadCount;
+				}
+				// Coord scan: also follow TBIOS soft-cursor updates (CS 0x110, often from ISR).
+				if(true==townsPtr->var.mouseCoordWriteScanEnabled &&
+				   (true==appCaller || true==tbiosCaller))
+				{
+					townsPtr->mouseCoordWriteScan.OnMouseIoRead(0,true==tbiosCaller);
+				}
+			}
 			return state.ports[0].Read(townsPtr->state.townsTime);
 		}
 		break;
@@ -852,15 +876,22 @@ void TownsGamePort::State::Reset(void)
 			// a system/ROM selector.  Mirrors MosCoordReadProbe::NoteRead's classification.
 			auto &cpu=townsPtr->CPU();
 			const unsigned int csVal=cpu.state.CS().value;
-			const bool systemCaller=
-			    0<cpu.state.inInterruptDepth ||
-			    csVal<0x100 ||
-			    0xF000<=csVal ||
+			const bool tbiosCaller=
 			    0x110==csVal ||
 			    0x110==(csVal&0xFFF8);
-			if(true!=systemCaller)
+			const bool appCaller=
+			    0==cpu.state.inInterruptDepth &&
+			    csVal>=0x100 &&
+			    csVal<0xF000 &&
+			    true!=tbiosCaller;
+			if(true==appCaller)
 			{
 				++townsPtr->state.gameportMouseReadCount;
+			}
+			if(true==townsPtr->var.mouseCoordWriteScanEnabled &&
+			   (true==appCaller || true==tbiosCaller))
+			{
+				townsPtr->mouseCoordWriteScan.OnMouseIoRead(1,true==tbiosCaller);
 			}
 		}
 		return state.ports[1].Read(townsPtr->state.townsTime);

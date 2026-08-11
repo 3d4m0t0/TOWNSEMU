@@ -1675,6 +1675,9 @@ public:
 	*/
 	void PopCallStack(unsigned int CS,unsigned int EIP);
 
+	/*! Always-on INT 21H notify (Load/Exec path etc.).  Independent of enableCallStack. */
+	void NotifyINT21HIfNeeded(unsigned int INTNum,const Memory &mem);
+
 	/*! Attaches a debugger.
 	*/
 	void AttachDebugger(i486Debugger *debugger);

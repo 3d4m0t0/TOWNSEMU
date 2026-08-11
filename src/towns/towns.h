@@ -60,6 +60,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include "outside_world.h"
 #include "mos_coord_probe.h"
+#include "mouse_coord_write_scan.h"
 
 
 
@@ -347,6 +348,33 @@ public:
 		std::string customMouseX,customMouseY;
 		unsigned int customMouseCaptureTiming=TOWNS_CUSTOM_MOUSE_CAPTURE_NEVER;
 
+		/*! Prep-phase mouse coord write scan (gameport IO → next stores). Default off. */
+		bool mouseCoordWriteScanEnabled=false;
+
+		/*! Force mouse-capture (differential) for coord list refresh/prune.
+		    Independent of Scan; Scan turns this on as well. */
+		bool mouseCoordForceCapture=false;
+
+		/*! Calibration session: force differential mouse IO so guest phys update. */
+		bool mouseCoordCalibrating=false;
+
+		/*! When true, Get/SetMouseCoordinate use MouseCoordWriteScan active profile
+		    (absolute poke). Set each frame from Outside_World when a verified
+		    profile applies and MOS is unused or down (never while MOS is in use).
+		    TOS desktop keeps normal MOS absolute instead. */
+		bool mouseCoordProfileApply=false;
+
+		/*! Global gate (Settings → Features): apply per-disc fp_*.ini overrides
+		    for machine settings and mouse integration. */
+		bool useDiscProfiles=true;
+
+		/*! Profile feedback-only: one packet in flight until Phys ACKs or the
+		    gameport is idle (see ControlMouse).  Re-filling too early oscillates. */
+		bool profileDeltaInFlight=false;
+		int profilePrevFeedbackX=0,profilePrevFeedbackY=0;
+		bool profileWaitFeedbackX=false,profileWaitFeedbackY=false;
+		int profileDeltaWait=0;
+
 		int mouseMinX=TownsStartParameters::DEFAULT_MOUSE_MINX;
 		int mouseMaxX=TownsStartParameters::DEFAULT_MOUSE_MAXX;
 		int mouseMinY=TownsStartParameters::DEFAULT_MOUSE_MINY;
@@ -530,12 +558,18 @@ public:
 	// Machine State <<
 
 	unsigned int townsType;
+
+	/*! UG-generation peripheral I/O (see TownsStartParameters::ugGenerationIO). */
+	bool ugGenerationIO=false;
+
 	Variable var;
 	InOut io;
 	Memory mem;
 
 	std::unique_ptr<MosCoordReadProbe> mosCoordProbeA;
 	std::unique_ptr<MosCoordReadProbe> mosCoordProbeB;
+
+	MouseCoordWriteScan mouseCoordWriteScan;
 
 	/*! Pointers of all devices (except *this) must be stored in allDevices.
 	*/
@@ -642,7 +676,7 @@ public:
 	bool ControlMouse(int hostMouseX,int houstMouseY,unsigned int tbiosid);
 	bool ControlMouse(int &diffX,int &diffY,int hostMouseX,int houstMouseY,unsigned int tbiosid,bool snap=false);
 
-	/*! Write guest mouse coordinate directly (used by snap mouse integration test). */
+	/*! Write guest mouse coordinate directly (MOS soft-cursor words etc.). */
 	bool SetMouseCoordinate(int mx,int my,unsigned int tbiosid);
 
 	/*! Install a short-lived probe that counts guest reads of MOS/TBIOS mouse coords. */
@@ -659,13 +693,15 @@ public:
 	bool GetMouseCursorDrawCoordinate(int &mx,int &my) const;
 	/*! No-op kept for call sites; do not write guessed CURSOR_POSITION addresses. */
 	void SyncMouseCursorDrawCoordinate(int mx,int my);
+	/*! Copy mouseInfo current (+0x0C/+0x0E) into prev-draw (+0x10/+0x12) so XOR undraw matches. */
+	void SyncMouseInfoPrevDrawToCurrent(void);
 
 	/*! Control mouse return.  The difference from ControlMouse is the input x and y are in the Towns's
 	    mouse coordinate.
 	*/
 	bool ControlMouseInVMCoord(int goalMouseX,int goalMouseY,unsigned int tbiosid);
 
-	bool ControlMouseByDiff(int diffX,int diffY,unsigned int tbiosid,int slowDownRange=0);
+	bool ControlMouseByDiff(int diffX,int diffY,unsigned int tbiosid,int slowDownRange=0,bool instant=false);
 
 	bool ControlMouseByDiffDirect(int diffX,int diffY);
 

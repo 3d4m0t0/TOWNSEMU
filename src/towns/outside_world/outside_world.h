@@ -63,12 +63,17 @@ public:
 	/*! User preference while Mouse BIOS (TBIOS/MOS) is active. Absolute/snap when false.
 	    Toggled at runtime by middle mouse button (not a persistent settings checkbox). */
 	bool differentialMouseIntegration=false;
-	/*! When Mouse BIOS is inactive, automatically use differential integration. */
-	bool autoDifferentialOnMouseBIOSStop=true;
+	/*! When MOS is active but unused (Default mode only), automatically switch to
+	    mouse capture.  Explicit MOS / app-specific profiles ignore this.
+	    Mouse-BIOS-stop → capture is always on. */
+	bool autoDifferentialOnMosUnused=true;
 	/*! Runtime path actually used for ProcessMouse vs ProcessMouseDifferential. */
 	bool effectiveDifferentialMouseIntegration=false;
 	/*! False after middle-button release with MOS down; click resumes. */
 	bool mouseFeedingEnabled_=true;
+	/*! After abs↔diff / apply / capture path change: next ProcessMouse* forces buttons up
+	    so a stale host lastKnownMouse cannot re-stick the guest gameport buttons. */
+	bool mouseButtonsForceRelease_=false;
 	/*! Middle-button released capture while MOS inactive (host cursor shown). */
 	bool mouseCaptureReleased_=false;
 	/*! GUI/core failsafe: force host cursor visible (e.g. VM appear hung). */
@@ -84,7 +89,7 @@ public:
 	bool mosUnusedForcedDiff_=false;
 	/*! Observing MOS usage after AH=00 (force differential while probing). */
 	bool mosUsageObserving_=false;
-	/*! After concluding "MOS is read" (e.g. MI2 launcher), watch for reads to stop. */
+	/*! After concluding "MOS is read" (MOS-driven UI), watch for reads to stop. */
 	bool mosUsageMonitorAfterUse_=false;
 	/*! After desktop concluded "MOS is read", re-check once non-desktop CRTC appears. */
 	bool mosUsageAwaitExoticReprobe_=false;
@@ -102,25 +107,24 @@ public:
 	int mosUsagePrevHostX_=0,mosUsagePrevHostY_=0;
 	bool mosUsageHostPosValid_=false;
 	/*! Count of "forced differential → MOS reads resumed → reverted" oscillations in the
-	    current MOS session.  A MOS-driven UI (e.g. MI2 launcher) reads MOS again as soon as
+	    current MOS session.  A MOS-driven UI reads MOS again as soon as
 	    differential feeds the gameport, so it reverts every time; a gameport-only title never
 	    resumes MOS reads.  After a couple of reverts we latch to absolute (below). */
 	unsigned int mosUsageRevertCount_=0;
 	/*! Latched "this MOS session is MOS-driven, keep absolute" until the next AH=00. */
 	bool mosUsageLatchAbsolute_=false;
-	/*! Read-count MOS-usage probe.  After AH=00 (also fired when TBIOS is re-identified on
-	    app exit) we start in absolute integration with the MOS-coordinate read watchpoint
-	    installed (FMTownsCommon::InterceptINT does this).
-	      Phase 1 (idle settle, MOS_LEARN_DURATION): learn which code segments read the
-	        coordinate.  The soft cursor / TBIOS redraw the cursor every frame regardless of
-	        the app, so whatever reads during the idle settle is "system" and is excluded.
-	      Phase 2 (motion): as the host mouse moves inside the picture, count reads from any
-	        other (application) segment.  A MOS-using app (MI2's launcher, TOS desktop) reads
-	        the coordinate many times while the pointer moves; a gameport-only title (MI2's
-	        game) barely reads it.  Below MOS_APP_READ_MIN we switch to differential exactly
-	        like the no-MOS case (capture released, click to capture).
-	    One-way per MOS session; reset only on the next AH=00.  Not run while the user has
-	    chosen differential integration. */
+	/*! Capture-first UI helper (unused by HEAD MOS probe; kept for status compatibility). */
+	bool mosUsageCaptureFirstActive_=false;
+	/*! Previous IsStandardDesktopCrtc sample (legacy). */
+	bool mosUsagePrevStandardDesktop_=true;
+	bool mosUsagePrevStandardDesktopInited_=false;
+	/*! MOS used/unused is only meaningful while Mouse Integration (MOS) drives soft
+	    (used → values change; unused → values stay fixed).  App apply freezes MOS
+	    either way — probe skips while mouseCoordProfileApply.
+	    After AH=00: settle, then host motion vs soft motion:
+	      soft tracks host → latch absolute;
+	      soft frozen → mosUnusedForcedDiff_;
+	      absolute latch + soft inactive → demote. */
 	bool mosUsageLearnPhase_=false;
 	unsigned int mosUsageAppReadBaseline_=0;
 	unsigned int mosUsageBiosCallBaseline_=0;
@@ -129,6 +133,8 @@ public:
 	int mosTrackPrevHostX_=0,mosTrackPrevHostY_=0;
 	bool mosTrackSampleValid_=false;
 	unsigned int mosTrackHostMotion_=0;
+	int mosTrackSoftX_=0,mosTrackSoftY_=0;
+	bool mosTrackSoftValid_=false;
 	bool prevSpriteSpen_=false;
 	/*! Set when a non-desktop CRTC mode is seen; cleared after desktop restore. */
 	bool spriteOffsetSeenInExoticMode_=false;
@@ -142,7 +148,7 @@ public:
 	int mouseInfoRepairFrames_=0;
 	/*! TownsQt: drive mouse motion with image-space deltas when differential integration is off. */
 	bool qtImageDeltaMouseMotion=false;
-	/*! Test mode: set guest mouse coordinate equal to host in one step (no ScaleStep). */
+	/*! Test mode: set guest mouse coordinate equal to host in one step (memory write). */
 	bool snapMouseIntegration=false;
 	/*! Gradual integration frames before snap engages (layout / BIOS settle). */
 	int snapMouseWarmupRemaining=0;
@@ -327,6 +333,8 @@ public:
 
 	/*! Recompute effective path / feeding / showMouseCursor from MOS + preference + capture. */
 	void UpdateEffectiveDifferentialMouseIntegration(class FMTownsCommon &towns);
+	/*! App → TOS/TMENU return (standard CRTC + MOS): end profile apply, re-init mouse. */
+	void HandleAppToDesktopReturn(class FMTownsCommon &towns);
 	void UpdateMosUsageObservation(class FMTownsCommon &towns);
 	/*! Middle button: MOS up → toggle preference; MOS down → release capture (show host cursor). */
 	void HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns);

@@ -1365,15 +1365,15 @@ void TownsCRTC::MEMIOWriteFMRVRAMDisplayMode(unsigned char data)
 		break;
 
 	case TOWNSIO_MX_VRAMSIZE://         0x471,
-		data=(TOWNSTYPE_2_MX<=townsPtr->townsType ? 0x01 : 0x00); // [2] pp. 831
+		data=(true==state.highResAvailable ? 0x01 : 0x00); // [2] pp. 831
 		break;
 
 	case TOWNSIO_MX_IMGOUT_ADDR_LOW://  0x472,
-		data=(TOWNSTYPE_2_MX<=townsPtr->townsType ? (state.highResCrtcRegAddrLatch&255) : 0xff);
+		data=(true==state.highResAvailable ? (state.highResCrtcRegAddrLatch&255) : 0xff);
 		break;
 
 	case TOWNSIO_MX_IMGOUT_ADDR_HIGH:// 0x473,
-		data=(TOWNSTYPE_2_MX<=townsPtr->townsType ? ((state.highResCrtcRegAddrLatch>>8)&255) : 0xff);
+		data=(true==state.highResAvailable ? ((state.highResCrtcRegAddrLatch>>8)&255) : 0xff);
 		break;
 
 	case TOWNSIO_MX_IMGOUT_D0://   0x474,

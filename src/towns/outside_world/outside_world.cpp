@@ -1363,11 +1363,186 @@ void Outside_World::LogHostMessage(const std::string &message)
 	std::cout.flush();
 }
 
+namespace
+{
+bool IsStandardDesktopCrtc(const FMTownsCommon &towns);
+void ClearStaleSpriteOffsetIfNeeded(FMTownsCommon &towns,bool force);
+
+/*! Decide when the host must use mouse capture (relative gameport deltas).
+
+    Mode summary (non-desktop):
+      Default:           no MOS → capture; MOS → MOS; MOS unused → capture.
+      MOS profile:       no MOS → capture; MOS → MOS; no unused detection.
+      App-specific:      no MOS → capture; MOS → MOS; bound EXE/EXP start → phys
+                         (unused does not switch; MOS+phys may both update).
+      Capture profile:   always capture.
+    Capture is exclusive with MOS absolute and with app-specific apply. */
+bool MouseCoordForcesDifferential(const FMTownsCommon &towns,bool standardDesktop)
+{
+	if(true==towns.var.mouseCoordWriteScanEnabled ||
+	   true==towns.var.mouseCoordForceCapture)
+	{
+		return true;
+	}
+	if(true==towns.var.mouseCoordCalibrating)
+	{
+		return true;
+	}
+	// MOS alive: stay on mouse integration.  Unused → capture (Default only) is
+	// decided elsewhere (mosUnusedForcedDiff_ / mouseCoordProfileApply).
+	if(true==towns.state.mouseBIOSActive)
+	{
+		return false;
+	}
+	const bool profileLoaded=towns.mouseCoordWriteScan.ProfileLoaded();
+	if(true==profileLoaded)
+	{
+		const auto p=towns.mouseCoordWriteScan.GetActiveProfile();
+		if(true==p.WantsDifferential())
+		{
+			return true!=standardDesktop;
+		}
+		// Mouse BIOS down: direct-write / game-cursor feedback still supply absolute
+		// once app-specific apply is armed (Outside_World), not merely by profile.
+		if(true==p.verified && true!=standardDesktop &&
+		   (true==p.HasDirectWriteTarget() || true==p.HasGameFeedbackTarget()))
+		{
+			return false;
+		}
+		return true!=standardDesktop;
+	}
+	// No profile + MOS down → mouse capture off the desktop.
+	return true!=standardDesktop;
+}
+}
+
 void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCommon &towns)
 {
 	UpdateMosUsageObservation(towns);
 
+	const bool calibrating=towns.var.mouseCoordCalibrating;
+	const bool standardDesktop=IsStandardDesktopCrtc(towns);
+
+	// App → TOS/TMENU return detection (same signals ProcessMouse used).
+	bool mosReinit=false;
+	if(true!=mouseBIOSStartSerialInited_)
+	{
+		lastMouseBIOSStartSerial_=towns.state.mouseBIOSStartSerial;
+		mouseBIOSStartSerialInited_=true;
+	}
+	else if(lastMouseBIOSStartSerial_!=towns.state.mouseBIOSStartSerial)
+	{
+		lastMouseBIOSStartSerial_=towns.state.mouseBIOSStartSerial;
+		if(1<towns.state.mouseBIOSStartSerial)
+		{
+			mosReinit=true;
+		}
+	}
+	if(true!=standardDesktop)
+	{
+		if(true!=spriteOffsetSeenInExoticMode_)
+		{
+			mouseDesktopSnapApplied_=false;
+		}
+		spriteOffsetSeenInExoticMode_=true;
+		mouseDesktopSnapshotValid_=true;
+	}
+	const bool quietDesktop=
+	    true==standardDesktop &&
+	    true==towns.state.mouseBIOSActive &&
+	    // Event scenes can look desktop-like with MOS blips but TBIOS soft is gone (TB:0).
+	    // Real TOS/TMENU return has a resolvable soft-cursor / mouse-info block.
+	    0!=towns.state.tbiosVersion &&
+	    0!=towns.state.TBIOS_physicalAddr &&
+	    0!=towns.state.TBIOS_mouseInfoOffset;
+	const bool desktopReturn=
+	    (true==spriteOffsetSeenInExoticMode_ && true==quietDesktop) ||
+	    (true==mosReinit && true==quietDesktop);
+	if(true==desktopReturn)
+	{
+		HandleAppToDesktopReturn(towns);
+	}
+
+	const bool mouseCoordForcedDiff=MouseCoordForcesDifferential(towns,standardDesktop);
 	const bool mosActive=towns.state.mouseBIOSActive;
+	const bool discProfilesOn=towns.var.useDiscProfiles;
+	const auto activeProf=towns.mouseCoordWriteScan.GetActiveProfile();
+	const bool profileReady=
+	    true==discProfilesOn &&
+	    true==towns.mouseCoordWriteScan.ProfileLoaded() &&
+	    true==activeProf.verified;
+	const bool profileAppOrNew=
+	    true==profileReady &&
+	    (true==activeProf.HasDirectWriteTarget() ||
+	     true==activeProf.HasGameFeedbackTarget());
+	const bool profileCapture=
+	    true==profileReady && true==activeProf.WantsDifferential();
+	// App-specific: Bind fingerprint arms identity.
+	// Rising apply after bound EXE/EXP start + loader grace (not AH=3DH instant).
+	// Other EXEs (launcher): MOS absolute, no phys.
+	// Bound identity: app phys; MOS soft may still update while BIOS lives.
+	const bool appExecArmed=
+	    true==discProfilesOn &&
+	    towns.mouseCoordWriteScan.AppExecMatched();
+	const bool profileApplySticky=towns.var.mouseCoordProfileApply;
+	if(true==appExecArmed && true==mosActive)
+	{
+		towns.mouseCoordWriteScan.NoteAppExecMosActive(
+		    towns.state.mouseBIOSStartSerial);
+	}
+	const bool inGameReady=
+	    true==appExecArmed &&
+	    towns.mouseCoordWriteScan.AppExecReadyForProfileApply();
+	// App-specific never uses MOS-unused → capture.  Keep MOS absolute until
+	// in-game apply (and alongside apply while MOS remains alive).
+	if(true==profileAppOrNew)
+	{
+		mosUnusedForcedDiff_=false;
+		if(true==mosActive)
+		{
+			mosUsageLatchAbsolute_=true;
+		}
+	}
+	const bool allowProfileApply=
+	    (true==appExecArmed && true==inGameReady) ||
+	    (true==appExecArmed && true==profileApplySticky && true!=mosActive);
+	// Event scenes often match "desktop-like" CRTC (640× zoom2× single page) while still
+	// in-game.  After we have seen exotic CRTC, do not treat that as TMENU for profile
+	// gating — real TOS return clears spriteOffsetSeenInExoticMode_ in HandleAppToDesktopReturn.
+	const bool profileDesktopBlock=
+	    true==standardDesktop && true!=spriteOffsetSeenInExoticMode_;
+	(void)profileDesktopBlock;
+	const bool wantProfileApply=
+	    true==allowProfileApply &&
+	    true!=calibrating &&
+	    true!=towns.var.mouseCoordWriteScanEnabled &&
+	    true!=towns.var.mouseCoordForceCapture &&
+	    (true==profileAppOrNew);
+	if(true==wantProfileApply && true!=profileApplySticky)
+	{
+		// Rising edge: clear residual IO before profile deltas start.
+		// Do not latch MOS-unused → capture; app-specific keeps MOS absolute
+		// alongside phys while Mouse BIOS remains alive.
+		towns.DontControlMouse();
+	}
+	else if(true!=wantProfileApply && true==profileApplySticky)
+	{
+		// Falling edge (EXE end / TMENU return): drop residual poke state.
+		towns.DontControlMouse();
+	}
+	towns.var.mouseCoordProfileApply=wantProfileApply;
+	towns.mouseCoordWriteScan.NoteMouseProfileApply(wantProfileApply);
+	towns.mouseCoordWriteScan.SyncAppStoreGuard(
+	    true==wantProfileApply && true==activeProf.HasDirectWriteTarget());
+	// MOS absolute must not depend on allowProfileApply (MOS-in-use clears that).
+	const bool profileKeepAbs=
+	    true==discProfilesOn &&
+	    true!=calibrating &&
+	    true!=towns.var.mouseCoordWriteScanEnabled &&
+	    true!=towns.var.mouseCoordForceCapture &&
+	    true!=standardDesktop &&
+	    towns.mouseCoordWriteScan.ProfileKeepsAbsolute();
+
 	if(true==mosActive)
 	{
 		mouseBIOSEverActive_=true;
@@ -1376,11 +1551,16 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 	else
 	{
 		// Absolute/snap needs MOS. Without it, only gameport deltas are valid
-		// (unless an app-specific hold forbids motion, or auto-switch is disabled).
-		bool allowForced=true==autoDifferentialOnMouseBIOSStop;
-		if(true==allowForced &&
-		   TOWNS_APPSPECIFIC_WINGCOMMANDER2==towns.state.appSpecificSetting &&
+		// (unless an app-specific hold forbids motion). Always default on —
+		// not gated by the MOS-unused checkbox.
+		bool allowForced=true;
+		if(TOWNS_APPSPECIFIC_WINGCOMMANDER2==towns.state.appSpecificSetting &&
 		   true==towns.state.appSpecific_HoldMouseIntegration)
+		{
+			allowForced=false;
+		}
+		// CD mouse-coord profile absolute (incl. direct-write while MOS is down).
+		if(true==towns.var.mouseCoordProfileApply || true==profileKeepAbs)
 		{
 			allowForced=false;
 		}
@@ -1393,20 +1573,44 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 
 	// Decide differential vs absolute/snap first. Capture on/off applies only to
 	// differential; absolute/snap always feeds while the host window is focused.
+	// Operation mode from the disc profile wins over the MOS-usage heuristic.
 	bool nextDiffWanted=false;
-	if(true!=mosActive)
+	if(true==calibrating ||
+	   true==towns.var.mouseCoordWriteScanEnabled ||
+	   true==towns.var.mouseCoordForceCapture)
+	{
+		nextDiffWanted=true;
+	}
+	else if(true==profileCapture)
+	{
+		nextDiffWanted=true;
+	}
+	else if(true==towns.var.mouseCoordProfileApply || true==profileKeepAbs)
+	{
+		// App / new / MOS absolute for this disc.
+		differentialMouseIntegration=false;
+		nextDiffWanted=false;
+	}
+	else if(true==mouseCoordForcedDiff)
+	{
+		nextDiffWanted=true;
+	}
+	else if(true==mosActive && true!=mosUnusedForcedDiff_)
+	{
+		// MOS alive and used, no absolute profile → Features preference.
+		nextDiffWanted=differentialMouseIntegration;
+	}
+	else if(true!=mosActive)
 	{
 		nextDiffWanted=mouseBIOSStoppedForcedDiff_;
 	}
 	else if(true==mosUnusedForcedDiff_)
 	{
-		// MOS-alive-but-unused titles (e.g. Monkey Island 2's game).
+		// MOS active but unused, and no profile absolute → mouse capture.
 		nextDiffWanted=true;
 	}
 	else
 	{
-		// Includes the read-count probe window (mosUsageObserving_): start/stay absolute so
-		// a MOS-using app can read the coordinate we maintain and be detected.
 		nextDiffWanted=differentialMouseIntegration;
 	}
 
@@ -1415,13 +1619,22 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 		// Auto-engaged differential must not grab the host mouse on its own: begin with
 		// capture released so the user starts capture by clicking (ResumeMouseCapture).
 		// Applied once per force episode so a later click-to-capture is not overridden.
-		if(true==autoForcedDiff)
+		// Calibration: keep feeding (do not release capture every frame).
+		if(true==calibrating ||
+		   true==towns.var.mouseCoordWriteScanEnabled ||
+		   true==towns.var.mouseCoordForceCapture)
+		{
+			forcedDiffReleaseApplied_=false;
+			mouseCaptureReleased_=false;
+		}
+		else if(true==autoForcedDiff || true==mouseCoordForcedDiff)
 		{
 			if(true!=forcedDiffReleaseApplied_)
 			{
 				forcedDiffReleaseApplied_=true;
 				mouseCaptureReleased_=true;
 			}
+			// Do not clear mouseCaptureReleased_ here — middle button / click own it.
 		}
 		else
 		{
@@ -1466,11 +1679,68 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 		}
 	}
 
+	// Mode / apply / feeding edges: release guest buttons.  Capture grab↔ungrab and
+	// abs↔diff often lose the host button-up, leaving gameport buttons stuck down.
+	const bool pathChanged=
+	    nextDiff!=effectiveDifferentialMouseIntegration ||
+	    feeding!=mouseFeedingEnabled_ ||
+	    wantProfileApply!=profileApplySticky;
+	if(true==pathChanged)
+	{
+		towns.SetMouseButtonState(false,false);
+		mouseButtonsForceRelease_=true;
+	}
+
 	effectiveDifferentialMouseIntegration=nextDiff;
 	mouseFeedingEnabled_=feeding;
 	showMouseCursor=
 	    true==mouseCaptureReleased_ ||
 	    true==mouseFailsafeShowHostCursor_;
+}
+
+void Outside_World::HandleAppToDesktopReturn(class FMTownsCommon &towns)
+{
+	ClearStaleSpriteOffsetIfNeeded(towns,true);
+	towns.state.mouseDisplayPage=0;
+	towns.crtc.state.crtcReg[TownsCRTC::REG_FA0]=0;
+	towns.crtc.state.crtcReg[TownsCRTC::REG_FA0+4]=0;
+
+	// End CD mouse-coord profile apply (profile file stays loaded for the next game).
+	// Do not clear Current EXE here: some titles stay in the same EXP while
+	// MOS menus look like TOS/TMENU (desktop CRTC + MOS).  Real process end is
+	// INT 21H AH=4CH → OnDosTerminate("terminate").  Apply is recomputed below
+	// in UpdateEffectiveDifferentialMouseIntegration when identity is still live.
+	if(true==towns.var.mouseCoordProfileApply ||
+	   true==towns.mouseCoordWriteScan.ProfileLoaded())
+	{
+		towns.var.mouseCoordProfileApply=false;
+		towns.mouseCoordWriteScan.NoteMouseProfileApply(false);
+		towns.mouseCoordWriteScan.SyncAppStoreGuard(false);
+	}
+
+	mosUnusedForcedDiff_=false;
+	mosUsageLatchAbsolute_=false;
+	mosUsageObserving_=false;
+	mosUsageLearnPhase_=false;
+	mosUsageObserveSerial_=0;
+
+	// Re-init host→guest mouse for TOS/TMENU (MOS absolute).
+	towns.DontControlMouse();
+	towns.SetMouseButtonState(false,false);
+	mouseButtonsForceRelease_=true;
+	towns.SyncMouseInfoPrevDrawToCurrent();
+	differentialMouseIntegration=false;
+	mouseCaptureReleased_=false;
+	forcedDiffReleaseApplied_=false;
+	mouseIntegrationActive=false;
+	mouseStationaryCount=MOUSE_STATIONARY_COUNT;
+
+	// Absolute integration during app→TOS handoff can corrupt soft-cursor XOR
+	// state.  Pause briefly so TOS can re-center (same as a differential-mode exit).
+	mouseInfoRepairFrames_=180;
+	mouseDesktopSnapApplied_=true;
+	ResetSnapMouseWarmup();
+	spriteOffsetSeenInExoticMode_=false;
 }
 
 void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns)
@@ -1482,12 +1752,27 @@ void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &town
 		return;
 	}
 
+	// CD mouse-coord profile locks absolute while profile apply is active.
+	// Do not let the middle button flip the differential preference / spam toggle logs.
+	if(true==towns.var.mouseCoordProfileApply)
+	{
+		if(true==differentialMouseIntegration || true==mouseCaptureReleased_)
+		{
+			differentialMouseIntegration=false;
+			mouseCaptureReleased_=false;
+			UpdateEffectiveDifferentialMouseIntegration(towns);
+		}
+		return;
+	}
+
 	const bool mosActive=towns.state.mouseBIOSActive;
 	const bool autoForcedDiff=
 	    (true==mosActive && true==mosUnusedForcedDiff_) ||
 	    (true!=mosActive && true==mouseBIOSStoppedForcedDiff_);
+	const bool standardDesktop=IsStandardDesktopCrtc(towns);
+	const bool mouseCoordForcedDiff=MouseCoordForcesDifferential(towns,standardDesktop);
 
-	if(true==mosActive && true!=autoForcedDiff)
+	if(true==mosActive && true!=autoForcedDiff && true!=mouseCoordForcedDiff)
 	{
 		// MOS active and user-controlled: toggle absolute/snap <-> differential.
 		// Absolute/snap has no capture on/off — only differential does.
@@ -1497,18 +1782,12 @@ void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &town
 			mouseCaptureReleased_=false;
 		}
 		UpdateEffectiveDifferentialMouseIntegration(towns);
-		std::string msg="Differential mouse integration is ";
-		msg+=cpputil::BoolToOnOffStr(differentialMouseIntegration);
-		msg+=(true==differentialMouseIntegration ?
-		      " (method=differential)." : " (method=absolute/snap).");
-		LogHostMessage(msg);
 		return;
 	}
 
-	// Differential (MOS off or auto-forced): middle button releases capture only.
+	// Differential (MOS off, auto-forced, or mouse-coord forced): middle = capture off.
 	mouseCaptureReleased_=true;
 	UpdateEffectiveDifferentialMouseIntegration(towns);
-	LogHostMessage("Mouse capture is OFF (method=manual-release).");
 }
 
 void Outside_World::ResumeMouseCapture(class FMTownsCommon &towns)
@@ -1519,12 +1798,6 @@ void Outside_World::ResumeMouseCapture(class FMTownsCommon &towns)
 	}
 	mouseCaptureReleased_=false;
 	UpdateEffectiveDifferentialMouseIntegration(towns);
-	// Capture on/off exists only for differential.  Stale release cleared while
-	// absolute/snap is active stays silent.
-	if(true==effectiveDifferentialMouseIntegration)
-	{
-		LogHostMessage("Mouse capture is ON (method=manual-resume, mode=differential).");
-	}
 }
 
 void Outside_World::SetDifferentialMouseIntegrationPreference(bool enabled,class FMTownsCommon *towns)
@@ -1626,42 +1899,20 @@ bool IsStandardDesktopCrtc(const FMTownsCommon &towns)
 	return true;
 }
 
-void SyncMouseInfoPrevDrawToCurrent(FMTownsCommon &towns)
-{
-	if(0==towns.state.TBIOS_physicalAddr || 0==towns.state.TBIOS_mouseInfoOffset)
-	{
-		return;
-	}
-	const unsigned int base=
-	    towns.state.TBIOS_physicalAddr+towns.state.TBIOS_mouseInfoOffset;
-	const unsigned int x=towns.mem.FetchWord(base+0x0C);
-	const unsigned int y=towns.mem.FetchWord(base+0x0E);
-	// Clean TOS keeps +22/+24 at 0 — do not mirror position into those words.
-	towns.mem.StoreWord(base+0x10,x);
-	towns.mem.StoreWord(base+0x12,y);
-}
 }
 
 void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 {
-	// Read-count MOS-usage probe.  See the header comment on mosUsageLearnPhase_.
-	//   AH=00 → start absolute, probe already installed by FMTownsCommon::InterceptINT.
-	//   Phase 1 (idle settle): learn soft-cursor / TBIOS "system" CS that read the coord
-	//     every frame regardless of the app.
-	//   Phase 2 (motion): count reads from application CS.  Many app reads over the move
-	//     window ⇒ MOS-using (stay absolute); few ⇒ gameport-only ⇒ differential (one-way,
-	//     capture released like the no-MOS case).
+	// MOS used/unused is only meaningful for Default (AUTO / no explicit mode):
+	//   MOS used   → soft/MOS values change with host → keep MOS absolute
+	//   MOS unused → soft/MOS values stay fixed → mouse capture
+	// Explicit MOS profile: never unused→capture.
+	// App-specific: unused does not switch; launcher/main phase owns phys apply.
 	enum
 	{
-		MOS_SETTLE_DURATION_NS=500000000,  // 0.5s settle after AH=00 to skip init transients
-		MOS_MOVE_THRESHOLD=192,            // host px (|dx|+|dy|) to accumulate before deciding
-		MOS_APP_USE_MIN=24,                // app MOS uses (direct reads + BIOS calls) ⇒ MOS-using
-		MOS_GAMEPORT_MIN=16,               // app gameport mouse-port reads over the window ⇒ the
-		                                   //   title polls the gameport for the mouse itself.
-		MOS_SOFTCURSOR_MIN=65536,          // system (soft-cursor ISR) coord reads over the window
-		                                   //   ⇒ TBIOS is actively tracking the pointer for the
-		                                   //   desktop/launcher UI.  MI2's launcher hits ~2.5e5+;
-		                                   //   its game leaves it near a per-frame idle ~1e4.
+		MOS_SETTLE_DURATION_NS=300000000,  // 0.3s settle after AH=00
+		MOS_MOVE_THRESHOLD=24,             // host px (|dx|+|dy|) before decide
+		SOFT_MOVE_MIN=1,                   // soft px that counts as "tracked"
 	};
 
 	auto stopProbe=[&](void)
@@ -1678,11 +1929,13 @@ void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 		mosUsageLearnPhase_=false;
 		mosTrackSampleValid_=false;
 		mosTrackHostMotion_=0;
+		mosTrackSoftValid_=false;
 		mosUsageAppReadBaseline_=0;
 		mosUsageBiosCallBaseline_=0;
+		mosUsageCaptureFirstActive_=false;
 	};
 
-	if(true!=autoDifferentialOnMouseBIOSStop)
+	if(true!=autoDifferentialOnMosUnused)
 	{
 		stopProbe();
 		mosUnusedForcedDiff_=false;
@@ -1691,19 +1944,59 @@ void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 		return;
 	}
 
+	if(true==towns.var.useDiscProfiles &&
+	   true==towns.mouseCoordWriteScan.ProfileLoaded())
+	{
+		const auto p=towns.mouseCoordWriteScan.GetActiveProfile();
+		if(true==p.WantsMosIntegration() ||
+		   true==p.WantsDirectWrite() ||
+		   true==p.WantsGameFeedback() ||
+		   true==p.WantsDifferential())
+		{
+			// MOS / app-specific / capture profiles: no Default unused→capture.
+			stopProbe();
+			mosUnusedForcedDiff_=false;
+			if(true==p.WantsMosIntegration() ||
+			   true==p.WantsDirectWrite() ||
+			   true==p.WantsGameFeedback())
+			{
+				mosUsageLatchAbsolute_=towns.state.mouseBIOSActive;
+			}
+			else
+			{
+				mosUsageLatchAbsolute_=false;
+			}
+			clearObs();
+			return;
+		}
+	}
+
 	if(true!=towns.state.mouseBIOSActive)
 	{
 		// No MOS: differential-only is handled by mouseBIOSStoppedForcedDiff_ elsewhere.
-		// The probe is already stopped by the AH=01 handler.
-		mosUnusedForcedDiff_=false;
-		mosUsageLatchAbsolute_=false;
+		if(true!=towns.var.mouseCoordProfileApply)
+		{
+			mosUnusedForcedDiff_=false;
+			mosUsageLatchAbsolute_=false;
+			clearObs();
+		}
+		else
+		{
+			stopProbe();
+		}
+		return;
+	}
+
+	// App-specific profile is applying — MOS soft may still update (双方);
+	// unused detection stays off for app-specific (handled above).
+	if(true==towns.var.mouseCoordProfileApply)
+	{
+		stopProbe();
 		clearObs();
 		return;
 	}
 
-	// New MOS AH=00 (also fires when TBIOS is re-identified on app exit).  The AH=00 handler
-	// already (re)started the probe with system-CS learning on; re-arm our side: start
-	// absolute and observe.
+	// New MOS AH=00.  Start absolute and observe.
 	if(mosUsageObserveSerial_!=towns.state.mouseBIOSStartSerial)
 	{
 		mosUsageObserveSerial_=towns.state.mouseBIOSStartSerial;
@@ -1714,21 +2007,74 @@ void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 		mosUsageObserveStartTownsTime_=towns.state.townsTime;
 		mosTrackSampleValid_=false;
 		mosTrackHostMotion_=0;
+		mosTrackSoftValid_=false;
 		mosUsageAppReadBaseline_=0;
 		mosUsageBiosCallBaseline_=0;
 		mosUsageSysReadBaseline_=0;
 		mosUsageGameportBaseline_=0;
 		towns.var.mosUsageLearnSystemCS=false;
+		mosUsageCaptureFirstActive_=false;
 		mouseCaptureReleased_=false;
+		forcedDiffReleaseApplied_=false;
+		differentialMouseIntegration=false;
 	}
 
-	// Decision is one-way: stay until the next AH=00.
-	if(true==mosUnusedForcedDiff_ || true==mosUsageLatchAbsolute_)
+	// Unused is one-way until AH=00.  Soft freeze under capture is not meaningful.
+	if(true==mosUnusedForcedDiff_)
 	{
 		return;
 	}
 
-	// The user explicitly chose differential — do not judge read counts in differential.
+	// Capture / differential is not driving soft toward host — MOS values will not
+	// track even when MOS is "used"; only judge while Mouse Integration (MOS) is live.
+	if(true==effectiveDifferentialMouseIntegration)
+	{
+		stopProbe();
+		clearObs();
+		return;
+	}
+
+	auto softCursorSnapshot=[&](int &softX,int &softY)->bool
+	{
+		unsigned int spx=0,spy=0;
+		return towns.mouseCoordWriteScan.GetSoftCursorSnapshot(spx,spy,softX,softY);
+	};
+	auto softCursorDead=[&](void)->bool
+	{
+		int softX=0,softY=0;
+		if(true!=softCursorSnapshot(softX,softY))
+		{
+			return true;
+		}
+		return 0==softX && 0==softY;
+	};
+	auto softCursorInactive=[&](void)->bool
+	{
+		// Bound EXE/EXP uses the shared host↔soft tracker (covers frozen non-zero).
+		if(true==towns.mouseCoordWriteScan.AppExecMatched())
+		{
+			return true==towns.mouseCoordWriteScan.SoftCursorInactiveForApp();
+		}
+		return true==softCursorDead();
+	};
+	auto markUnused=[&](const char *msg)
+	{
+		mosUsageLatchAbsolute_=false;
+		mosUnusedForcedDiff_=true;
+		mosUsageObserving_=false;
+		stopProbe();
+		towns.SetMouseButtonState(false,false);
+		LogHostMessage(msg);
+	};
+	auto markUsed=[&](void)
+	{
+		mosUsageLatchAbsolute_=true;
+		mosUsageObserving_=false;
+		stopProbe();
+		LogHostMessage("MOS usage: soft cursor tracks host — keep absolute integration.");
+	};
+
+	// User explicitly chose differential — do not judge.
 	if(true==differentialMouseIntegration)
 	{
 		stopProbe();
@@ -1736,13 +2082,7 @@ void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 		return;
 	}
 
-	// While the CRTC looks like a standard TOS desktop, DEFER (do not decide): the desktop
-	// genuinely uses the MOS coordinate so absolute is correct, and — importantly — right
-	// after a game's AH=00 the CRTC is briefly desktop-like before the game programs its own
-	// mode.  Latching absolute here would misfire on that transient (observed with MI2's
-	// game).  Keep re-arming the idle settle so learning/counting only begins once a
-	// non-desktop (game) CRTC is actually up.  A real TOS desktop simply never decides and
-	// stays absolute.
+	// Standard desktop CRTC: defer until exotic CRTC (real TOS never decides).
 	if(true==IsStandardDesktopCrtc(towns))
 	{
 		mosUsageObserving_=true;
@@ -1750,32 +2090,44 @@ void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 		mosUsageObserveStartTownsTime_=towns.state.townsTime;
 		mosTrackSampleValid_=false;
 		mosTrackHostMotion_=0;
-		mosUsageAppReadBaseline_=towns.state.mosCoordAppReadCount;
-		mosUsageBiosCallBaseline_=towns.state.mosBIOSAppCallCount;
-		mosUsageSysReadBaseline_=towns.state.mosCoordTbiosSelfReadCount;
-		mosUsageGameportBaseline_=towns.state.gameportMouseReadCount;
+		mosTrackSoftValid_=false;
 		return;
 	}
 
-	// Phase 1: settle — let the app finish initialising, then snapshot the app-read baseline.
+	// Phase 1: settle — skip AH=00 init transients.
 	if(true==mosUsageLearnPhase_)
 	{
 		if(MOS_SETTLE_DURATION_NS<=towns.state.townsTime-mosUsageObserveStartTownsTime_)
 		{
 			mosUsageLearnPhase_=false;
-			mosUsageAppReadBaseline_=towns.state.mosCoordAppReadCount;
-			mosUsageBiosCallBaseline_=towns.state.mosBIOSAppCallCount;
-			mosUsageSysReadBaseline_=towns.state.mosCoordTbiosSelfReadCount;
-			mosUsageGameportBaseline_=towns.state.gameportMouseReadCount;
 			mosTrackSampleValid_=false;
 			mosTrackHostMotion_=0;
+			mosTrackSoftValid_=false;
 		}
 		return;
 	}
 
-	// Phase 2: count app reads while the host mouse moves inside the picture.  Host positions
-	// are emu-image coordinates but mapToEmu clamps off-picture points to the picture edge, so
-	// ignore the outermost row/column to avoid counting a cursor sliding along the letterbox.
+	int softX=0,softY=0;
+	const bool softOk=softCursorSnapshot(softX,softY);
+	if(true!=softOk)
+	{
+		softX=0;
+		softY=0;
+	}
+
+	// Already latched absolute: demote when soft goes inactive (Default → capture).
+	if(true==mosUsageLatchAbsolute_)
+	{
+		if(true==softCursorInactive())
+		{
+			markUnused("MOS usage: soft cursor inactive — switch to mouse capture.");
+		}
+		return;
+	}
+
+	// Phase 2: host moves, soft must move too — else unused.
+	// Do not decide unused on soft 0,0 alone (soft can appear after settle;
+	// unused latch is one-way until the next AH=00).
 	const auto renderSize=towns.crtc.GetRenderSize();
 	const int renderW=renderSize.x();
 	const int renderH=renderSize.y();
@@ -1783,12 +2135,19 @@ void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 	const int hostY=towns.var.lastKnownMouseY;
 	const bool hostInside=
 	    0<renderW && 0<renderH &&
-	    0<hostX && hostX<renderW-1 &&
-	    0<hostY && hostY<renderH-1;
+	    0<=hostX && hostX<renderW &&
+	    0<=hostY && hostY<renderH;
 	if(true!=hostInside)
 	{
 		mosTrackSampleValid_=false;
 		return;
+	}
+
+	if(true!=mosTrackSoftValid_)
+	{
+		mosTrackSoftX_=softX;
+		mosTrackSoftY_=softY;
+		mosTrackSoftValid_=true;
 	}
 
 	if(true==mosTrackSampleValid_)
@@ -1801,59 +2160,36 @@ void Outside_World::UpdateMosUsageObservation(class FMTownsCommon &towns)
 	mosTrackPrevHostY_=hostY;
 	mosTrackSampleValid_=true;
 
-	if(MOS_MOVE_THRESHOLD<=mosTrackHostMotion_)
+	if(MOS_MOVE_THRESHOLD>mosTrackHostMotion_)
 	{
-		const unsigned int appReads=
-		    (towns.state.mosCoordAppReadCount>=mosUsageAppReadBaseline_)
-		    ? towns.state.mosCoordAppReadCount-mosUsageAppReadBaseline_ : 0;
-		const unsigned int biosCalls=
-		    (towns.state.mosBIOSAppCallCount>=mosUsageBiosCallBaseline_)
-		    ? towns.state.mosBIOSAppCallCount-mosUsageBiosCallBaseline_ : 0;
-		const unsigned int sysReads=
-		    (towns.state.mosCoordTbiosSelfReadCount>=mosUsageSysReadBaseline_)
-		    ? towns.state.mosCoordTbiosSelfReadCount-mosUsageSysReadBaseline_ : 0;
-		const unsigned int gameportReads=
-		    (towns.state.gameportMouseReadCount>=mosUsageGameportBaseline_)
-		    ? towns.state.gameportMouseReadCount-mosUsageGameportBaseline_ : 0;
-		// What actually separates MI2's launcher (want absolute) from its game (want
-		// differential) is how busy the TBIOS soft cursor is.  Both keep MOS active and both
-		// read the coordinate somehow — the launcher through the soft cursor / BIOS, the game by
-		// reading MOS_work directly from its own loop — so neither "app coordinate reads" nor
-		// "app gameport polling" tells them apart (the game does neither much: gameport 0,
-		// direct ~7e2).  But the launcher's desktop pointer makes the soft-cursor ISR read the
-		// coordinate ~2.5e5+ times as the pointer moves, whereas the game runs its own screen and
-		// leaves the soft cursor at a per-frame idle (~1e4).  So: a busy soft cursor ⇒ MOS-driven
-		// desktop UI ⇒ absolute; otherwise the app owns the screen ⇒ differential.  App gameport
-		// polling, if any, is treated as a definitive gameport game (differential) up front.
-		(void)appReads;
-		(void)biosCalls;
-		const bool gameportGame=(MOS_GAMEPORT_MIN<=gameportReads);
-		const bool mosDrivenDesktop=(MOS_SOFTCURSOR_MIN<=sysReads);
-		if(true!=gameportGame && true==mosDrivenDesktop)
-		{
-			// Soft cursor is actively tracking the pointer → MOS/TBIOS-driven desktop/launcher
-			// UI → absolute.
-			mosUsageLatchAbsolute_=true;
-			mosUsageObserving_=false;
-			stopProbe();
-			LogHostMessage("MOS usage: app uses the mouse pointer — keep absolute integration.");
-		}
-		else
-		{
-			// App owns the screen (idle soft cursor) or polls the gameport itself → the app
-			// drives its own cursor → differential (one-way, capture released like the no-MOS
-			// case; user clicks to start capture).
-			mosUnusedForcedDiff_=true;
-			mosUsageObserving_=false;
-			stopProbe();
-			LogHostMessage("MOS usage: app ignores the mouse pointer — switch to differential integration.");
-		}
-		mosTrackHostMotion_=0;
+		return;
 	}
+
+	const int sdx=softX-mosTrackSoftX_;
+	const int sdy=softY-mosTrackSoftY_;
+	const unsigned int softDist=
+	    (unsigned int)(0<=sdx?sdx:-sdx)+(unsigned int)(0<=sdy?sdy:-sdy);
+
+	if(SOFT_MOVE_MIN<=softDist)
+	{
+		markUsed();
+	}
+	else
+	{
+		markUnused("MOS usage: soft cursor ignores host motion — switch to mouse capture.");
+	}
+	mosTrackHostMotion_=0;
 }
 
 void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb,int mx,int my)
 {
+	if(true==mouseButtonsForceRelease_)
+	{
+		mouseButtonsForceRelease_=false;
+		lb=0;
+		mb=0;
+		rb=0;
+	}
 	towns.SetMouseButtonState((0!=lb),(0!=rb));
 
 	const bool spen=towns.sprite.SPEN();
@@ -1863,56 +2199,8 @@ void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb
 	}
 	prevSpriteSpen_=spen;
 
-	const bool standardCrtc=IsStandardDesktopCrtc(towns);
-	const bool quietDesktop=
-	    true==standardCrtc &&
-	    true==towns.state.mouseBIOSActive &&
-	    TOWNS_APPSPECIFIC_NONE==towns.state.appSpecificSetting;
-
-	// Mouse BIOS AH=00 re-init (serial bump) — strongest "back to TOS desktop mouse" signal.
-	bool mosReinit=false;
-	if(true!=mouseBIOSStartSerialInited_)
-	{
-		lastMouseBIOSStartSerial_=towns.state.mouseBIOSStartSerial;
-		mouseBIOSStartSerialInited_=true;
-	}
-	else if(lastMouseBIOSStartSerial_!=towns.state.mouseBIOSStartSerial)
-	{
-		lastMouseBIOSStartSerial_=towns.state.mouseBIOSStartSerial;
-		// Ignore the very first AH=00 after boot (serial becomes 1); later re-inits matter.
-		if(1<towns.state.mouseBIOSStartSerial)
-		{
-			mosReinit=true;
-		}
-	}
-
-	if(true!=standardCrtc)
-	{
-		if(true!=spriteOffsetSeenInExoticMode_)
-		{
-			mouseDesktopSnapApplied_=false;
-		}
-		spriteOffsetSeenInExoticMode_=true;
-		mouseDesktopSnapshotValid_=true;
-	}
-
-	const bool desktopReturn=
-	    (true==spriteOffsetSeenInExoticMode_ && true==quietDesktop) ||
-	    (true==mosReinit && true==quietDesktop);
-	if(true==desktopReturn)
-	{
-		ClearStaleSpriteOffsetIfNeeded(towns,true);
-		towns.state.mouseDisplayPage=0;
-		towns.crtc.state.crtcReg[TownsCRTC::REG_FA0]=0;
-		towns.crtc.state.crtcReg[TownsCRTC::REG_FA0+4]=0;
-		// Absolute/snap SetMouseCoordinate during app→TOS handoff corrupts soft-cursor XOR
-		// state.  Pause briefly so TOS can re-center (same as a differential-mode exit).
-		mouseInfoRepairFrames_=180;
-		mouseIntegrationActive=false;
-		mouseDesktopSnapApplied_=true;
-		ResetSnapMouseWarmup();
-		spriteOffsetSeenInExoticMode_=false;
-	}
+	// App→TOS/TMENU return (profile end + mouse re-init) is handled in
+	// UpdateEffectiveDifferentialMouseIntegration → HandleAppToDesktopReturn.
 
 	// Pause absolute/snap integration after TOS return (until timeout or host moves).
 	if(true!=effectiveDifferentialMouseIntegration && 0<mouseInfoRepairFrames_)
@@ -1924,12 +2212,12 @@ void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb
 			towns.DontControlMouse();
 			if(0==mouseInfoRepairFrames_)
 			{
-				SyncMouseInfoPrevDrawToCurrent(towns);
+				towns.SyncMouseInfoPrevDrawToCurrent();
 			}
 			return;
 		}
 		mouseInfoRepairFrames_=0;
-		SyncMouseInfoPrevDrawToCurrent(towns);
+		towns.SyncMouseInfoPrevDrawToCurrent();
 	}
 
 	const bool hostMoved=(lastMx!=mx || lastMy!=my);
@@ -1937,9 +2225,32 @@ void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb
 	{
 		mouseIntegrationActive=true;
 		mouseStationaryCount=MOUSE_STATIONARY_COUNT;
+		towns.mouseCoordWriteScan.OnHostMouseMotion(mx-lastMx,my-lastMy);
+		// Sample host↔soft while MOS absolute is live (launcher→main), including
+		// while app phys apply is on (双方 — MOS soft may still track).
+		if(true==towns.var.useDiscProfiles &&
+		   true==towns.state.mouseBIOSActive &&
+		   true!=effectiveDifferentialMouseIntegration &&
+		   true!=mosUnusedForcedDiff_ &&
+		   true==towns.mouseCoordWriteScan.AppExecMatched())
+		{
+			unsigned int spx=0,spy=0;
+			int softX=0,softY=0;
+			const bool softOk=
+			    towns.mouseCoordWriteScan.GetSoftCursorSnapshot(spx,spy,softX,softY);
+			const bool softAlive=true==softOk && (0!=softX || 0!=softY);
+			towns.mouseCoordWriteScan.NoteAppExecSoftTrackingSample(
+			    mx,my,softAlive,softX,softY);
+		}
 	}
 
-	const bool snapEnabled=true==snapMouseIntegration && true!=effectiveDifferentialMouseIntegration;
+	const bool profileAbs=towns.var.mouseCoordProfileApply;
+	// App-specific apply: Phys follows settings; MOS side writes soft immediately
+	// inside ControlMouse (no snap warmup while apply is on).
+	const bool snapEnabled=
+	    true==snapMouseIntegration &&
+	    true!=effectiveDifferentialMouseIntegration &&
+	    true!=profileAbs;
 	const bool inSnapWarmup=snapEnabled && 0<snapMouseWarmupRemaining;
 	if(inSnapWarmup)
 	{
@@ -2347,12 +2658,33 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 		debugMiPaintY=(int)(short)towns.mem.FetchWord(base+0x2A);
 	}
 
+	if(true==towns.var.mouseCoordWriteScanEnabled)
+	{
+		towns.mouseCoordWriteScan.PollSoftCursorShadow();
+	}
+
 	towns.var.suppressMosCoordReadProbe=false;
 }
 
 void Outside_World::ProcessMouseDifferential(class FMTownsCommon &towns,int lb,int mb,int rb,int dx,int dy,int refX,int refY)
 {
+	if(true==mouseButtonsForceRelease_)
+	{
+		mouseButtonsForceRelease_=false;
+		lb=0;
+		mb=0;
+		rb=0;
+	}
 	towns.SetMouseButtonState((0!=lb),(0!=rb));
+
+	if(0!=dx || 0!=dy)
+	{
+		towns.mouseCoordWriteScan.OnHostMouseMotion(dx,dy);
+	}
+	if(true==towns.var.mouseCoordWriteScanEnabled)
+	{
+		towns.mouseCoordWriteScan.PollSoftCursorShadow();
+	}
 
 	if(0!=dx || 0!=dy)
 	{

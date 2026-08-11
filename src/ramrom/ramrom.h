@@ -320,8 +320,109 @@ public:
 		return memAccess->GetMemoryWindow(physAddr);
 	}
 
+	/*! Optional lightweight store tracer (MouseCoordWriteScan prep phase).
+	    When storeTraceRemaining>0 and storeTraceFn is set, StoreWord/Dword invoke
+	    the callback then decrement remaining.  StoreByte only decrements (no callback)
+	    — cursor hunts care about 16/32-bit words; byte blits must not flood the hook.
+	    When remaining hits 0, storeTraceFn(user,0,0,0) signals window end. */
+	using StoreTraceFn=void (*)(void *user,unsigned int physAddr,unsigned int size,unsigned int data);
+	StoreTraceFn storeTraceFn=nullptr;
+	void *storeTraceUser=nullptr;
+	unsigned int storeTraceRemaining=0;
+
+	/*! Permanent watch on a few phys addresses (chase SOURCE hops).  Does not
+	    consume storeTraceRemaining — fires whenever those words are written. */
+	enum
+	{
+		STORE_CHASE_MAX=8
+	};
+	StoreTraceFn storeChaseFn=nullptr;
+	void *storeChaseUser=nullptr;
+	unsigned int storeChasePhys[STORE_CHASE_MAX]={};
+	unsigned int storeChaseCount=0;
+
+	/*! Drop or scrub guest stores to profile app/world cursor words so host
+	    direct-write values stick.  Host sets storeGuardAllow around its own pokes. */
+	enum
+	{
+		STORE_GUARD_MAX=8
+	};
+	bool storeGuardActive=false;
+	bool storeGuardAllow=false;
+	unsigned int storeGuardPhys[STORE_GUARD_MAX]={};
+	unsigned int storeGuardCount=0;
+	unsigned int storeGuardBlockCount=0;
+
+	/*! Returns true → skip the store entirely.  May rewrite *data for a merged store. */
+	inline bool FilterGuardedStore(unsigned int physAddr,unsigned int size,unsigned int &data)
+	{
+		if(true!=storeGuardActive || true==storeGuardAllow || 0==storeGuardCount)
+		{
+			return false;
+		}
+		bool merged=false;
+		for(unsigned int i=0; i<storeGuardCount; ++i)
+		{
+			const unsigned int p=storeGuardPhys[i];
+			if(0==p)
+			{
+				continue;
+			}
+			if(physAddr==p && size<=2)
+			{
+				++storeGuardBlockCount;
+				return true;
+			}
+			if(2<=size && physAddr<=p && p+2u<=physAddr+size)
+			{
+				const unsigned int shift=(p-physAddr)*8u;
+				const unsigned int keep=FetchWord(p)&0xffffu;
+				data=(data&~(0xffffu<<shift))|(keep<<shift);
+				merged=true;
+			}
+		}
+		if(true==merged)
+		{
+			++storeGuardBlockCount;
+		}
+		return false;
+	}
+
+	inline void NoteStoreChase(unsigned int physAddr,unsigned int size,unsigned int data)
+	{
+		if(0==storeChaseCount || nullptr==storeChaseFn)
+		{
+			return;
+		}
+		for(unsigned int i=0; i<storeChaseCount; ++i)
+		{
+			const unsigned int p=storeChasePhys[i];
+			if(physAddr==p)
+			{
+				storeChaseFn(storeChaseUser,p,size,data);
+				return;
+			}
+			if(2<=size && physAddr<p && p<physAddr+size)
+			{
+				const unsigned int shift=(p-physAddr)*8u;
+				const unsigned int word=(data>>shift)&0xffffu;
+				storeChaseFn(storeChaseUser,p,2,word);
+				return;
+			}
+		}
+	}
+
 	inline void StoreByte(unsigned int physAddr,unsigned char data)
 	{
+		unsigned int d=data;
+		if(true==FilterGuardedStore(physAddr,1,d))
+		{
+			return;
+		}
+		data=(unsigned char)(d&0xff);
+		// Chase first: must not run under OnStore's mutex (deadlock).
+		NoteStoreChase(physAddr,1,data);
+		// Byte stores do not consume the trace budget — cursor hunts care about words.
 		auto memAccess=memAccessPtr[physAddr>>GRANURALITY_SHIFT];
 		memAccess->StoreByte(physAddr,data);
 	}
@@ -340,12 +441,38 @@ public:
 
 	inline void StoreWord(unsigned int physAddr,unsigned int data)
 	{
+		if(true==FilterGuardedStore(physAddr,2,data))
+		{
+			return;
+		}
+		NoteStoreChase(physAddr,2,data);
+		if(0<storeTraceRemaining && nullptr!=storeTraceFn)
+		{
+			storeTraceFn(storeTraceUser,physAddr,2,data);
+			if(0<storeTraceRemaining)
+			{
+				--storeTraceRemaining;
+			}
+		}
 		auto memAccess=memAccessPtr[physAddr>>GRANURALITY_SHIFT];
 		memAccess->StoreWord(physAddr,data);
 	}
 
 	inline void StoreDword(unsigned int physAddr,unsigned int data)
 	{
+		if(true==FilterGuardedStore(physAddr,4,data))
+		{
+			return;
+		}
+		NoteStoreChase(physAddr,4,data);
+		if(0<storeTraceRemaining && nullptr!=storeTraceFn)
+		{
+			storeTraceFn(storeTraceUser,physAddr,4,data);
+			if(0<storeTraceRemaining)
+			{
+				--storeTraceRemaining;
+			}
+		}
 		auto memAccess=memAccessPtr[physAddr>>GRANURALITY_SHIFT];
 		memAccess->StoreDword(physAddr,data);
 	}

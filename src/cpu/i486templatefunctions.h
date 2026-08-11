@@ -14,6 +14,10 @@ inline void i486DXFidelityLayer <FIDELITY>::Interrupt(unsigned int INTNum,Memory
 		debuggerPtr->Interrupt(*this,INTNum,mem,numInstBytesForReturn,SWI);
 	}
 
+	// INT 21H Load/Exec notify must run even when enableCallStack is false
+	// (call-stack PushCallStack previously gated InterceptINT21H).
+	NotifyINT21HIfNeeded(INTNum,mem);
+
 	state.halt=false;
 
 	if(state.inInterruptDepth<16)

@@ -404,6 +404,8 @@ void FMTownsCommon::State::PowerOn(void)
 
 	towns.highResPCM.state.enabled=argv.highResPCM;
 
+	towns.ugGenerationIO=argv.ugGenerationIO;
+
 	towns.var.configuredMidiCards=argv.nMidiCards;
 	towns.midi.EnableCards(argv.nMidiCards);
 
@@ -1058,6 +1060,8 @@ FMTownsCommon::FMTownsCommon() :
 
 	io.AddDevice(&fmt3631,TOWNSIO_FMT_3631_PRESENCE_CHECK); //      0x1100
 
+	mouseCoordWriteScan.Attach(*this);
+
 	baseClassReady=true;
 }
 
@@ -1313,6 +1317,10 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 			if(true!=systemCaller)
 			{
 				++state.mosBIOSAppCallCount;
+				if(true==var.mouseCoordWriteScanEnabled)
+				{
+					mouseCoordWriteScan.OnMosBiosAppCall();
+				}
 			}
 		}
 	}
@@ -1404,7 +1412,6 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 		{
 			eventLog.LogMouseEnd(state.townsTime);
 		}
-		std::cout << "Mouse BIOS stopped." << std::endl;
 		state.mouseBIOSActive=false;
 		StopMosCoordUsageProbe();
 		var.mosUsageLearnSystemCS=false;
@@ -1424,6 +1431,18 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 		{
 			eventLog.LogFileExec(state.townsTime,fName);
 		}
+	}
+	if(0x4B00==(AX&0xFF00))
+	{
+		mouseCoordWriteScan.OnDosExec(AX,fName);
+	}
+	else if(0x3D00==(AX&0xFF00))
+	{
+		mouseCoordWriteScan.OnDosFileOpen(AX,fName);
+	}
+	else if(0x4C00==(AX&0xFF00))
+	{
+		mouseCoordWriteScan.OnDosTerminate("terminate");
 	}
 }
 
