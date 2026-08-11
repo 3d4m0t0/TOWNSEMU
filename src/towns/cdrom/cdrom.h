@@ -259,6 +259,10 @@ public:
 		// for an IRQ forever.
 		// To emulate this, I need to introduce delayed status IRQ.
 		bool delayedSIRQ=false;
+		// Snapshot at ExecuteCDROMCommand: live paramQueue is freed for the next
+		// command while this one is still pending (avoids MODE params corrupting PLAY).
+		unsigned char delayedCmd=0;
+		unsigned char delayedParam[8]={0,0,0,0,0,0,0,0};
 
 		// RAYXANBER waits until the CDDA playing time reaches track 15 during the "DATAWEST" logo screen.
 		// However, .WAV file takes slightly less time to finish, and the playing time returned from CD-ROM
@@ -279,13 +283,12 @@ public:
 		unsigned int CDDAPlayPointer=0;
 
 		DiscImage::MinSecFrm CDDAWaveBaseTime;
-		bool CDDAAudioOutput=false;  // EMU mix flag; independent of CDDAState
+		bool CDDAAudioOutput=false;  // Host mix only; never affects GETSTATE / StatusSecondByte
 
-		// Host-only after short MODE read:
-		//  - before PAUSED/PLAYING → keep host mix immediately (guest idle)
-		//  - before STOP/ENDED/IDLE → arm grace; same-track PLAY within grace continues
-		//  - grace expired without PLAY → mute host
-		long long int CDDACacheStopAfterTownsTime=0;
+		// After MODE with prior PLAY/PAUSE: guest PAUSED, host may mix with no grace.
+		// Grace (sample-based) applies only to STOP/IDLE→MODE; mute host if no PLAY/RESUME.
+		uint64_t CDDAHostSamplesMixed=0;
+		uint64_t CDDACacheStopAfterHostSamples=0; // 0=inactive; else mute host when HostSamplesMixed reaches this
 		bool CDDACacheBridgingDataRead=false;
 		unsigned int CDDAStateBeforeDataRead=CDDA_IDLE;
 
@@ -464,7 +467,7 @@ public:
 	*/
 	void RunScheduledTask(unsigned long long int townsTime);
 private:
-	/*! Push No-Error and schedule the first MODE sector after optional CDDA-prefetch wait. */
+	/*! Push MODE accept (00 00) and schedule the first sector after optional prefetch wait. */
 	void StartModeSectorTransfer(uint64_t seekTime);
 
 	void SetStatusDriveNotReadyOrDiscChangedOrNoError(void);

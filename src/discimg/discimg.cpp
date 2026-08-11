@@ -14,12 +14,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 << LICENSE */
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
 #include <string.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <cstdio>
 
 #include "discimg.h"
 #include "discimg_chd.h"
@@ -145,6 +147,10 @@ void DiscImage::CleanUp(void)
 	tracks.clear();
 	layout.clear();
 	binaryCache.clear();
+	identityCached_=false;
+	cachedIdentity_=DiscIdentity();
+	fileIoStream_.close();
+	fileIoOpenName_.clear();
 }
 unsigned int DiscImage::Open(const std::string &fName)
 {
@@ -1201,21 +1207,31 @@ unsigned int DiscImage::OpenCHD(const std::string &fName)
 	fileType=FILETYPE_CHD;
 	chdAudioByteSwap_=true;
 	totalBinLength=total_bin_length;
-	num_sectors=chd_tracks.back().end_hsg+1;
 
 	const uint32_t bytes_per_frame=chdBackend_->BytesPerFrame();
 	for(const auto &chd_track : chd_tracks)
 	{
 		Track trk;
 		trk.trackType=chd_track.track_type;
+		// CHD stores CD_FRAME_SIZE (often 2448) units with per-track padding; byte
+		// offsets must come from the CHD layout (location_in_file), not start_hsg*bpf.
 		trk.sectorLength=bytes_per_frame;
 		trk.preGapSectorLength=chd_track.sector_length;
-		trk.locationInFile=static_cast<uint64_t>(chd_track.start_hsg)*bytes_per_frame;
+		trk.locationInFile=chd_track.location_in_file;
 		trk.preGap.FromHSG(0);
 		trk.start.FromHSG(chd_track.start_hsg);
 		trk.end.FromHSG(chd_track.end_hsg);
+		// In-stream pregap (pgtype V*): present in the CHD at location_in_file, but
+		// .CUE TOC/play uses INDEX 01.  Map startHSG to INDEX 01 audio so CDDA matches CUE.
+		if(0<chd_track.pgdatasize && 0<chd_track.pregap &&
+		   chd_track.end_hsg>=chd_track.start_hsg+chd_track.pregap)
+		{
+			trk.locationInFile+=static_cast<uint64_t>(chd_track.pregap)*bytes_per_frame;
+			trk.end.FromHSG(chd_track.end_hsg-chd_track.pregap);
+		}
 		tracks.push_back(trk);
 	}
+	num_sectors=(true!=tracks.empty() ? tracks.back().end.ToHSG()+1 : 0);
 
 	Binary bin;
 	bin.fName=fName;
@@ -1236,15 +1252,25 @@ bool DiscImage::ReadBinaryBytes(const Binary &bin,uint64_t offset,unsigned char 
 	{
 		return chdBackend_->Read(offset,buf,len);
 	}
-	std::ifstream ifp;
-	ifp.open(bin.fName,std::ios::binary);
-	if(true!=ifp.is_open())
+	// Keep one open handle under the mutex: CDDA prefetch of a multi-minute track
+	// used to open/seek/close per 4-frame chunk and stall PLAY status for the guest.
+	std::lock_guard<std::mutex> lock(fileIoMutex_);
+	if(fileIoOpenName_!=bin.fName || true!=fileIoStream_.is_open())
 	{
-		return false;
+		fileIoStream_.close();
+		fileIoStream_.clear();
+		fileIoStream_.open(bin.fName,std::ios::binary);
+		fileIoOpenName_=bin.fName;
+		if(true!=fileIoStream_.is_open())
+		{
+			fileIoOpenName_.clear();
+			return false;
+		}
 	}
-	ifp.seekg(static_cast<std::streamoff>(offset),std::ios::beg);
-	ifp.read(reinterpret_cast<char *>(buf),static_cast<std::streamsize>(len));
-	return ifp.gcount()==static_cast<std::streamsize>(len);
+	fileIoStream_.clear();
+	fileIoStream_.seekg(static_cast<std::streamoff>(offset),std::ios::beg);
+	fileIoStream_.read(reinterpret_cast<char *>(buf),static_cast<std::streamsize>(len));
+	return fileIoStream_.gcount()==static_cast<std::streamsize>(len);
 }
 
 void DiscImage::ApplyChdAudioByteSwap(unsigned char *wave,size_t size) const
@@ -1750,4 +1776,659 @@ DiscImage::TrackTime DiscImage::DiscTimeToTrackTime(MinSecFrm discMSF) const
 	}
 	msf.frm=cpputil::Atoi(str);
 	return true;
+}
+
+namespace
+{
+unsigned int Fnv1a32Update(unsigned int h,unsigned char b)
+{
+	h^=b;
+	h*=16777619u;
+	return h;
+}
+
+unsigned int Fnv1a32Finish(const std::string &s)
+{
+	unsigned int h=2166136261u;
+	for(unsigned char b : s)
+	{
+		h=Fnv1a32Update(h,b);
+	}
+	return h;
+}
+
+unsigned int FirstDataTrackBaseHSG(const DiscImage &disc)
+{
+	for(const auto &trk : disc.GetTracks())
+	{
+		if(DiscImage::TRACK_MODE1_DATA==trk.trackType ||
+		   DiscImage::TRACK_MODE2_DATA==trk.trackType)
+		{
+			DiscImage::MinSecFrm msf=trk.start;
+			msf.Add(trk.preGap);
+			return msf.ToHSG();
+		}
+	}
+	return 0;
+}
+
+bool IsIso9660PrimaryVolumeDescriptor(const std::vector<unsigned char> &sec)
+{
+	if(DiscImage::MODE1_BYTES_PER_SECTOR!=sec.size())
+	{
+		return false;
+	}
+	if(1!=sec[0])
+	{
+		return false;
+	}
+	return 0==memcmp(sec.data()+1,"CD001",5) && 1==sec[6];
+}
+
+unsigned int ReadLe32(const unsigned char *p)
+{
+	return (unsigned int)p[0]
+	     | ((unsigned int)p[1]<<8)
+	     | ((unsigned int)p[2]<<16)
+	     | ((unsigned int)p[3]<<24);
+}
+
+std::string NormalizeIso9660Name(const char *name,size_t len)
+{
+	if(nullptr==name || 0==len)
+	{
+		return std::string();
+	}
+	// Special directory entries "." / ".."
+	if(1==len && (0==name[0] || 1==name[0]))
+	{
+		return std::string();
+	}
+	std::string out;
+	out.reserve(len);
+	for(size_t i=0; i<len; ++i)
+	{
+		unsigned char c=(unsigned char)name[i];
+		if(';'==c)
+		{
+			break; // strip ;version
+		}
+		if('.'==c && i+1==len)
+		{
+			break; // trailing "." before version is sometimes present alone
+		}
+		if(c>='a' && c<='z')
+		{
+			c=(unsigned char)(c-'a'+'A');
+		}
+		out.push_back((char)c);
+	}
+	while(true!=out.empty() && ('.'==out.back() || ' '==out.back()))
+	{
+		out.pop_back();
+	}
+	return out;
+}
+}
+
+std::string DiscImage::TrimIso9660Field(const char *buf,size_t len)
+{
+	if(nullptr==buf || 0==len)
+	{
+		return std::string();
+	}
+	size_t end=len;
+	while(0<end && (' '==buf[end-1] || 0==buf[end-1]))
+	{
+		--end;
+	}
+	return std::string(buf,end);
+}
+
+std::vector<unsigned char> DiscImage::ReadUserData2048(unsigned int HSG) const
+{
+	{
+		const auto mode1=ReadSectorMODE1(HSG,1);
+		if(DiscImage::MODE1_BYTES_PER_SECTOR==mode1.size())
+		{
+			return mode1;
+		}
+	}
+	{
+		const auto raw=ReadSectorRAW(HSG,1);
+		if(DiscImage::AUDIO_SECTOR_SIZE<=raw.size())
+		{
+			// Mode2 Form1 user data.
+			return std::vector<unsigned char>(raw.begin()+24,raw.begin()+24+MODE1_BYTES_PER_SECTOR);
+		}
+		if(DiscImage::MODE1_BYTES_PER_SECTOR+16<=raw.size())
+		{
+			return std::vector<unsigned char>(raw.begin()+16,raw.begin()+16+MODE1_BYTES_PER_SECTOR);
+		}
+	}
+	return std::vector<unsigned char>();
+}
+
+std::vector<std::string> DiscImage::CollectIso9660RootNames(
+    const std::vector<unsigned char> &pvdSec,unsigned int pvdHSG) const
+{
+	std::vector<std::string> names;
+	if(DiscImage::MODE1_BYTES_PER_SECTOR!=pvdSec.size() || pvdHSG<16u)
+	{
+		return names;
+	}
+	// Root directory record starts at PVD offset 156.
+	const unsigned char *rootRec=pvdSec.data()+156;
+	if(34>rootRec[0])
+	{
+		return names;
+	}
+	const unsigned int rootLba=ReadLe32(rootRec+2);
+	const unsigned int rootBytes=ReadLe32(rootRec+10);
+	if(0==rootLba || 0==rootBytes)
+	{
+		return names;
+	}
+	// Map ISO LBA → disc HSG using the PVD's known ISO LBA (16).
+	const unsigned int hsgOfLba0=pvdHSG-16u;
+	const unsigned int numSec=(rootBytes+MODE1_BYTES_PER_SECTOR-1u)/MODE1_BYTES_PER_SECTOR;
+	constexpr unsigned int kMaxRootSectors=32; // enough for typical Towns roots
+	const unsigned int readSec=std::min(numSec,kMaxRootSectors);
+	for(unsigned int i=0; i<readSec; ++i)
+	{
+		const auto sec=ReadUserData2048(hsgOfLba0+rootLba+i);
+		if(DiscImage::MODE1_BYTES_PER_SECTOR!=sec.size())
+		{
+			break;
+		}
+		size_t off=0;
+		while(off+33<=sec.size())
+		{
+			const unsigned char recLen=sec[off];
+			if(0==recLen)
+			{
+				// Records don't cross sector boundaries; pad to next sector.
+				break;
+			}
+			if(off+recLen>sec.size() || recLen<34)
+			{
+				break;
+			}
+			const unsigned char nameLen=sec[off+32];
+			if(0<nameLen && off+33u+nameLen<=sec.size())
+			{
+				const std::string nm=NormalizeIso9660Name(
+				    (const char *)sec.data()+off+33,nameLen);
+				if(true!=nm.empty())
+				{
+					names.push_back(nm);
+				}
+			}
+			off+=recLen;
+		}
+	}
+	std::sort(names.begin(),names.end());
+	names.erase(std::unique(names.begin(),names.end()),names.end());
+	return names;
+}
+
+namespace
+{
+std::string UpperAsciiCopy(std::string s)
+{
+	for(char &c : s)
+	{
+		if(c>='a' && c<='z')
+		{
+			c=(char)(c-'a'+'A');
+		}
+	}
+	return s;
+}
+
+std::vector<std::string> SplitIsoRelPath(const std::string &relPath)
+{
+	std::vector<std::string> parts;
+	std::string cur;
+	for(char c : relPath)
+	{
+		if('\\'==c || '/'==c)
+		{
+			if(true!=cur.empty())
+			{
+				parts.push_back(cur);
+				cur.clear();
+			}
+			continue;
+		}
+		cur.push_back(c);
+	}
+	if(true!=cur.empty())
+	{
+		parts.push_back(cur);
+	}
+	return parts;
+}
+
+struct IsoDirEnt
+{
+	std::string name;
+	unsigned int lba=0;
+	unsigned int bytes=0;
+	bool isDir=false;
+};
+}
+
+// ReadUserData2048 is private — use it from member functions only.
+bool DiscImage::FindIso9660File(
+    const std::string &relPath,
+    unsigned int &hsgOfLba0,
+    unsigned int &fileLba,
+    unsigned int &fileBytes) const
+{
+	hsgOfLba0=0;
+	fileLba=0;
+	fileBytes=0;
+	if(true==relPath.empty() ||
+	   DiscImage::FILETYPE_NONE==fileType || 0==GetNumSectors())
+	{
+		return false;
+	}
+	std::string wantPath=UpperAsciiCopy(relPath);
+	for(char &c : wantPath)
+	{
+		if('/'==c)
+		{
+			c='\\';
+		}
+	}
+	while(true!=wantPath.empty() &&
+	      (wantPath.size()>=2 && (('A'<=wantPath[0] && wantPath[0]<='Z') ||
+	                             ('0'<=wantPath[0] && wantPath[0]<='9')) &&
+	       ':'==wantPath[1]))
+	{
+		// Strip DOS drive prefix (Q:\...).
+		wantPath.erase(0,2);
+		while(true!=wantPath.empty() && ('\\'==wantPath.front() || '/'==wantPath.front()))
+		{
+			wantPath.erase(wantPath.begin());
+		}
+	}
+	while(true!=wantPath.empty() && ('\\'==wantPath.front() || '/'==wantPath.front()))
+	{
+		wantPath.erase(wantPath.begin());
+	}
+	const auto parts=SplitIsoRelPath(wantPath);
+	if(true==parts.empty())
+	{
+		return false;
+	}
+
+	const unsigned int dataBase=FirstDataTrackBaseHSG(*this);
+	const unsigned int scanBases[]={
+		dataBase,
+		HSG_BASE,
+		0u,
+	};
+	std::vector<unsigned char> pvdSec;
+	unsigned int pvdHSG=0;
+	for(const unsigned int base : scanBases)
+	{
+		for(unsigned int lba=0; lba<=64; ++lba)
+		{
+			const unsigned int hsg=base+lba;
+			const auto sec=ReadUserData2048(hsg);
+			if(true!=IsIso9660PrimaryVolumeDescriptor(sec))
+			{
+				continue;
+			}
+			pvdSec=sec;
+			pvdHSG=hsg;
+			break;
+		}
+		if(true!=pvdSec.empty())
+		{
+			break;
+		}
+	}
+	if(true==pvdSec.empty() || pvdHSG<16u)
+	{
+		return false;
+	}
+	const unsigned char *rootRec=pvdSec.data()+156;
+	if(34>rootRec[0])
+	{
+		return false;
+	}
+	unsigned int curLba=ReadLe32(rootRec+2);
+	unsigned int curBytes=ReadLe32(rootRec+10);
+	if(0==curLba || 0==curBytes)
+	{
+		return false;
+	}
+	hsgOfLba0=pvdHSG-16u;
+
+	auto listDir=[&](unsigned int dirLba,unsigned int dirBytes,
+	                 std::vector<IsoDirEnt> &out)->bool
+	{
+		out.clear();
+		constexpr unsigned int kMaxDirSectors=64;
+		const unsigned int numSec=(dirBytes+MODE1_BYTES_PER_SECTOR-1u)/MODE1_BYTES_PER_SECTOR;
+		const unsigned int readSec=std::min(numSec,kMaxDirSectors);
+		for(unsigned int i=0; i<readSec; ++i)
+		{
+			const auto sec=ReadUserData2048(hsgOfLba0+dirLba+i);
+			if(DiscImage::MODE1_BYTES_PER_SECTOR!=sec.size())
+			{
+				break;
+			}
+			size_t off=0;
+			while(off+33<=sec.size())
+			{
+				const unsigned char recLen=sec[off];
+				if(0==recLen)
+				{
+					break;
+				}
+				if(off+recLen>sec.size() || recLen<34)
+				{
+					break;
+				}
+				const unsigned char flags=sec[off+25];
+				const unsigned char nameLen=sec[off+32];
+				if(0<nameLen && off+33u+nameLen<=sec.size())
+				{
+					const std::string nm=NormalizeIso9660Name(
+					    (const char *)sec.data()+off+33,nameLen);
+					if(true!=nm.empty())
+					{
+						IsoDirEnt ent;
+						ent.name=nm;
+						ent.lba=ReadLe32(sec.data()+off+2);
+						ent.bytes=ReadLe32(sec.data()+off+10);
+						ent.isDir=(0!=(flags&0x02));
+						out.push_back(ent);
+					}
+				}
+				off+=recLen;
+			}
+		}
+		return true!=out.empty();
+	};
+
+	// Path with directories: walk components.
+	if(1<parts.size())
+	{
+		for(size_t pi=0; pi+1<parts.size(); ++pi)
+		{
+			std::vector<IsoDirEnt> ents;
+			if(true!=listDir(curLba,curBytes,ents))
+			{
+				return false;
+			}
+			bool foundDir=false;
+			for(const auto &ent : ents)
+			{
+				if(true==ent.isDir && ent.name==parts[pi])
+				{
+					curLba=ent.lba;
+					curBytes=ent.bytes;
+					foundDir=true;
+					break;
+				}
+			}
+			if(true!=foundDir)
+			{
+				return false;
+			}
+		}
+		std::vector<IsoDirEnt> ents;
+		if(true!=listDir(curLba,curBytes,ents))
+		{
+			return false;
+		}
+		for(const auto &ent : ents)
+		{
+			if(true!=ent.isDir && ent.name==parts.back())
+			{
+				fileLba=ent.lba;
+				fileBytes=ent.bytes;
+				return 0!=fileLba && 0!=fileBytes;
+			}
+		}
+		return false;
+	}
+
+	// Basename-only: BFS search (depth-limited). Ambiguous → fail.
+	const std::string &want=parts[0];
+	struct DirQ
+	{
+		unsigned int lba;
+		unsigned int bytes;
+		unsigned int depth;
+	};
+	std::vector<DirQ> queue;
+	queue.push_back({curLba,curBytes,0});
+	unsigned int foundLba=0,foundBytes=0;
+	unsigned int hitCount=0;
+	constexpr unsigned int kMaxDepth=6;
+	constexpr unsigned int kMaxDirs=64;
+	unsigned int visited=0;
+	for(size_t qi=0; qi<queue.size() && visited<kMaxDirs; ++qi)
+	{
+		const DirQ cur=queue[qi];
+		++visited;
+		std::vector<IsoDirEnt> ents;
+		if(true!=listDir(cur.lba,cur.bytes,ents))
+		{
+			continue;
+		}
+		for(const auto &ent : ents)
+		{
+			if(true==ent.isDir)
+			{
+				if(cur.depth<kMaxDepth)
+				{
+					queue.push_back({ent.lba,ent.bytes,cur.depth+1});
+				}
+				continue;
+			}
+			if(ent.name==want)
+			{
+				++hitCount;
+				foundLba=ent.lba;
+				foundBytes=ent.bytes;
+			}
+		}
+	}
+	if(1!=hitCount)
+	{
+		// 0 = missing; >1 = ambiguous (e.g. launcher + game same basename).
+		return false;
+	}
+	fileLba=foundLba;
+	fileBytes=foundBytes;
+	return 0!=fileLba && 0!=fileBytes;
+}
+
+unsigned int DiscImage::HashIso9660FilePrefix(
+    const std::string &relPath,unsigned int maxBytes) const
+{
+	if(true==relPath.empty() || 0==maxBytes)
+	{
+		return 0;
+	}
+	unsigned int hsgOfLba0=0,fileLba=0,fileBytes=0;
+	if(true!=FindIso9660File(relPath,hsgOfLba0,fileLba,fileBytes))
+	{
+		return 0;
+	}
+	const unsigned int toHash=std::min(fileBytes,maxBytes);
+	const unsigned int nSec=(toHash+MODE1_BYTES_PER_SECTOR-1u)/MODE1_BYTES_PER_SECTOR;
+	unsigned int h=2166136261u;
+	unsigned int remaining=toHash;
+	for(unsigned int i=0; i<nSec && 0<remaining; ++i)
+	{
+		const auto sec=ReadUserData2048(hsgOfLba0+fileLba+i);
+		if(DiscImage::MODE1_BYTES_PER_SECTOR!=sec.size())
+		{
+			return 0;
+		}
+		const unsigned int n=std::min(remaining,(unsigned int)sec.size());
+		for(unsigned int b=0; b<n; ++b)
+		{
+			h=Fnv1a32Update(h,sec[b]);
+		}
+		remaining-=n;
+	}
+	return h;
+}
+
+unsigned int DiscImage::ComputeTocHash32(void) const
+{
+	std::ostringstream oss;
+	oss << "v1|ft=" << fileType << "|nt=" << GetNumTracks() << "|ns=" << GetNumSectors();
+	int trackNum=1;
+	for(const auto &trk : tracks)
+	{
+		oss << "|T" << trackNum++
+		    << ":ty=" << trk.trackType
+		    << ",sl=" << trk.sectorLength
+		    << ",psl=" << trk.preGapSectorLength
+		    << ",s=" << trk.start.Encode()
+		    << ",e=" << trk.end.Encode()
+		    << ",pg=" << trk.preGap.Encode()
+		    << ",i0=" << trk.index00.Encode();
+	}
+	return Fnv1a32Finish(oss.str());
+}
+
+DiscIdentity DiscImage::ComputeIdentity(bool allowDiscIO) const
+{
+	if(true==identityCached_)
+	{
+		return cachedIdentity_;
+	}
+	DiscIdentity id;
+	if(DiscImage::FILETYPE_NONE==fileType || 0==GetNumSectors())
+	{
+		cachedIdentity_=id;
+		identityCached_=true;
+		return id;
+	}
+	id.valid=true;
+	id.numTracks=GetNumTracks();
+	id.numSectors=GetNumSectors();
+	for(const auto &trk : tracks)
+	{
+		if(TRACK_AUDIO==trk.trackType)
+		{
+			++id.numAudioTracks;
+		}
+		else if(TRACK_MODE1_DATA==trk.trackType || TRACK_MODE2_DATA==trk.trackType)
+		{
+			++id.numDataTracks;
+		}
+	}
+	id.tocHash32=ComputeTocHash32();
+	{
+		char hex[16];
+		snprintf(hex,sizeof(hex),"%08x",id.tocHash32);
+		id.tocHashHex=hex;
+	}
+
+	if(true!=allowDiscIO)
+	{
+		// Do not cache a TOC-only stub — a later full scan should replace it.
+		return id;
+	}
+
+	const unsigned int dataBase=FirstDataTrackBaseHSG(*this);
+	const unsigned int scanBases[]={
+		dataBase,
+		HSG_BASE,
+		0u,
+	};
+	std::vector<unsigned char> pvdSec;
+	for(const unsigned int base : scanBases)
+	{
+		for(unsigned int lba=0; lba<=64; ++lba)
+		{
+			const unsigned int hsg=base+lba;
+			const auto sec=ReadUserData2048(hsg);
+			if(true!=IsIso9660PrimaryVolumeDescriptor(sec))
+			{
+				continue;
+			}
+			id.hasIso9660=true;
+			id.pvdSectorHSG=hsg;
+			id.systemIdentifier=TrimIso9660Field(
+			    (const char *)sec.data()+8,32);
+			id.volumeLabel=TrimIso9660Field(
+			    (const char *)sec.data()+40,32);
+			if(true!=id.volumeLabel.empty())
+			{
+				id.contentKey=id.volumeLabel+"|"+id.systemIdentifier;
+				id.contentHash32=Fnv1a32Finish(id.contentKey);
+				char hex[16];
+				snprintf(hex,sizeof(hex),"%08x",id.contentHash32);
+				id.contentHashHex=hex;
+				id.hasContentId=true;
+			}
+			pvdSec=sec;
+			break;
+		}
+		if(true==id.hasIso9660)
+		{
+			break;
+		}
+	}
+
+	if(true==id.hasIso9660 && true!=pvdSec.empty())
+	{
+		std::vector<std::string> rootNames=CollectIso9660RootNames(pvdSec,id.pvdSectorHSG);
+		unsigned int rootHash32=0;
+		if(true!=rootNames.empty())
+		{
+			std::ostringstream rootOss;
+			for(size_t i=0; i<rootNames.size(); ++i)
+			{
+				if(0!=i)
+				{
+					rootOss << '|';
+				}
+				rootOss << rootNames[i];
+			}
+			rootHash32=Fnv1a32Finish(rootOss.str());
+		}
+
+		std::ostringstream oss;
+		oss << "v1|na=" << id.numAudioTracks
+		    << "|nd=" << id.numDataTracks
+		    << "|rh=" << rootHash32;
+		if(0!=id.numAudioTracks || 0!=id.numDataTracks || 0!=rootHash32)
+		{
+			id.fingerprintHash32=Fnv1a32Finish(oss.str());
+			char hex[16];
+			snprintf(hex,sizeof(hex),"%08x",id.fingerprintHash32);
+			id.fingerprintHashHex=hex;
+			id.hasFingerprint=true;
+		}
+	}
+	else if(0!=id.numAudioTracks || 0!=id.numDataTracks)
+	{
+		std::ostringstream oss;
+		oss << "v1|na=" << id.numAudioTracks
+		    << "|nd=" << id.numDataTracks
+		    << "|rh=0";
+		id.fingerprintHash32=Fnv1a32Finish(oss.str());
+		char hex[16];
+		snprintf(hex,sizeof(hex),"%08x",id.fingerprintHash32);
+		id.fingerprintHashHex=hex;
+		id.hasFingerprint=true;
+	}
+
+	cachedIdentity_=id;
+	identityCached_=true;
+	return id;
 }

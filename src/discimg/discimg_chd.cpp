@@ -246,9 +246,15 @@ void FinalizeChdTrackLayout(
 
 	// Match .CUE addressing where track 1 starts at HSG 0 while the CHD stream
 	// still contains the 2-second lead-in at the beginning of the data.
+	// Only the start is remapped; undo the same shift on end so the data track
+	// length matches CHD frames (avoids 150 phantom sectors into pad/audio).
 	if(false==tracks.empty() && kLeadInFrames==tracks.front().start_hsg)
 	{
 		tracks.front().start_hsg=0;
+		if(tracks.front().end_hsg>=kLeadInFrames)
+		{
+			tracks.front().end_hsg-=kLeadInFrames;
+		}
 	}
 
 	total_bin_length_out=static_cast<uint64_t>(chdofs)*bytes_per_frame;
@@ -507,6 +513,10 @@ bool DiscImageChdBackend::ReadHunk(uint32_t hunk) const
 bool DiscImageChdBackend::Read(uint64_t offset,unsigned char *buf,size_t len) const
 {
 	if(nullptr==buf || 0==len || nullptr==chd_ || 0==bytes_per_frame_ || 0==sectors_per_hunk_)
+	{
+		return false;
+	}
+	if(offset>=total_bytes_ || len>total_bytes_-offset)
 	{
 		return false;
 	}

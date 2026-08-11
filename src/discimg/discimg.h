@@ -19,12 +19,42 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <mutex>
+#include <fstream>
 
 class DiscImageChdBackend;
 
 // MDS/MDF implementation is based on:
 //   https://problemkaputt.de/psx-spx.htm#cdromdiskimagesmdsmdfalcohol120
 
+/*! Disc identity for diagnostics and mouse-coord profile lookup.
+    Profile files are always keyed by fingerprintHash (fp_%08x.ini):
+      FNV-1a of audio/data track counts + hashed ISO9660 root listing
+      (stable across CUE/CHD authoring; does not use TOC MSF or raw filenames).
+    contentKey/contentHash remain for display when PVD volume id is non-empty.
+    tocHash is diagnostic only (varies with image authoring). */
+struct DiscIdentity
+{
+	bool valid=false;
+	bool hasIso9660=false;
+	/*! Stable profile key when PVD volume id is non-empty (volume|publisher). */
+	bool hasContentId=false;
+	std::string volumeLabel;
+	std::string systemIdentifier;
+	std::string contentKey;
+	unsigned int contentHash32=0;
+	std::string contentHashHex;
+	unsigned int pvdSectorHSG=0;
+	unsigned int numTracks=0;
+	unsigned int numSectors=0;
+	unsigned int numAudioTracks=0;
+	unsigned int numDataTracks=0;
+	bool hasFingerprint=false;
+	unsigned int fingerprintHash32=0;
+	std::string fingerprintHashHex;
+	unsigned int tocHash32=0;
+	std::string tocHashHex;
+};
 
 class DiscImage
 {
@@ -307,6 +337,12 @@ public:
 	std::vector <unsigned char> binaryCache;
 	DiscImageChdBackend *chdBackend_=nullptr;
 	bool chdAudioByteSwap_=false;
+	mutable DiscIdentity cachedIdentity_;
+	mutable bool identityCached_=false;
+	/*! Serializes CUE/ISO/MDS file reads (async CDDA GetWave vs MODE ReadSector). */
+	mutable std::mutex fileIoMutex_;
+	mutable std::ifstream fileIoStream_;
+	mutable std::string fileIoOpenName_;
 
 	class TrackTime
 	{
@@ -405,6 +441,34 @@ public:
 	static unsigned int BinToBCD(unsigned int bin);
 	static unsigned int BCDToBin(unsigned int bin);
 	inline static MinSecFrm MakeMSF(unsigned int min,unsigned int sec,unsigned int frm);
+
+	/*! ISO9660 PVD + root listing fingerprint + TOC layout hash.
+	    Does not depend on host image file name.  Invalid when no disc loaded.
+	    When allowDiscIO is false and identity is not yet cached, returns a TOC-only
+	    stub without ReadSector (safe to call while CDDA prefetch / MODE owns the disc). */
+	DiscIdentity ComputeIdentity(bool allowDiscIO=true) const;
+	bool HasCachedIdentity(void) const{return identityCached_;}
+
+	/*! FNV-1a of the first maxBytes of an ISO9660 file.
+	    relPath is case-insensitive, may include directories ("GAME\\FOO.EXE")
+	    or a bare basename ("FOO.EXE").  Bare basename searches the whole tree
+	    (depth-limited); if multiple matches exist, returns 0 (ambiguous).
+	    Returns 0 if not found / unreadable. */
+	unsigned int HashIso9660FilePrefix(
+	    const std::string &relPath,unsigned int maxBytes=4096) const;
+
+private:
+	std::vector <unsigned char> ReadUserData2048(unsigned int HSG) const;
+	unsigned int ComputeTocHash32(void) const;
+	static std::string TrimIso9660Field(const char *buf,size_t len);
+	/*! Collect root directory identifiers from a PVD sector (ISO LBA→HSG via pvdHSG). */
+	std::vector <std::string> CollectIso9660RootNames(const std::vector <unsigned char> &pvdSec,unsigned int pvdHSG) const;
+	/*! Locate ISO9660 file by relative path; on success fills fileLba/fileBytes (ISO LBA). */
+	bool FindIso9660File(
+	    const std::string &relPath,
+	    unsigned int &hsgOfLba0,
+	    unsigned int &fileLba,
+	    unsigned int &fileBytes) const;
 };
 
 inline DiscImage::MinSecFrm operator+(DiscImage::MinSecFrm l,DiscImage::MinSecFrm r)
