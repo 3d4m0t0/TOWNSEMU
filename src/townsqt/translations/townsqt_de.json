@@ -188,7 +188,7 @@
     {
       "context": "MainWindow",
       "source": "Toggle &fullscreen",
-      "translation": "Vollbild umschalten (&F)"
+      "translation": "Vollbild (&F)"
     },
     {
       "context": "MainWindow",
@@ -208,12 +208,12 @@
     {
       "context": "MainWindow",
       "source": "&Eject CD",
-      "translation": "CD auswerfen (&E)"
+      "translation": "Auswerfen (&E)"
     },
     {
       "context": "MainWindow",
       "source": "Open &recent files",
-      "translation": "&Zuletzt geöffnete Dateien"
+      "translation": "&Zuletzt verwendet"
     },
     {
       "context": "MainWindow",
@@ -238,7 +238,7 @@
     {
       "context": "MainWindow",
       "source": "Open recent files",
-      "translation": "Zuletzt geöffnete Dateien"
+      "translation": "Zuletzt verwendet"
     },
     {
       "context": "MainWindow",
@@ -248,7 +248,7 @@
     {
       "context": "MainWindow",
       "source": "Create blank FD image",
-      "translation": "Leeres FD-Image erstellen"
+      "translation": "Leeres FD-Image"
     },
     {
       "context": "MainWindow",
@@ -258,7 +258,7 @@
     {
       "context": "MainWindow",
       "source": "&Settings…",
-      "translation": "&Einstellungen…"
+      "translation": "&Optionen…"
     },
     {
       "context": "MainWindow",
@@ -283,12 +283,12 @@
     {
       "context": "MainWindow",
       "source": "Debug overlay",
-      "translation": "Debug-Einblendung"
+      "translation": "Debug-Overlay"
     },
     {
       "context": "MainWindow",
       "source": "Mouse integration coords",
-      "translation": "Mausintegrationskoordinaten"
+      "translation": "Mauskoordinaten"
     },
     {
       "context": "MainWindow",
@@ -338,7 +338,7 @@
     {
       "context": "MainWindow",
       "source": "CD-ROM speed  %1",
-      "translation": "CD-ROM-Geschwindigkeit  %1"
+      "translation": "CD-Tempo  %1"
     },
     {
       "context": "MainWindow",
@@ -938,12 +938,12 @@
     {
       "context": "SettingsDialog",
       "source": "Auto",
-      "translation": "Automatisch"
+      "translation": "Auto"
     },
     {
       "context": "SettingsDialog",
       "source": "Settings",
-      "translation": "Einstellungen"
+      "translation": "Optionen"
     },
     {
       "context": "SettingsDialog",
@@ -1068,7 +1068,7 @@
     {
       "context": "SettingsDialog",
       "source": "CPU fidelity",
-      "translation": "CPU-Genauigkeit"
+      "translation": "CPU-Qualität"
     },
     {
       "context": "SettingsDialog",
@@ -1098,7 +1098,7 @@
     {
       "context": "SettingsDialog",
       "source": "Any",
-      "translation": "Beliebig"
+      "translation": "Any"
     },
     {
       "context": "SettingsDialog",
@@ -1153,7 +1153,7 @@
     {
       "context": "SettingsDialog",
       "source": "15 kHz scan-line effect",
-      "translation": "15-kHz-Abtastlinien-Effekt"
+      "translation": "Scanlines 15 kHz"
     },
     {
       "context": "SettingsDialog",
@@ -1173,7 +1173,7 @@
     {
       "context": "SettingsDialog",
       "source": "Use sinc interpolation for PCM resampling",
-      "translation": "Sinc-Interpolation für PCM-Resampling verwenden"
+      "translation": "Sinc-Interpolation (PCM)"
     },
     {
       "context": "SettingsDialog",
@@ -1213,12 +1213,12 @@
     {
       "context": "SettingsDialog",
       "source": "(not set)",
-      "translation": "(nicht festgelegt)"
+      "translation": "(keine)"
     },
     {
       "context": "SettingsDialog",
       "source": "Browse…",
-      "translation": "Durchsuchen…"
+      "translation": "Suchen…"
     },
     {
       "context": "SettingsDialog",
@@ -1243,7 +1243,7 @@
     {
       "context": "SettingsDialog",
       "source": "Inhibit display idle",
-      "translation": "Display-Leerlauf unterdrücken"
+      "translation": "Display-Idle aus"
     },
     {
       "context": "SettingsDialog",
@@ -1288,7 +1288,7 @@
     {
       "context": "SettingsDialog",
       "source": "Standard settings (&D)",
-      "translation": "Standardeinstellungen (&D)"
+      "translation": "Standard (&D)"
     },
     {
       "context": "SettingsDialog",
@@ -1408,7 +1408,7 @@
     {
       "context": "TownsQtRomAvailability",
       "source": "FMT_SYS.ROM: not found",
-      "translation": "FMT_SYS.ROM: nicht gefunden"
+      "translation": "FMT_SYS.ROM: fehlt"
     },
     {
       "context": "TownsQtRomAvailability",

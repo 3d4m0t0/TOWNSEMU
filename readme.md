@@ -1,6 +1,6 @@
 # Tsugaru_QT — FM TOWNS / Marty エミュレータ ”津軽” (Qt)
 
-**版 Tsugaru20260522-qt 0.1.0-pre（プレリリース）**
+**版 Tsugaru20260522-qt 1.0.0**
 
 CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/captainys/TOWNSEMU) の **Qt 6** フロントエンドです。
 
@@ -8,7 +8,7 @@ CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/c
 
 **Tsugaru_QT — FM TOWNS / Marty Emulator ”津軽” (Qt frontend)**
 
-**Version Tsugaru20260522-qt 0.1.0-pre (pre-release)**
+**Version Tsugaru20260522-qt 1.0.0**
 
 A **Qt 6** frontend for CaptainYS's FM TOWNS / Marty emulator [Tsugaru](https://github.com/captainys/TOWNSEMU).
 
@@ -31,24 +31,28 @@ Referral registration link: [cursor.com/referral?code=TI3UQLE9PFH3](https://curs
 
 `Tsugaru_CUI` からの主な差分は次のとおりです。
 
-* 機能の追加・削除を行っています
-* **同一プロセス内コア** — `Tsugaru_QT` はエミュレータコアを同一プロセス内（VM スレッド + UI スレッド）で動かし、ネイティブな Qt メニューバー UI で操作します（`Tsugaru_GUI` のように CUI を子プロセスとして起動しません）
-* **CD イメージ** — `.chd` 形式に対応
-* **MIDI** — FluidSynth によるソフトウェア音源出力（Linux）
-* **メニューバー操作** — ゲームポート機器の切り替え、フルスクリーン、スプライト / FAST MODE 制御などをメニューから設定可能
-* **Wayland idle-inhibit** — 実行中の画面スリープ・スクリーンセーバーを抑止
+* **Qt メニューバー UI** — フロントエンドに Qt 6 を使い、一般的なメニューバー形式の操作画面にしています。ゲームポート機器の切り替え、全画面表示、スプライト転送速度などはメニューから設定できます。
+* **タイミング** — エミュレータの進行を実時間に合わせる処理を見直しました。音声のテンポがぶれにくく、画面の同期（VSYNC）も安定します。既定は実時間待ち（CUI の `-YESWAIT` 相当）で、遅れた分を一気に取り戻す動作はしません。
+* **ディスクプロファイル** — マウントした CD ごとに設定を保存します。同じディスクをマウントして再起動すると、保存した内容が読み込まれます。フロッピー（FD0 / FD1）のマウント状況も保存され、次回起動時に再現されます。マウス統合の設定も、このプロファイルに含まれます。
+* **マウス統合** — ゲストメモリへ座標を書き込むことで、ポインタ操作の遅延を抑えています。マウス BIOS を使わないアプリでは、ゲーム内カーソルの phys を検索して設定し、座標の読み取りと書き換えでマウス統合できます。いくつかのタイトル向けプリセットを同梱しています。phys の位置や書き込み方法はタイトルごとに異なるため、統合できないソフトもあります。
+* **CDDA キャッシュ** — CD 音源（CDDA）を先読みキャッシュし、データトラックの読み込み中も演奏を止めない仕組みです。
+* **CD イメージ** — Tsugaru が扱える CD-ROM イメージに加え、`.chd` 形式にも対応しています。
+* **MIDI** — FluidSynth によるソフトウェア音源出力です。利用には別途パッケージが必要です。現在、SysEx は GS 音源向けのみ処理します。SoundFont は GS 対応のものを推奨します。
+* **Wayland idle-inhibit** — 実行中は画面スリープやスクリーンセーバーを抑止します。
 * **UI 多言語化 (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es（en と ja はバイナリ埋め込み、他は `share/townsqt/translations/` の JSON。`TOWNSQT_LANG` またはシステムロケールで選択）
 
 ### English
 
 Main differences from `Tsugaru_CUI`:
 
-* Features have been added and removed compared to the CUI build.
-* **In-process core** — `Tsugaru_QT` runs the emulator core in the same process (VM thread + UI thread) with a native Qt menu-bar UI; it does not spawn `Tsugaru_CUI` as a child process like `Tsugaru_GUI`.
-* **CD images** — `.chd` format support
-* **MIDI** — FluidSynth software synthesizer output (Linux)
-* **Menu-bar controls** — game-port device selection, fullscreen, sprite / FAST MODE and more, configurable from the menu
-* **Wayland idle-inhibit** — suppresses screen sleep / screensaver while running
+* **Qt menu-bar UI** — The frontend uses Qt 6 with a conventional menu-bar layout. Game-port devices, fullscreen, sprite transfer speed, and similar options are available from the menu.
+* **Timing** — Real-time pacing was reworked so audio tempo stays steady and emulated VSYNC does not wobble. By default the emulator waits for real time (same idea as CUI `-YESWAIT`) and does not catch up a time deficit in one burst.
+* **Disc profiles** — Settings are saved per mounted CD. Mount the same disc and restart to load them. Floppy (FD0 / FD1) mount state is stored and restored on the next launch. Mouse-integration settings are part of the profile.
+* **Mouse integration** — Writing coordinates into guest memory reduces pointer latency. For titles that do not use Mouse BIOS, you can search for the in-game cursor phys, then read and write coordinates to integrate the mouse. A few presets are bundled. Some titles still cannot be integrated, because phys location and write method vary.
+* **CDDA cache** — CD audio (CDDA) is prefetched so data-track reads do not interrupt playback.
+* **CD images** — In addition to the CD-ROM image formats Tsugaru already supports, `.chd` is accepted.
+* **MIDI** — Software synthesis via FluidSynth (a separate package is required). Only GS-oriented SysEx is handled at present. A GS SoundFont is recommended.
+* **Wayland idle-inhibit** — Suppresses screen sleep / screensaver while running.
 * **UI localization (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es (en and ja embedded in the binary; others load JSON from `share/townsqt/translations/`; select via `TOWNSQT_LANG` or system locale)
 
 ---
@@ -150,7 +154,7 @@ Tsugaru_QT /path/to/ROM_DIR -CD /path/to/game.cue -FREQ 16 -YESWAIT
 
 ## FluidSynth を使う場合
 
-MIDI 出力は FluidSynth によるソフトウェア音源で再生できます。ビルド時の依存はなく、`libfluidsynth.so.3` を実行時に読み込むため、FluidSynth のランタイムと GM 音源の SoundFont をインストールするだけで使えます。
+MIDI 出力は FluidSynth によるソフトウェア音源で再生できます。ビルド時の依存はなく、`libfluidsynth.so.3` を実行時に読み込むため、FluidSynth のランタイムと SoundFont を別途インストールしてください。SoundFont は GS 対応のものを推奨します（SysEx は GS 向けのみ処理します）。
 
 ```bash
 # openSUSE
@@ -170,7 +174,7 @@ sudo dnf install fluidsynth-libs fluid-soundfont-gm
 
 ### English
 
-MIDI output can be rendered in software with FluidSynth. There is no build-time dependency: `libfluidsynth.so.3` is loaded at runtime, so install the FluidSynth runtime package and a General MIDI SoundFont:
+MIDI output can be rendered in software with FluidSynth. There is no build-time dependency: `libfluidsynth.so.3` is loaded at runtime, so install the FluidSynth runtime package and a SoundFont separately. A GS SoundFont is recommended (only GS-oriented SysEx is handled).
 
 ```bash
 # openSUSE
@@ -212,7 +216,7 @@ UI language: `TOWNSQT_LANG` (e.g. `ja`, `en`, `de`, `fr`, `es`, `ko`,
   (`mesa-libGLU-devel` / `libglu1-mesa-dev`).
 - **No audio** — install `alsa-lib-devel` / `libasound2-dev` and rebuild clean.
 - **No MIDI sound with FluidSynth** — install the FluidSynth runtime and a
-  GM SoundFont (see “FluidSynth を使う場合”), or set `TOWNSQT_MIDI_SOUNDFONT`.
+  SoundFont (see “FluidSynth を使う場合”), or set `TOWNSQT_MIDI_SOUNDFONT`.
 
 ---
 

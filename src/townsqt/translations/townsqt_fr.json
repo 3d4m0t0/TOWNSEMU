@@ -188,7 +188,7 @@
     {
       "context": "MainWindow",
       "source": "Toggle &fullscreen",
-      "translation": "Basculer en &plein écran"
+      "translation": "Plein écran (&F)"
     },
     {
       "context": "MainWindow",
@@ -208,12 +208,12 @@
     {
       "context": "MainWindow",
       "source": "&Eject CD",
-      "translation": "Éjecter le CD (&E)"
+      "translation": "Éjecter CD (&E)"
     },
     {
       "context": "MainWindow",
       "source": "Open &recent files",
-      "translation": "Ouvrir les fichiers &récents"
+      "translation": "Fichiers &récents"
     },
     {
       "context": "MainWindow",
@@ -228,27 +228,27 @@
     {
       "context": "MainWindow",
       "source": "Open FD image (%1)…",
-      "translation": "Ouvrir une image FD (%1)…"
+      "translation": "Ouvrir FD (%1)…"
     },
     {
       "context": "MainWindow",
       "source": "Eject FD",
-      "translation": "Éjecter le FD"
+      "translation": "Éjecter FD"
     },
     {
       "context": "MainWindow",
       "source": "Open recent files",
-      "translation": "Ouvrir les fichiers récents"
+      "translation": "Fichiers récents"
     },
     {
       "context": "MainWindow",
       "source": "Write protect",
-      "translation": "Protection en écriture"
+      "translation": "Lecture seule"
     },
     {
       "context": "MainWindow",
       "source": "Create blank FD image",
-      "translation": "Créer une image FD vierge"
+      "translation": "Image FD vierge"
     },
     {
       "context": "MainWindow",
@@ -258,7 +258,7 @@
     {
       "context": "MainWindow",
       "source": "&Settings…",
-      "translation": "&Paramètres…"
+      "translation": "&Options…"
     },
     {
       "context": "MainWindow",
@@ -268,7 +268,7 @@
     {
       "context": "MainWindow",
       "source": "Drive access",
-      "translation": "Accès aux lecteurs"
+      "translation": "Accès lecteurs"
     },
     {
       "context": "MainWindow",
@@ -283,12 +283,12 @@
     {
       "context": "MainWindow",
       "source": "Debug overlay",
-      "translation": "Superposition de débogage"
+      "translation": "Overlay debug"
     },
     {
       "context": "MainWindow",
       "source": "Mouse integration coords",
-      "translation": "Coordonnées d’intégration souris"
+      "translation": "Coords. souris"
     },
     {
       "context": "MainWindow",
@@ -318,7 +318,7 @@
     {
       "context": "MainWindow",
       "source": "CPU / CS:EIP history",
-      "translation": "CPU / historique CS:EIP"
+      "translation": "Historique CS:EIP"
     },
     {
       "context": "MainWindow",
@@ -338,12 +338,12 @@
     {
       "context": "MainWindow",
       "source": "CD-ROM speed  %1",
-      "translation": "Vitesse CD-ROM  %1"
+      "translation": "Vitesse CD  %1"
     },
     {
       "context": "MainWindow",
       "source": "Sprite transfer  %1",
-      "translation": "Transfert de sprites  %1"
+      "translation": "Sprites  %1"
     },
     {
       "context": "MainWindow",
@@ -393,7 +393,7 @@
     {
       "context": "MainWindow",
       "source": "Open CD image",
-      "translation": "Ouvrir une image CD"
+      "translation": "Ouvrir CD"
     },
     {
       "context": "MainWindow",
@@ -403,7 +403,7 @@
     {
       "context": "MainWindow",
       "source": "Open FD image (%1)",
-      "translation": "Ouvrir une image FD (%1)"
+      "translation": "Ouvrir FD (%1)"
     },
     {
       "context": "MainWindow",
@@ -428,7 +428,7 @@
     {
       "context": "MainWindow",
       "source": "Clear list",
-      "translation": "Effacer la liste"
+      "translation": "Effacer"
     },
     {
       "context": "MainWindow",
@@ -578,7 +578,7 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Default",
-      "translation": "Par défaut"
+      "translation": "Défaut"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -943,7 +943,7 @@
     {
       "context": "SettingsDialog",
       "source": "Settings",
-      "translation": "Paramètres"
+      "translation": "Options"
     },
     {
       "context": "SettingsDialog",
@@ -1098,7 +1098,7 @@
     {
       "context": "SettingsDialog",
       "source": "Any",
-      "translation": "Quelconque"
+      "translation": "Any"
     },
     {
       "context": "SettingsDialog",
@@ -1153,7 +1153,7 @@
     {
       "context": "SettingsDialog",
       "source": "15 kHz scan-line effect",
-      "translation": "Effet de lignes de balayage 15 kHz"
+      "translation": "Scanlines 15 kHz"
     },
     {
       "context": "SettingsDialog",
@@ -1173,7 +1173,7 @@
     {
       "context": "SettingsDialog",
       "source": "Use sinc interpolation for PCM resampling",
-      "translation": "Utiliser l’interpolation sinc pour le rééchantillonnage PCM"
+      "translation": "Interpolation sinc (PCM)"
     },
     {
       "context": "SettingsDialog",
@@ -1193,7 +1193,7 @@
     {
       "context": "SettingsDialog",
       "source": "Output device:",
-      "translation": "Périphérique de sortie :"
+      "translation": "Sortie :"
     },
     {
       "context": "SettingsDialog",
@@ -1213,12 +1213,12 @@
     {
       "context": "SettingsDialog",
       "source": "(not set)",
-      "translation": "(non défini)"
+      "translation": "(aucun)"
     },
     {
       "context": "SettingsDialog",
       "source": "Browse…",
-      "translation": "Parcourir…"
+      "translation": "Ouvrir…"
     },
     {
       "context": "SettingsDialog",
@@ -1243,7 +1243,7 @@
     {
       "context": "SettingsDialog",
       "source": "Inhibit display idle",
-      "translation": "Empêcher la mise en veille de l’affichage"
+      "translation": "Anti-veille"
     },
     {
       "context": "SettingsDialog",
@@ -1288,12 +1288,12 @@
     {
       "context": "SettingsDialog",
       "source": "Standard settings (&D)",
-      "translation": "Paramètres standard (&D)"
+      "translation": "Standard (&D)"
     },
     {
       "context": "SettingsDialog",
       "source": "Default",
-      "translation": "Par défaut"
+      "translation": "Défaut"
     },
     {
       "context": "SettingsDialog",
@@ -1328,7 +1328,7 @@
     {
       "context": "SettingsDialog",
       "source": "Select SoundFont",
-      "translation": "Choisir un SoundFont"
+      "translation": "Choisir SF2"
     },
     {
       "context": "SettingsDialog",
@@ -1408,7 +1408,7 @@
     {
       "context": "TownsQtRomAvailability",
       "source": "FMT_SYS.ROM: not found",
-      "translation": "FMT_SYS.ROM : introuvable"
+      "translation": "FMT_SYS.ROM: absent"
     },
     {
       "context": "TownsQtRomAvailability",

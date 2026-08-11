@@ -1163,7 +1163,7 @@
     {
       "context": "SettingsDialog",
       "source": "VSync in fullscreen",
-      "translation": "전체 화면 VSync 동기화"
+      "translation": "전체화면 VSync"
     },
     {
       "context": "SettingsDialog",
@@ -1218,7 +1218,7 @@
     {
       "context": "SettingsDialog",
       "source": "Browse…",
-      "translation": "찾아보기…"
+      "translation": "열기…"
     },
     {
       "context": "SettingsDialog",
