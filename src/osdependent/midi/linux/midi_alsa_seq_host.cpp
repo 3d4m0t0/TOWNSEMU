@@ -12,6 +12,39 @@ std::mutex g_mutex;
 snd_seq_t *g_seq=nullptr;
 bool g_active=false;
 int g_next_port=0;
+int g_dest_client=-1;
+int g_dest_port=-1;
+
+bool ParseDestinationId(const char *id,int &client,int &port)
+{
+	client=-1;
+	port=-1;
+	if(nullptr==id || 0==id[0])
+	{
+		return false;
+	}
+	int c=0;
+	int p=0;
+	if(2!=std::sscanf(id,"%d:%d",&c,&p))
+	{
+		return false;
+	}
+	client=c;
+	port=p;
+	return true;
+}
+
+void SetEventDestinationLocked(snd_seq_event_t &ev)
+{
+	if(0<=g_dest_client && 0<=g_dest_port)
+	{
+		snd_seq_ev_set_dest(&ev,g_dest_client,g_dest_port);
+	}
+	else
+	{
+		snd_seq_ev_set_subs(&ev);
+	}
+}
 
 void DispatchShortMessageLocked(int port,const unsigned char cmdBuf[3])
 {
@@ -22,7 +55,7 @@ void DispatchShortMessageLocked(int port,const unsigned char cmdBuf[3])
 	snd_seq_event_t ev;
 	snd_seq_ev_clear(&ev);
 	snd_seq_ev_set_source(&ev,port);
-	snd_seq_ev_set_subs(&ev);
+	SetEventDestinationLocked(ev);
 	snd_seq_ev_set_direct(&ev);
 
 	const unsigned char status=cmdBuf[0];
@@ -83,7 +116,7 @@ void SendSysexLocked(int port,const unsigned char *data,int len)
 	snd_seq_event_t ev;
 	snd_seq_ev_clear(&ev);
 	snd_seq_ev_set_source(&ev,port);
-	snd_seq_ev_set_subs(&ev);
+	SetEventDestinationLocked(ev);
 	snd_seq_ev_set_direct(&ev);
 	snd_seq_ev_set_sysex(&ev,static_cast<unsigned int>(sysex.size()),sysex.data());
 	snd_seq_event_output(g_seq,&ev);
@@ -150,6 +183,23 @@ int MidiAlsaSeqHost::AllocateOutputPort(void)
 		++g_next_port;
 	}
 	return port;
+}
+
+void MidiAlsaSeqHost::SetDestination(const char *id)
+{
+	std::lock_guard<std::mutex> lock(g_mutex);
+	int client=-1;
+	int port=-1;
+	if(true==ParseDestinationId(id,client,port))
+	{
+		g_dest_client=client;
+		g_dest_port=port;
+	}
+	else
+	{
+		g_dest_client=-1;
+		g_dest_port=-1;
+	}
 }
 
 void MidiAlsaSeqHost::SendShortMessage(int port,const unsigned char cmdBuf[3])

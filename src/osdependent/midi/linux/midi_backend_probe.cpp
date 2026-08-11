@@ -5,13 +5,42 @@
 
 namespace MidiBackendProbe
 {
+Kind g_userPreference=Kind::None;
+
+void SetUserPreference(Kind kind)
+{
+	g_userPreference=kind;
+}
+
+Kind UserPreference(void)
+{
+	return g_userPreference;
+}
+
 Kind PreferredBackend(void)
 {
-	if(true==MidiFluidSynthHost::IsLibraryAvailable())
+	const auto available=[](Kind kind)
+	{
+		switch(kind)
+		{
+		case Kind::FluidSynth:
+			return IsFluidSynthLibraryAvailable();
+		case Kind::AlsaSeq:
+			return IsAlsaSequencerAvailable();
+		default:
+			return false;
+		}
+	};
+
+	if(Kind::None!=g_userPreference && true==available(g_userPreference))
+	{
+		return g_userPreference;
+	}
+	if(true==IsFluidSynthLibraryAvailable())
 	{
 		return Kind::FluidSynth;
 	}
-	if(true==MidiAlsaSeqHost::IsDriverAvailable())
+	if(true==IsAlsaSequencerAvailable())
 	{
 		return Kind::AlsaSeq;
 	}

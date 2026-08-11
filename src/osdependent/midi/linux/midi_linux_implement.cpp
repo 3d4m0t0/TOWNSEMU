@@ -1,6 +1,7 @@
 #include "../midi_interface.h"
 
 #include "midi_alsa_seq_host.h"
+#include "midi_backend_probe.h"
 #include "midi_fluidsynth_host.h"
 
 #include <cstdio>
@@ -16,22 +17,65 @@ enum class LinuxMidiBackend
 };
 
 LinuxMidiBackend g_backend=LinuxMidiBackend::Unprobed;
+MidiBackendProbe::Kind g_probedFor=MidiBackendProbe::Kind::None;
+
+bool TryBackend(MidiBackendProbe::Kind kind)
+{
+	switch(kind)
+	{
+	case MidiBackendProbe::Kind::FluidSynth:
+		if(true==MidiFluidSynthHost::TryInitialize())
+		{
+			g_backend=LinuxMidiBackend::FluidSynth;
+			return true;
+		}
+		return false;
+	case MidiBackendProbe::Kind::AlsaSeq:
+		if(true==MidiAlsaSeqHost::TryInitialize())
+		{
+			g_backend=LinuxMidiBackend::AlsaSeq;
+			return true;
+		}
+		return false;
+	default:
+		return false;
+	}
+}
 
 void ProbeBackend(void)
 {
-	if(LinuxMidiBackend::Unprobed!=g_backend)
+	const MidiBackendProbe::Kind want=MidiBackendProbe::PreferredBackend();
+	if(LinuxMidiBackend::Unprobed!=g_backend && want==g_probedFor)
 	{
 		return;
 	}
-	if(true==MidiFluidSynthHost::TryInitialize())
+	g_probedFor=want;
+	if(true==TryBackend(want))
 	{
-		g_backend=LinuxMidiBackend::FluidSynth;
 		return;
 	}
-	if(true==MidiAlsaSeqHost::TryInitialize())
+	// Fall back to the other host when the preferred one is unavailable.
+	if(MidiBackendProbe::Kind::FluidSynth==want)
 	{
-		g_backend=LinuxMidiBackend::AlsaSeq;
-		return;
+		if(true==TryBackend(MidiBackendProbe::Kind::AlsaSeq))
+		{
+			return;
+		}
+	}
+	else if(MidiBackendProbe::Kind::AlsaSeq==want)
+	{
+		if(true==TryBackend(MidiBackendProbe::Kind::FluidSynth))
+		{
+			return;
+		}
+	}
+	else
+	{
+		if(true==TryBackend(MidiBackendProbe::Kind::FluidSynth) ||
+		   true==TryBackend(MidiBackendProbe::Kind::AlsaSeq))
+		{
+			return;
+		}
 	}
 	std::fprintf(stderr,"Tsugaru_QT: no host backend available (FluidSynth / ALSA sequencer).\n");
 	g_backend=LinuxMidiBackend::Null;

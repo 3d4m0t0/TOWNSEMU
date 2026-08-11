@@ -12,6 +12,9 @@ namespace MidiBackendProbe
 	};
 
 	Kind PreferredBackend(void);
+	/*! Override auto preference (Kind::None restores Fluid-then-ALSA auto order). */
+	void SetUserPreference(Kind kind);
+	Kind UserPreference(void);
 	bool IsFluidSynthLibraryAvailable(void);
 	bool IsAlsaSequencerAvailable(void);
 }
