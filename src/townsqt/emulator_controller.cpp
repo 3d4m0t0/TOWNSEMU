@@ -5,10 +5,12 @@
 #include "qt_command_thread.h"
 #include "qt_outside_world.h"
 #include "cdrom.h"
+#include "discimg.h"
 #include "towns.h"
 #include "townsdef.h"
 #include "qt_sync_sound.h"
 #include "townsqt_paths.h"
+#include "townsqt_cpu_profile.h"
 #include "townsqt_model_profile.h"
 #include "townsqt_settings.h"
 #include "townsdef.h"
@@ -24,6 +26,7 @@
 #include <QFileInfo>
 #include <QTimer>
 #include <QVariantMap>
+#include <QVariantList>
 
 #include <algorithm>
 #include <exception>
@@ -33,133 +36,91 @@
 
 namespace
 {
-const QStringList &FdImageSuffixPriority()
+MouseCoordWriteScan::MachineSettings MachineSettingsFromVariantMap(const QVariantMap &machine)
 {
-	static const QStringList suffixes{
-	    QStringLiteral("d77"),
-	    QStringLiteral("d88"),
-	    QStringLiteral("rdd"),
-	    QStringLiteral("xdf"),
-	    QStringLiteral("hdm"),
-	    QStringLiteral("fdd")};
-	return suffixes;
-}
-
-int FirstMediaTagPosition(const QString &stem)
-{
-	const int parenthesis=stem.indexOf(QLatin1Char('('));
-	const int bracket=stem.indexOf(QLatin1Char('['));
-	if(parenthesis<0)
-	{
-		return bracket;
-	}
-	if(bracket<0)
-	{
-		return parenthesis;
-	}
-	return std::min(parenthesis,bracket);
-}
-
-QString MediaTitle(const QString &stem)
-{
-	const int tag_pos=FirstMediaTagPosition(stem);
-	return (tag_pos<0 ? stem : stem.left(tag_pos)).trimmed();
-}
-
-int MatchingFdStemRank(const QString &stem,const QString &title)
-{
-	if(!stem.startsWith(title,Qt::CaseInsensitive))
-	{
-		return -1;
-	}
-	const QString remainder=stem.mid(title.size()).trimmed();
-	if(0==remainder.compare(QStringLiteral("(USER)"),Qt::CaseInsensitive) ||
-	   0==remainder.compare(QStringLiteral("[USER]"),Qt::CaseInsensitive))
-	{
-		return 0;
-	}
-	if(remainder.isEmpty())
-	{
-		return 1;
-	}
-	if((remainder.startsWith(QLatin1Char('(')) && remainder.endsWith(QLatin1Char(')'))) ||
-	   (remainder.startsWith(QLatin1Char('[')) && remainder.endsWith(QLatin1Char(']'))))
-	{
-		return 2;
-	}
-	return -1;
-}
-
-QString MatchingAutoFdImage(const QString &cd_path)
-{
-	const QFileInfo cd_info(cd_path);
-	const QString cd_stem=cd_info.completeBaseName();
-	if(cd_stem.isEmpty())
-	{
-		return {};
-	}
-
-	// First priority: an exact CD-basename match in TownsQt's blank-FD directory.
-	const QFileInfoList blank_files=QDir(TownsQtPaths::blankFdDir()).entryInfoList(
-	    QDir::Files|QDir::Readable,
-	    QDir::Name|QDir::IgnoreCase);
-	for(const QString &suffix : FdImageSuffixPriority())
-	{
-		for(const QFileInfo &file : blank_files)
+	MouseCoordWriteScan::MachineSettings m;
+	auto takeInt=[&](const char *key,bool &has,int &dst,int lo,int hi){
+		if(true!=machine.contains(QString::fromLatin1(key)))
 		{
-			if(0==file.completeBaseName().compare(cd_stem,Qt::CaseInsensitive) &&
-			   0==file.suffix().compare(suffix,Qt::CaseInsensitive))
-			{
-				return file.absoluteFilePath();
-			}
+			return;
 		}
-	}
-
-	// Fallback beside the CD image.  Tags are optional on either side:
-	// Game(CD).cue, Game[CD].cue, or Game.cue can match
-	// Game(USER).d77, Game[USER].d77, or Game.d77.
-	const QString title=MediaTitle(cd_stem);
-	if(title.isEmpty())
-	{
-		return {};
-	}
-
-	const QFileInfoList sibling_files=cd_info.dir().entryInfoList(
-	    QDir::Files|QDir::Readable,
-	    QDir::Name|QDir::IgnoreCase);
-	for(const QString &suffix : FdImageSuffixPriority())
-	{
-		QString best_match;
-		int best_rank=3;
-		for(const QFileInfo &file : sibling_files)
+		has=true;
+		dst=std::clamp(machine.value(QString::fromLatin1(key)).toInt(),lo,hi);
+	};
+	auto takeBool=[&](const char *key,bool &has,bool &dst){
+		if(true!=machine.contains(QString::fromLatin1(key)))
 		{
-			if(0!=file.suffix().compare(suffix,Qt::CaseInsensitive))
-			{
-				continue;
-			}
-			if(file.absoluteFilePath()==cd_info.absoluteFilePath())
-			{
-				continue;
-			}
-			const QString fd_stem=file.completeBaseName();
-			const int rank=MatchingFdStemRank(fd_stem,title);
-			if(rank<0 || best_rank<=rank)
-			{
-				continue;
-			}
-			best_match=file.absoluteFilePath();
-			best_rank=rank;
-			if(0==rank)
-			{
-				break;
-			}
+			return;
 		}
-		if(!best_match.isEmpty())
+		has=true;
+		dst=machine.value(QString::fromLatin1(key)).toBool();
+	};
+	auto takeUInt=[&](const char *key,bool &has,unsigned int &dst){
+		if(true!=machine.contains(QString::fromLatin1(key)))
 		{
-			return best_match;
+			return;
 		}
+		has=true;
+		dst=machine.value(QString::fromLatin1(key)).toUInt();
+	};
+	takeInt("frequency_mhz",m.hasFrequencyMhz,m.frequencyMhz,1,100);
+	takeInt("custom_frequency_mhz",m.hasCustomFrequencyMhz,m.customFrequencyMhz,33,60);
+	takeBool("fast_mode",m.hasFastMode,m.fastMode);
+	takeInt("mem_size_mb",m.hasMemSizeInMB,m.memSizeInMB,1,64);
+	takeUInt("gameport0",m.hasGamePort0,m.gamePort0);
+	takeUInt("gameport1",m.hasGamePort1,m.gamePort1);
+	takeInt("max_button_hold_ms0",m.hasMaxButtonHoldMs0,m.maxButtonHoldMs0,0,9999);
+	takeInt("max_button_hold_ms1",m.hasMaxButtonHoldMs1,m.maxButtonHoldMs1,0,9999);
+	if(true==machine.contains(QStringLiteral("model_group")))
+	{
+		m.hasModelGroup=true;
+		m.modelGroup=machine.value(QStringLiteral("model_group")).toString().trimmed().toStdString();
+		const int idx=TownsQtModelGroupIndexForId(QString::fromStdString(m.modelGroup));
+		m.hasCpu=true;
+		m.cpu=TownsQtCpuKindId(TownsQtCpuKindFromTownsType(TownsQtModelGroupTownsType(idx)));
 	}
-	return {};
+	else if(true==machine.contains(QStringLiteral("cpu")))
+	{
+		m.hasCpu=true;
+		m.cpu=machine.value(QStringLiteral("cpu")).toString().trimmed().toStdString();
+	}
+	else if(true==machine.contains(QStringLiteral("model_group_index")))
+	{
+		// Legacy fp_*.ini: convert model group index → id + CPU.
+		const int model_index=std::clamp(
+		    machine.value(QStringLiteral("model_group_index")).toInt(),
+		    0,
+		    TownsQtModelGroupCount()-1);
+		m.hasModelGroup=true;
+		m.modelGroup=TownsQtModelGroupId(model_index).toStdString();
+		m.hasModelGroupIndex=true;
+		m.modelGroupIndex=model_index;
+		const TownsQtCpuKind kind=TownsQtCpuKindFromTownsType(
+		    TownsQtModelGroupTownsType(model_index));
+		m.hasCpu=true;
+		m.cpu=TownsQtCpuKindId(kind);
+	}
+	takeBool("cpu_high_fidelity",m.hasCpuHighFidelity,m.cpuHighFidelity);
+	takeBool("pretend_386dx",m.hasPretend386DX,m.pretend386DX);
+	takeBool("use_fpu",m.hasUseFPU,m.useFPU);
+	takeBool("fast_scsi",m.hasFastScsi,m.fastScsi);
+	takeBool("fast_fd",m.hasFastFd,m.fastFd);
+	takeBool("midi_board",m.hasMidiBoard,m.midiBoard);
+	takeBool("high_res_crtc",m.hasHighResCrtc,m.highResCrtc);
+	takeBool("high_res_pcm",m.hasHighResPcm,m.highResPcm);
+	takeInt("cd_speed",m.hasCdSpeed,m.cdSpeed,0,64);
+	takeInt("sprite_transfer",m.hasSpriteTransfer,m.spriteTransfer,0,2);
+	auto takeFd=[&](const char *key,int drive){
+		if(true!=machine.contains(QString::fromLatin1(key)))
+		{
+			return;
+		}
+		m.hasFdImg[drive]=true;
+		m.fdImg[drive]=machine.value(QString::fromLatin1(key)).toString().trimmed().toStdString();
+	};
+	takeFd("fd0",0);
+	takeFd("fd1",1);
+	return m;
 }
 }
 
@@ -228,6 +189,19 @@ void EmulatorController::run()
 
 	auto runWithTowns=[&](auto &towns){
 		towns_=static_cast<FMTownsCommon *>(&towns);
+		towns.mouseCoordWriteScan.SetProfileDirectory(
+		    TownsQtPaths::profilesDir().toStdString());
+		towns.var.useDiscProfiles=TownsQtSettings::useDiscProfiles();
+		{
+			const std::string disc=towns.cdrom.state.GetDisc().fName;
+			if(true!=disc.empty())
+			{
+				towns.mouseCoordWriteScan.TryLoadForDisc(disc);
+			}
+		}
+		QMetaObject::invokeMethod(this,[this](){
+			Q_EMIT discProfileStateChanged();
+		},Qt::QueuedConnection);
 		applyAudioVolumes(
 		    TownsQtSettings::fmChipVolume(),
 		    TownsQtSettings::pcmChipVolume(),
@@ -253,12 +227,22 @@ void EmulatorController::run()
 		    TownsQtSettings::maxButtonHoldTimeMs(0,1),
 		    TownsQtSettings::mouseIntegrationSpeed(),
 		    TownsQtSettings::considerVRAMOffsetInMouseIntegration(),
-		    TownsQtSettings::autoDifferentialOnMouseBIOSStop(),
+		    TownsQtSettings::autoDifferentialOnMosUnused(),
 		    TownsQtSettings::mouseMinX(),
 		    TownsQtSettings::mouseMinY(),
 		    TownsQtSettings::mouseMaxX(),
 		    TownsQtSettings::mouseMaxY());
 		applyCpuFastMode(TownsQtSettings::cpuFastModeEnabled());
+		// BIOS may rewrite wait/CMOS after Start; re-assert host preference.
+		{
+			const bool prefer_fast=TownsQtSettings::cpuFastModeEnabled();
+			QTimer::singleShot(0,this,[this,prefer_fast]{
+				applyCpuFastModeLive(prefer_fast);
+			});
+			QTimer::singleShot(250,this,[this,prefer_fast]{
+				applyCpuFastModeLive(prefer_fast);
+			});
+		}
 		setCdSpeed(TownsQtSettings::cdSpeed());
 		applyDisplayOptions(
 		    TownsQtSettings::damperWireLine(),
@@ -282,6 +266,20 @@ void EmulatorController::run()
 			TownsQtSettings::setLastCdImagePath(cd_path_);
 			Q_EMIT cdPathChanged(cd_path_);
 		}
+		for(int drive=0; drive<2; ++drive)
+		{
+			if(""!=argv_.fdImgFName[drive])
+			{
+				fd_path_[drive]=QString::fromStdString(argv_.fdImgFName[drive]);
+				TownsQtSettings::setLastFdImagePath(drive,fd_path_[drive]);
+				Q_EMIT fdPathChanged(drive,fd_path_[drive]);
+			}
+			else
+			{
+				fd_path_[drive].clear();
+				Q_EMIT fdPathChanged(drive,fd_path_[drive]);
+			}
+		}
 
 		impl_->uiThread=std::thread(
 		    &QtCommandThread::Run,&impl_->cmdThread,&impl_->townsThread,&towns,&argv_,impl_->outside_world);
@@ -293,53 +291,8 @@ void EmulatorController::run()
 			QMetaObject::invokeMethod(this,"onVmFinished",Qt::QueuedConnection);
 		});
 
-		const bool explicit_fd0=(""!=argv_.fdImgFName[0]);
-		QString startup_cd_path=QString::fromStdString(argv_.cdImgFName);
-		if(startup_cd_path.isEmpty())
-		{
-			const QString saved_cd=TownsQtSettings::lastCdImagePath();
-			if(QFile::exists(saved_cd))
-			{
-				startup_cd_path=saved_cd;
-			}
-		}
-		const QString startup_auto_fd0=
-		    explicit_fd0 ? QString{} : MatchingAutoFdImage(startup_cd_path);
-
-		if(""==argv_.cdImgFName)
-		{
-			const QString saved_cd=TownsQtSettings::lastCdImagePath();
-			if(!saved_cd.isEmpty() && QFile::exists(saved_cd))
-			{
-				QTimer::singleShot(0,this,[this,saved_cd,explicit_fd0]{
-					loadCdImageInternal(saved_cd,!explicit_fd0);
-				});
-			}
-		}
-		else if(!startup_auto_fd0.isEmpty())
-		{
-			QTimer::singleShot(0,this,[this,startup_auto_fd0]{
-				loadFdImage(0,startup_auto_fd0);
-			});
-		}
-		for(int drive=0; drive<2; ++drive)
-		{
-			if(""!=argv_.fdImgFName[drive])
-			{
-				continue;
-			}
-			if(0==drive && !startup_auto_fd0.isEmpty())
-			{
-				continue;
-			}
-			const QString saved_fd=TownsQtSettings::lastFdImagePath(drive);
-			if(!saved_fd.isEmpty() && QFile::exists(saved_fd))
-			{
-				QTimer::singleShot(0,this,[this,drive,saved_fd]{
-					loadFdImage(drive,saved_fd);
-				});
-			}
-		}
+		// FD images are mounted via argv_.fdImgFName before boot
+		// (MainWindow::prepareArgvForNextBoot — profile override or lastFd).
 
 		QEventLoop loop;
 		QTimer wait_timer;
@@ -435,10 +388,10 @@ void EmulatorController::resetMachine()
 
 void EmulatorController::loadCdImage(const QString &path)
 {
-	loadCdImageInternal(path,true);
+	loadCdImageInternal(path);
 }
 
-void EmulatorController::loadCdImageInternal(const QString &path,bool auto_mount_fd0)
+void EmulatorController::loadCdImageInternal(const QString &path)
 {
 	if(path.isEmpty() || nullptr==impl_->outside_world)
 	{
@@ -455,15 +408,12 @@ void EmulatorController::loadCdImageInternal(const QString &path,bool auto_mount
 	cmd+=usePath.toUtf8().constData();
 	cmd+='\"';
 	impl_->cmdThread.EnqueueCommand(*impl_->outside_world,cmd);
-
-	if(auto_mount_fd0)
-	{
-		const QString matching_fd=MatchingAutoFdImage(usePath);
-		if(!matching_fd.isEmpty())
-		{
-			loadFdImage(0,matching_fd);
-		}
-	}
+	// Soft CDLOAD path (rare); profile apply is live peripherals only — no restart.
+	QMetaObject::invokeMethod(this,[this](){
+		QTimer::singleShot(200,this,[this](){
+			Q_EMIT discProfileStateChanged();
+		});
+	},Qt::QueuedConnection);
 }
 
 void EmulatorController::ejectCd()
@@ -474,6 +424,11 @@ void EmulatorController::ejectCd()
 		TownsQtSettings::clearLastCdImagePath();
 		Q_EMIT cdPathChanged(cd_path_);
 		impl_->cmdThread.EnqueueCommand(*impl_->outside_world,"CDEJECT");
+		QMetaObject::invokeMethod(this,[this](){
+			QTimer::singleShot(100,this,[this](){
+				Q_EMIT discProfileStateChanged();
+			});
+		},Qt::QueuedConnection);
 	}
 }
 
@@ -509,6 +464,7 @@ void EmulatorController::loadFdImage(int drive,const QString &path)
 		    (0==drive) ? "FD0WP" : "FD1WP");
 	}
 	Q_EMIT fdWriteProtectChanged(drive,write_protect);
+	persistFdMountsToDiscProfile();
 }
 
 void EmulatorController::ejectFd(int drive)
@@ -522,7 +478,27 @@ void EmulatorController::ejectFd(int drive)
 		impl_->cmdThread.EnqueueCommand(
 		    *impl_->outside_world,
 		    (0==drive) ? "FD0EJECT" : "FD1EJECT");
+		persistFdMountsToDiscProfile();
 	}
+}
+
+void EmulatorController::persistFdMountsToDiscProfile(void)
+{
+	if(nullptr==towns_ || true!=TownsQtSettings::useDiscProfiles())
+	{
+		return;
+	}
+	if(true!=towns_->mouseCoordWriteScan.DiscProfileLoaded())
+	{
+		return;
+	}
+	if(true!=towns_->mouseCoordWriteScan.ApplyAndSaveFdMounts(
+	       fd_path_[0].toStdString(),
+	       fd_path_[1].toStdString()))
+	{
+		return;
+	}
+	Q_EMIT discProfileStateChanged();
 }
 
 void EmulatorController::setFdWriteProtect(int drive,bool write_protect)
@@ -571,7 +547,7 @@ bool EmulatorController::QueryFdDriveAvailable(int drive,const FMTownsCommon *to
 	{
 		return true;
 	}
-	if(TownsQtModelGroupIsMarty(TownsQtSettings::modelGroupIndex()))
+	if(TownsQtCpuKindIsMarty(TownsQtSettings::cpuKind()))
 	{
 		return false;
 	}
@@ -661,6 +637,20 @@ QStringList EmulatorController::takeCdromMonitorLines()
 		return lines;
 	}
 	for(const auto &line : towns_->cdrom.TakeMonitorLines())
+	{
+		lines<<QString::fromStdString(line);
+	}
+	return lines;
+}
+
+QStringList EmulatorController::takeAppMonitorLines()
+{
+	QStringList lines;
+	if(nullptr==towns_)
+	{
+		return lines;
+	}
+	for(const auto &line : towns_->mouseCoordWriteScan.TakeMonitorLines())
 	{
 		lines<<QString::fromStdString(line);
 	}
@@ -817,24 +807,34 @@ void EmulatorController::restartAudioOutput()
 void EmulatorController::setCpuFrequencyMhz(int mhz)
 {
 	TownsQtSettings::setCpuFrequencyMhz(mhz);
-	const int preset=TownsQtSettings::cpuFrequencyMhz();
+	applyCpuFrequencyMhzLive(TownsQtSettings::cpuFrequencyMhz());
+}
+
+void EmulatorController::applyCpuFrequencyMhzLive(int mhz)
+{
+	mhz=std::clamp(mhz,1,100);
 	if(nullptr!=towns_)
 	{
-		towns_->state.fastModeFreq=preset;
+		towns_->state.fastModeFreq=mhz;
 		if(true==TownsQtSettings::cpuFastModeEnabled())
 		{
-			towns_->state.currentFreq=preset;
+			towns_->state.currentFreq=mhz;
 		}
 	}
 }
 
 void EmulatorController::applyCpuFastMode(bool enabled)
 {
+	TownsQtSettings::setCpuFastModeEnabled(enabled);
+	applyCpuFastModeLive(enabled);
+}
+
+void EmulatorController::applyCpuFastModeLive(bool enabled)
+{
 	if(!running_.load(std::memory_order_relaxed))
 	{
 		return;
 	}
-	TownsQtSettings::setCpuFastModeEnabled(enabled);
 	if(nullptr==towns_)
 	{
 		return;
@@ -855,12 +855,18 @@ void EmulatorController::applyCpuFastMode(bool enabled)
 
 void EmulatorController::setCdSpeed(int speed)
 {
+	speed=std::max(0,speed);
+	TownsQtSettings::setCdSpeed(speed);
+	applyCdSpeedLive(speed);
+}
+
+void EmulatorController::applyCdSpeedLive(int speed)
+{
 	if(!running_.load(std::memory_order_relaxed))
 	{
 		return;
 	}
 	speed=std::max(0,speed);
-	TownsQtSettings::setCdSpeed(speed);
 	if(nullptr==towns_)
 	{
 		return;
@@ -914,7 +920,7 @@ void EmulatorController::applyPeripheralSettings(unsigned int game_port0,
                                                  int max_button_hold_ms1,
                                                  int mouse_integration_speed,
                                                  bool consider_vram_offset_in_mouse_integration,
-                                                 bool auto_differential_on_mouse_bios_stop,
+                                                 bool auto_differential_on_mos_unused,
                                                  int mouse_min_x,
                                                  int mouse_min_y,
                                                  int mouse_max_x,
@@ -927,7 +933,7 @@ void EmulatorController::applyPeripheralSettings(unsigned int game_port0,
 
 		impl_->outside_world->SetDifferentialMouseIntegrationPreference(
 		    TownsQtSettings::differentialMouseIntegration(),towns_);
-		impl_->outside_world->autoDifferentialOnMouseBIOSStop=auto_differential_on_mouse_bios_stop;
+		impl_->outside_world->autoDifferentialOnMosUnused=auto_differential_on_mos_unused;
 		impl_->outside_world->snapMouseIntegration=TownsQtSettings::snapMouseIntegration();
 		impl_->outside_world->snapMouseWarmupFrames=TownsQtSettings::snapMouseWarmupFrames();
 		if(true==impl_->outside_world->snapMouseIntegration)
@@ -978,6 +984,7 @@ QVariantMap EmulatorController::mouseUiState() const
 	QVariantMap result;
 	result[QStringLiteral("diff")]=false;
 	result[QStringLiteral("mos")]=false;
+	result[QStringLiteral("soft_ok")]=false;
 	result[QStringLiteral("capture_released")]=false;
 	result[QStringLiteral("feeding")]=true;
 	result[QStringLiteral("failsafe")]=false;
@@ -989,10 +996,75 @@ QVariantMap EmulatorController::mouseUiState() const
 	const auto &ow=*impl_->outside_world;
 	result[QStringLiteral("diff")]=ow.effectiveDifferentialMouseIntegration;
 	result[QStringLiteral("mos")]=ow.debugMouseBIOSActive;
+	result[QStringLiteral("soft_ok")]=false;
 	result[QStringLiteral("capture_released")]=ow.mouseCaptureReleased_;
 	result[QStringLiteral("feeding")]=ow.mouseFeedingEnabled_;
 	result[QStringLiteral("failsafe")]=ow.mouseFailsafeShowHostCursor_;
 	result[QStringLiteral("pref_diff")]=ow.differentialMouseIntegration;
+	result[QStringLiteral("profile_loaded")]=false;
+	result[QStringLiteral("profile_apply")]=false;
+	result[QStringLiteral("disc_profile_loaded")]=false;
+	// Effective (running) mode — not merely what the profile file stores.
+	result[QStringLiteral("integration_mode")]=MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL;
+	if(nullptr!=towns_)
+	{
+		result[QStringLiteral("profile_loaded")]=towns_->mouseCoordWriteScan.ProfileLoaded();
+		result[QStringLiteral("profile_apply")]=towns_->var.mouseCoordProfileApply;
+		result[QStringLiteral("disc_profile_loaded")]=
+		    towns_->mouseCoordWriteScan.DiscProfileLoaded();
+		// Capture-released keeps effectiveDifferential=false while still on the
+		// differential path (feeding paused). Prefer that over MOS absolute labels.
+		if(true==ow.effectiveDifferentialMouseIntegration ||
+		   true==ow.mouseCaptureReleased_)
+		{
+			result[QStringLiteral("integration_mode")]=
+			    MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL;
+		}
+		else if(true==towns_->var.mouseCoordProfileApply)
+		{
+			// Disc-profile poke / gameport-feedback path is actually applying.
+			result[QStringLiteral("integration_mode")]=
+			    towns_->mouseCoordWriteScan.GetActiveProfile().integrationMode;
+		}
+		else if(true==towns_->state.mouseBIOSActive)
+		{
+			// System MOS absolute / snap (TMENU and other soft-cursor UI).
+			result[QStringLiteral("integration_mode")]=
+			    MouseCoordWriteScan::INTEGRATION_MOS;
+		}
+		else
+		{
+			// MOS never up / already stopped — treat as capture path for the UI.
+			result[QStringLiteral("integration_mode")]=
+			    MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL;
+		}
+		unsigned int px=0,py=0;
+		int mx=0,my=0;
+		result[QStringLiteral("soft_ok")]=
+		    towns_->mouseCoordWriteScan.GetSoftCursorSnapshot(px,py,mx,my);
+		std::string appName;
+		unsigned int appHash=0;
+		towns_->mouseCoordWriteScan.GetActiveAppExec(appName,appHash);
+		result[QStringLiteral("app_exec_name")]=QString::fromStdString(appName);
+		result[QStringLiteral("app_exec_hash")]=static_cast<uint>(appHash);
+		result[QStringLiteral("app_exec_matched")]=
+		    towns_->mouseCoordWriteScan.AppExecMatched();
+		if(true==towns_->mouseCoordWriteScan.ProfileLoaded())
+		{
+			const auto p=towns_->mouseCoordWriteScan.GetActiveProfile();
+			result[QStringLiteral("app_exec_bound")]=p.HasAppExecBind();
+			result[QStringLiteral("app_exec_bind_name")]=
+			    QString::fromStdString(p.appExecName);
+			result[QStringLiteral("app_exec_bind_hash")]=
+			    static_cast<uint>(p.appExecHash32);
+		}
+		else
+		{
+			result[QStringLiteral("app_exec_bound")]=false;
+			result[QStringLiteral("app_exec_bind_name")]=QString();
+			result[QStringLiteral("app_exec_bind_hash")]=0u;
+		}
+	}
 	return result;
 }
 
@@ -1075,6 +1147,15 @@ void EmulatorController::applyDisplayOptions(bool damperWireLine,bool scanLineEf
 	{
 		towns_->var.damperWireLine=damperWireLine;
 		towns_->var.scanLineEffectIn15KHz=scanLineEffectIn15KHz;
+	}
+	applySpriteTransferModeLive(spriteTransferMode);
+}
+
+void EmulatorController::applySpriteTransferModeLive(int spriteTransferMode)
+{
+	spriteTransferMode=std::clamp(spriteTransferMode,0,2);
+	if(nullptr!=towns_)
+	{
 		towns_->var.spriteTransferMode=static_cast<unsigned int>(spriteTransferMode);
 		towns_->ApplySpriteTransferTime();
 	}
@@ -1208,6 +1289,26 @@ QVariantMap EmulatorController::guestMouseCoords() const
 	result[QStringLiteral("gp_packets")]=static_cast<uint>(ow.debugGameportMousePackets);
 	result[QStringLiteral("capture_released")]=ow.debugMouseCaptureReleased;
 	result[QStringLiteral("feeding")]=ow.debugMouseFeedingEnabled;
+	if(nullptr!=towns_)
+	{
+		std::string appName;
+		unsigned int appHash=0;
+		towns_->mouseCoordWriteScan.GetActiveAppExec(appName,appHash);
+		result[QStringLiteral("app_exec_name")]=QString::fromStdString(appName);
+		result[QStringLiteral("app_exec_hash")]=static_cast<uint>(appHash);
+		result[QStringLiteral("app_exec_matched")]=
+		    towns_->mouseCoordWriteScan.AppExecMatched();
+		result[QStringLiteral("profile_apply")]=towns_->var.mouseCoordProfileApply;
+		if(true==towns_->mouseCoordWriteScan.ProfileLoaded())
+		{
+			result[QStringLiteral("app_exec_bound")]=
+			    towns_->mouseCoordWriteScan.GetActiveProfile().HasAppExecBind();
+		}
+		else
+		{
+			result[QStringLiteral("app_exec_bound")]=false;
+		}
+	}
 	result[QStringLiteral("tbios_version")]=static_cast<uint>(ow.debugTBIOSVersion);
 	result[QStringLiteral("app_specific")]=static_cast<uint>(ow.debugAppSpecific);
 	result[QStringLiteral("mos_work")]=static_cast<uint>(ow.debugMosWorkPhysAddr);
@@ -1273,6 +1374,1101 @@ QVariantMap EmulatorController::guestMouseCoords() const
 	result[QStringLiteral("mi_paint_x")]=ow.debugMiPaintX;
 	result[QStringLiteral("mi_paint_y")]=ow.debugMiPaintY;
 	return result;
+}
+
+QVariantList EmulatorController::mouseCoordWriteScanCandidates() const
+{
+	QVariantList list;
+	if(nullptr==towns_)
+	{
+		return list;
+	}
+	towns_->mouseCoordWriteScan.RefreshWatchedValues();
+	const auto cands=towns_->mouseCoordWriteScan.GetTopCandidates();
+	for(const auto &c : cands)
+	{
+		QVariantMap row;
+		row[QStringLiteral("phys")]=static_cast<uint>(c.physAddr);
+		row[QStringLiteral("size")]=static_cast<uint>(c.size);
+		row[QStringLiteral("value")]=static_cast<uint>(c.lastValue);
+		row[QStringLiteral("score_x")]=c.scoreX;
+		row[QStringLiteral("score_y")]=c.scoreY;
+		row[QStringLiteral("reject")]=c.rejectScore;
+		row[QStringLiteral("in_range")]=static_cast<uint>(c.inRangeHits);
+		row[QStringLiteral("hits")]=static_cast<uint>(c.hits);
+		row[QStringLiteral("soft")]=c.knownSoftCursor;
+		row[QStringLiteral("shadow")]=c.appShadow;
+		row[QStringLiteral("shadow_hits")]=static_cast<uint>(c.appShadowHits);
+		row[QStringLiteral("motion")]=c.motionPulse;
+		row[QStringLiteral("screen_draw")]=c.screenDraw;
+		row[QStringLiteral("screen_draw_hits")]=static_cast<uint>(c.screenDrawHits);
+		row[QStringLiteral("motion_corr")]=c.motionCorr;
+		row[QStringLiteral("motion_corr_hits")]=static_cast<uint>(c.motionCorrHits);
+		row[QStringLiteral("from_profile")]=c.fromProfile;
+		row[QStringLiteral("profile_x")]=c.profileAxisX;
+		row[QStringLiteral("profile_y")]=c.profileAxisY;
+		row[QStringLiteral("user_watch")]=c.userWatch;
+		row[QStringLiteral("user_chase")]=c.userChase;
+		row[QStringLiteral("res_range_fit")]=c.resRangeFit;
+		row[QStringLiteral("res_range_fit_x")]=c.resRangeFitX;
+		row[QStringLiteral("res_range_fit_y")]=c.resRangeFitY;
+		row[QStringLiteral("min")]=static_cast<uint>(c.minValue);
+		row[QStringLiteral("max")]=static_cast<uint>(c.maxValue);
+		row[QStringLiteral("has_range")]=c.hasRange;
+		row[QStringLiteral("cs")]=static_cast<uint>(c.cs);
+		row[QStringLiteral("eip")]=static_cast<uint>(c.eip);
+		list.push_back(row);
+	}
+	return list;
+}
+
+void EmulatorController::setMouseCoordWriteScanEnabled(bool enabled)
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->mouseCoordWriteScan.SetEnabled(enabled);
+	if(nullptr!=impl_->outside_world)
+	{
+		impl_->outside_world->UpdateEffectiveDifferentialMouseIntegration(*towns_);
+	}
+}
+
+void EmulatorController::setMouseCoordForceCapture(bool enabled)
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->var.mouseCoordForceCapture=enabled;
+	if(nullptr!=impl_->outside_world)
+	{
+		impl_->outside_world->UpdateEffectiveDifferentialMouseIntegration(*towns_);
+		if(true==enabled)
+		{
+			impl_->outside_world->ResumeMouseCapture(*towns_);
+		}
+	}
+}
+
+void EmulatorController::setMouseCoordWriteScanPaused(bool paused)
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->mouseCoordWriteScan.paused=paused;
+}
+
+void EmulatorController::startMouseCoordCalibration()
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->mouseCoordWriteScan.StartCalibration();
+}
+
+void EmulatorController::stopMouseCoordCalibration()
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->mouseCoordWriteScan.StopCalibration();
+}
+
+bool EmulatorController::mouseCoordCalibrating() const
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	return towns_->mouseCoordWriteScan.IsCalibrating();
+}
+
+void EmulatorController::setMouseCoordWatchPhys(const QVariantList &physList)
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	std::vector<unsigned int> phys;
+	phys.reserve((size_t)physList.size());
+	for(const QVariant &v : physList)
+	{
+		const unsigned int p=v.toUInt();
+		if(0!=p)
+		{
+			phys.push_back(p);
+		}
+	}
+	towns_->mouseCoordWriteScan.SetUserWatchPhys(phys);
+}
+
+void EmulatorController::setMouseCoordChasePhys(const QVariantList &physList)
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	std::vector<unsigned int> phys;
+	phys.reserve((size_t)physList.size());
+	for(const QVariant &v : physList)
+	{
+		const unsigned int p=v.toUInt();
+		if(0!=p)
+		{
+			phys.push_back(p);
+		}
+	}
+	towns_->mouseCoordWriteScan.SetUserChasePhys(phys);
+}
+
+void EmulatorController::clearMouseCoordWriteScanCandidates()
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->mouseCoordWriteScan.ClearCandidates();
+}
+
+void EmulatorController::clearMouseCoordWriteScanRanges()
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->mouseCoordWriteScan.ClearCandidateRanges();
+}
+
+void EmulatorController::keepOnlyMouseCoordWriteScanCandidates(const QVariantList &physList)
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	std::vector<unsigned int> keep;
+	keep.reserve((size_t)physList.size());
+	for(const QVariant &v : physList)
+	{
+		const unsigned int p=v.toUInt();
+		if(0!=p)
+		{
+			keep.push_back(p);
+		}
+	}
+	towns_->mouseCoordWriteScan.KeepOnlyCandidates(keep);
+}
+
+void EmulatorController::selectMouseCoordWriteScanCandidate(unsigned int physAddr,unsigned int size)
+{
+	if(nullptr==towns_)
+	{
+		return;
+	}
+	towns_->mouseCoordWriteScan.SelectCandidate(physAddr,size);
+}
+
+unsigned int EmulatorController::chaseMouseCoordSource(unsigned int physAddr)
+{
+	if(nullptr==towns_ || 0==physAddr)
+	{
+		return 0;
+	}
+	return towns_->mouseCoordWriteScan.ChaseSourceOf(physAddr);
+}
+
+QVariantList EmulatorController::takeMouseCoordFollowedSources()
+{
+	QVariantList out;
+	if(nullptr==towns_)
+	{
+		return out;
+	}
+	unsigned int src[8]={};
+	unsigned int n=0;
+	towns_->mouseCoordWriteScan.TakeFollowedSources(src,n);
+	for(unsigned int i=0; i<n; ++i)
+	{
+		out.append(static_cast<uint>(src[i]));
+	}
+	return out;
+}
+
+QVariantList EmulatorController::takeMouseCoordClearedChase()
+{
+	QVariantList out;
+	if(nullptr==towns_)
+	{
+		return out;
+	}
+	unsigned int src[8]={};
+	unsigned int n=0;
+	towns_->mouseCoordWriteScan.TakeClearedChase(src,n);
+	for(unsigned int i=0; i<n; ++i)
+	{
+		out.append(static_cast<uint>(src[i]));
+	}
+	return out;
+}
+
+QByteArray EmulatorController::fetchPhysBytes(unsigned int physAddr,unsigned int length) const
+{
+	QByteArray out;
+	if(nullptr==towns_ || 0==length || 4096<length)
+	{
+		return out;
+	}
+	// Host-side read: don't let the MOS usage probe count these as app reads.
+	towns_->var.suppressMosCoordReadProbe=true;
+	out.resize(static_cast<int>(length));
+	for(unsigned int i=0; i<length; ++i)
+	{
+		out[static_cast<int>(i)]=
+		    static_cast<char>(towns_->mem.FetchByte(physAddr+i)&0xFF);
+	}
+	towns_->var.suppressMosCoordReadProbe=false;
+	return out;
+}
+
+QVariantMap EmulatorController::mouseCoordWriteScanState() const
+{
+	QVariantMap result;
+	if(nullptr==towns_)
+	{
+		return result;
+	}
+	result[QStringLiteral("enabled")]=towns_->var.mouseCoordWriteScanEnabled;
+	result[QStringLiteral("force_capture")]=towns_->var.mouseCoordForceCapture;
+	{
+		const std::string discPath=towns_->cdrom.state.GetDisc().fName;
+		if(true!=discPath.empty())
+		{
+			result[QStringLiteral("current_disc_base")]=
+			    QString::fromStdString(cpputil::GetBaseName(discPath));
+			const auto sz=cpputil::FileSize(discPath);
+			if(0<sz)
+			{
+				result[QStringLiteral("current_disc_size")]=qulonglong(sz);
+			}
+		}
+		// Prefer cached identity.  Never scan ISO sectors on the UI poll path while
+		// CDDA prefetch / MODE may own the disc (contention → empty sectors / bad status).
+		const DiscIdentity discId=towns_->cdrom.state.GetDisc().ComputeIdentity(false);
+		result[QStringLiteral("disc_has_iso9660")]=discId.hasIso9660;
+		result[QStringLiteral("disc_has_content_id")]=discId.hasContentId;
+		result[QStringLiteral("disc_volume_label")]=QString::fromStdString(discId.volumeLabel);
+		result[QStringLiteral("disc_system_id")]=QString::fromStdString(discId.systemIdentifier);
+		result[QStringLiteral("disc_content_key")]=QString::fromStdString(discId.contentKey);
+		result[QStringLiteral("disc_content_hash")]=QString::fromStdString(discId.contentHashHex);
+		result[QStringLiteral("disc_content_hash32")]=discId.contentHash32;
+		result[QStringLiteral("disc_toc_hash")]=QString::fromStdString(discId.tocHashHex);
+		result[QStringLiteral("disc_toc_hash32")]=discId.tocHash32;
+		result[QStringLiteral("disc_has_fingerprint")]=discId.hasFingerprint;
+		result[QStringLiteral("disc_fingerprint_hash")]=QString::fromStdString(discId.fingerprintHashHex);
+		result[QStringLiteral("disc_fingerprint_hash32")]=discId.fingerprintHash32;
+		result[QStringLiteral("disc_num_audio_tracks")]=discId.numAudioTracks;
+		result[QStringLiteral("disc_num_data_tracks")]=discId.numDataTracks;
+		result[QStringLiteral("disc_pvd_hsg")]=discId.pvdSectorHSG;
+		result[QStringLiteral("disc_num_tracks")]=discId.numTracks;
+		result[QStringLiteral("disc_num_sectors")]=discId.numSectors;
+	}
+	result[QStringLiteral("mos")]=towns_->state.mouseBIOSActive;
+	result[QStringLiteral("calibrating")]=towns_->mouseCoordWriteScan.IsCalibrating();
+	result[QStringLiteral("paused")]=towns_->mouseCoordWriteScan.paused;
+	result[QStringLiteral("selected_phys")]=static_cast<uint>(towns_->mouseCoordWriteScan.SelectedPhysAddr());
+	result[QStringLiteral("selected_size")]=static_cast<uint>(towns_->mouseCoordWriteScan.SelectedSize());
+	result[QStringLiteral("arm")]=static_cast<uint>(towns_->mouseCoordWriteScan.ArmCount());
+	result[QStringLiteral("arm_io")]=static_cast<uint>(towns_->mouseCoordWriteScan.IoArmCount());
+	result[QStringLiteral("arm_tbios")]=static_cast<uint>(towns_->mouseCoordWriteScan.TbiosIoArmCount());
+	result[QStringLiteral("arm_shadow")]=static_cast<uint>(towns_->mouseCoordWriteScan.ShadowArmCount());
+	result[QStringLiteral("arm_bios")]=static_cast<uint>(towns_->mouseCoordWriteScan.BiosPathArmCount());
+	result[QStringLiteral("stores")]=static_cast<uint>(towns_->mouseCoordWriteScan.StoreEventCount());
+	result[QStringLiteral("remaining")]=static_cast<uint>(towns_->mouseCoordWriteScan.TraceRemaining());
+	result[QStringLiteral("gp_reads")]=static_cast<uint>(towns_->state.gameportMouseReadCount);
+	result[QStringLiteral("mos_app")]=static_cast<uint>(towns_->state.mosCoordAppReadCount);
+	result[QStringLiteral("mos_sys")]=static_cast<uint>(towns_->state.mosCoordTbiosSelfReadCount);
+	result[QStringLiteral("mos_bios")]=static_cast<uint>(towns_->state.mosBIOSAppCallCount);
+	result[QStringLiteral("gp_dx")]=towns_->mouseCoordWriteScan.PendingGpDx();
+	result[QStringLiteral("gp_dy")]=towns_->mouseCoordWriteScan.PendingGpDy();
+	result[QStringLiteral("cand")]=static_cast<uint>(towns_->mouseCoordWriteScan.CandidateCount());
+	{
+		const int hostX=towns_->var.lastKnownMouseX;
+		const int hostY=towns_->var.lastKnownMouseY;
+		result[QStringLiteral("host_x")]=hostX;
+		result[QStringLiteral("host_y")]=hostY;
+
+		// What ControlMouse actually aims at (not merely "profile loaded").
+		int integX=hostX;
+		int integY=hostY;
+		const bool apply=towns_->var.mouseCoordProfileApply;
+		if(true==apply)
+		{
+			towns_->mouseCoordWriteScan.MapHostToProfileCoords(integX,integY);
+			const auto p=towns_->mouseCoordWriteScan.GetActiveProfile();
+			integX+=p.offsetX;
+			integY+=p.offsetY;
+		}
+		else
+		{
+			int originX=0,originY=0,zoom2xX=2,zoom2xY=2,page=0;
+			towns_->TransformHostMouseForIntegration(
+			    hostX,hostY,integX,integY,originX,originY,zoom2xX,zoom2xY,page);
+		}
+		result[QStringLiteral("integ_x")]=integX;
+		result[QStringLiteral("integ_y")]=integY;
+		result[QStringLiteral("integ_via_profile")]=apply;
+
+		// Profile mapped (always, for comparison — may differ from integ when apply=0).
+		int mapX=hostX;
+		int mapY=hostY;
+		if(true==towns_->mouseCoordWriteScan.ProfileLoaded())
+		{
+			towns_->mouseCoordWriteScan.MapHostToProfileCoords(mapX,mapY);
+		}
+		result[QStringLiteral("host_mapped_x")]=mapX;
+		result[QStringLiteral("host_mapped_y")]=mapY;
+
+		int screenW=0,screenH=0;
+		const bool scrOk=towns_->mouseCoordWriteScan.TryGuestScreenSize(screenW,screenH);
+		result[QStringLiteral("screen_ok")]=scrOk;
+		result[QStringLiteral("screen_w")]=screenW;
+		result[QStringLiteral("screen_h")]=screenH;
+		{
+			unsigned int page=0;
+			if(true!=towns_->crtc.InSinglePageMode())
+			{
+				page=towns_->state.mouseDisplayPage;
+			}
+			const auto origin=towns_->crtc.GetPageOriginOnMonitor((unsigned char)page);
+			result[QStringLiteral("origin_x")]=origin.x();
+			result[QStringLiteral("origin_y")]=origin.y();
+		}
+	}
+	{
+		unsigned int px=0,py=0;
+		int mx=0,my=0;
+		const bool ok=towns_->mouseCoordWriteScan.GetSoftCursorSnapshot(px,py,mx,my);
+		result[QStringLiteral("soft_ok")]=ok;
+		result[QStringLiteral("soft_px")]=static_cast<uint>(px);
+		result[QStringLiteral("soft_py")]=static_cast<uint>(py);
+		result[QStringLiteral("soft_x")]=mx;
+		result[QStringLiteral("soft_y")]=my;
+		int shX=0,shY=0;
+		const bool shOk=towns_->mouseCoordWriteScan.TryReadAppShadowCoords(shX,shY);
+		result[QStringLiteral("shadow_ok")]=shOk;
+		result[QStringLiteral("shadow_x")]=shX;
+		result[QStringLiteral("shadow_y")]=shY;
+		unsigned int shPx=0,shPy=0;
+		towns_->mouseCoordWriteScan.TryReadAppShadowPhys(shPx,shPy);
+		result[QStringLiteral("shadow_px")]=static_cast<uint>(shPx);
+		result[QStringLiteral("shadow_py")]=static_cast<uint>(shPy);
+		int drX=0,drY=0;
+		const bool drOk=towns_->mouseCoordWriteScan.TryReadScreenDrawCoords(drX,drY);
+		result[QStringLiteral("draw_ok")]=drOk;
+		result[QStringLiteral("draw_x")]=drX;
+		result[QStringLiteral("draw_y")]=drY;
+		unsigned int drPx=0,drPy=0;
+		towns_->mouseCoordWriteScan.TryReadScreenDrawPhys(drPx,drPy);
+		result[QStringLiteral("draw_px")]=static_cast<uint>(drPx);
+		result[QStringLiteral("draw_py")]=static_cast<uint>(drPy);
+		unsigned int mnX=0,mxX=0,mnY=0,mxY=0;
+		const bool rangeOk=towns_->mouseCoordWriteScan.GetSoftCursorRange(mnX,mxX,mnY,mxY);
+		result[QStringLiteral("soft_range_ok")]=rangeOk;
+		result[QStringLiteral("soft_min_x")]=static_cast<uint>(mnX);
+		result[QStringLiteral("soft_max_x")]=static_cast<uint>(mxX);
+		result[QStringLiteral("soft_min_y")]=static_cast<uint>(mnY);
+		result[QStringLiteral("soft_max_y")]=static_cast<uint>(mxY);
+	}
+	{
+		const bool mouseLoaded=towns_->mouseCoordWriteScan.ProfileLoaded();
+		const bool discLoaded=towns_->mouseCoordWriteScan.DiscProfileLoaded();
+		const unsigned int discFingerprintHash=
+		    result.value(QStringLiteral("disc_fingerprint_hash32")).toUInt();
+		const bool discHasFingerprint=
+		    result.value(QStringLiteral("disc_has_fingerprint")).toBool();
+		bool profileForCurrentDisc=discLoaded;
+		if(true==discLoaded)
+		{
+			const auto p=towns_->mouseCoordWriteScan.GetActiveProfile();
+			if(true==p.HasFingerprint() && true==discHasFingerprint &&
+			   0!=discFingerprintHash)
+			{
+				profileForCurrentDisc=
+				    (p.discFingerprintHash32==discFingerprintHash);
+			}
+		}
+		result[QStringLiteral("disc_profile_loaded")]=profileForCurrentDisc;
+		result[QStringLiteral("profile_loaded")]=profileForCurrentDisc && mouseLoaded;
+		result[QStringLiteral("profile_apply")]=towns_->var.mouseCoordProfileApply;
+		result[QStringLiteral("use_disc_profiles")]=towns_->var.useDiscProfiles;
+		if(true==profileForCurrentDisc)
+		{
+			const auto p=towns_->mouseCoordWriteScan.GetActiveProfile();
+			result[QStringLiteral("prof_file")]=QString::fromStdString(
+			    towns_->mouseCoordWriteScan.ActiveProfileFileName());
+			if(true==p.machine.hasMemSizeInMB)
+			{
+				result[QStringLiteral("prof_mem_size_mb")]=p.machine.memSizeInMB;
+			}
+			if(true==p.machine.hasFrequencyMhz)
+			{
+				result[QStringLiteral("prof_frequency_mhz")]=p.machine.frequencyMhz;
+			}
+			if(true==p.machine.hasCustomFrequencyMhz)
+			{
+				result[QStringLiteral("prof_custom_frequency_mhz")]=p.machine.customFrequencyMhz;
+			}
+			if(true==p.machine.hasFastMode)
+			{
+				result[QStringLiteral("prof_fast_mode")]=p.machine.fastMode;
+			}
+			else if(true==p.machine.hasFrequencyMhz)
+			{
+				// Legacy profile: frequency without fast_mode → treat as FAST.
+				result[QStringLiteral("prof_fast_mode")]=true;
+			}
+			if(true==p.machine.hasGamePort0)
+			{
+				result[QStringLiteral("prof_gameport0")]=static_cast<uint>(p.machine.gamePort0);
+			}
+			if(true==p.machine.hasGamePort1)
+			{
+				result[QStringLiteral("prof_gameport1")]=static_cast<uint>(p.machine.gamePort1);
+			}
+			if(true==p.machine.hasMaxButtonHoldMs0)
+			{
+				result[QStringLiteral("prof_max_button_hold_ms0")]=p.machine.maxButtonHoldMs0;
+			}
+			if(true==p.machine.hasMaxButtonHoldMs1)
+			{
+				result[QStringLiteral("prof_max_button_hold_ms1")]=p.machine.maxButtonHoldMs1;
+			}
+			if(true==p.machine.hasModelGroup)
+			{
+				result[QStringLiteral("prof_model_group")]=
+				    QString::fromStdString(p.machine.modelGroup);
+			}
+			else if(true==p.machine.hasModelGroupIndex)
+			{
+				result[QStringLiteral("prof_model_group")]=
+				    TownsQtModelGroupId(p.machine.modelGroupIndex);
+			}
+			if(true==p.machine.hasCpu)
+			{
+				result[QStringLiteral("prof_cpu")]=
+				    QString::fromStdString(p.machine.cpu);
+			}
+			else if(true==p.machine.hasModelGroup || true==p.machine.hasModelGroupIndex)
+			{
+				const int idx=true==p.machine.hasModelGroup ?
+				    TownsQtModelGroupIndexForId(QString::fromStdString(p.machine.modelGroup)) :
+				    p.machine.modelGroupIndex;
+				const TownsQtCpuKind kind=TownsQtCpuKindFromTownsType(
+				    TownsQtModelGroupTownsType(idx));
+				result[QStringLiteral("prof_cpu")]=
+				    QString::fromLatin1(TownsQtCpuKindId(kind));
+			}
+			if(true==p.machine.hasCpuHighFidelity)
+			{
+				result[QStringLiteral("prof_cpu_high_fidelity")]=p.machine.cpuHighFidelity;
+			}
+			if(true==p.machine.hasPretend386DX)
+			{
+				result[QStringLiteral("prof_pretend_386dx")]=p.machine.pretend386DX;
+			}
+			if(true==p.machine.hasUseFPU)
+			{
+				result[QStringLiteral("prof_use_fpu")]=p.machine.useFPU;
+			}
+			if(true==p.machine.hasFastScsi)
+			{
+				result[QStringLiteral("prof_fast_scsi")]=p.machine.fastScsi;
+			}
+			if(true==p.machine.hasFastFd)
+			{
+				result[QStringLiteral("prof_fast_fd")]=p.machine.fastFd;
+			}
+			if(true==p.machine.hasMidiBoard)
+			{
+				result[QStringLiteral("prof_midi_board")]=p.machine.midiBoard;
+			}
+			if(true==p.machine.hasFdImg[0])
+			{
+				result[QStringLiteral("prof_fd0")]=QString::fromStdString(p.machine.fdImg[0]);
+			}
+			if(true==p.machine.hasFdImg[1])
+			{
+				result[QStringLiteral("prof_fd1")]=QString::fromStdString(p.machine.fdImg[1]);
+			}
+			if(true==p.machine.hasHighResCrtc)
+			{
+				result[QStringLiteral("prof_high_res_crtc")]=p.machine.highResCrtc;
+			}
+			if(true==p.machine.hasHighResPcm)
+			{
+				result[QStringLiteral("prof_high_res_pcm")]=p.machine.highResPcm;
+			}
+			result[QStringLiteral("prof_has_mouse")]=p.HasMouseIntegration();
+			result[QStringLiteral("prof_verified")]=p.verified;
+			// Always expose the stored mouse operation type for the Settings editor,
+			// even when HasMouseIntegration() is false (e.g. empty DW/GF slots).
+			result[QStringLiteral("prof_integration_mode")]=p.integrationMode;
+			result[QStringLiteral("prof_feedback_only")]=p.feedbackOnly;
+			result[QStringLiteral("prof_enabled")]=p.enabled;
+			result[QStringLiteral("prof_app_exec_name")]=
+			    QString::fromStdString(p.appExecName);
+			result[QStringLiteral("prof_app_exec_hash")]=
+			    static_cast<uint>(p.appExecHash32);
+		}
+		{
+			std::string appName;
+			unsigned int appHash=0;
+			towns_->mouseCoordWriteScan.GetActiveAppExec(appName,appHash);
+			result[QStringLiteral("current_app_exec_name")]=
+			    QString::fromStdString(appName);
+			result[QStringLiteral("current_app_exec_hash")]=
+			    static_cast<uint>(appHash);
+			result[QStringLiteral("app_exec_matched")]=
+			    towns_->mouseCoordWriteScan.AppExecMatched();
+		}
+		if(true==profileForCurrentDisc && true==mouseLoaded)
+		{
+			const auto p=towns_->mouseCoordWriteScan.GetActiveProfile();
+			result[QStringLiteral("prof_px")]=static_cast<uint>(p.physX);
+			result[QStringLiteral("prof_py")]=static_cast<uint>(p.physY);
+			result[QStringLiteral("prof_num_pairs")]=
+			    static_cast<uint>(p.NumPairs());
+			for(uint i=0; i<MouseCoordWriteScan::MAX_COORD_PAIRS; ++i)
+			{
+				const auto &pr=p.pair[i];
+				const QString base=QStringLiteral("prof_pair%1").arg(i);
+				result[base+QStringLiteral("_x")]=static_cast<uint>(pr.physX);
+				result[base+QStringLiteral("_y")]=static_cast<uint>(pr.physY);
+				result[base+QStringLiteral("_bias_x")]=pr.biasX;
+				result[base+QStringLiteral("_bias_y")]=pr.biasY;
+				result[base+QStringLiteral("_scale_x")]=pr.scaleX;
+				result[base+QStringLiteral("_scale_y")]=pr.scaleY;
+				if(true==pr.hasRangeX)
+				{
+					result[base+QStringLiteral("_min_x")]=pr.rangeMinX;
+					result[base+QStringLiteral("_max_x")]=pr.rangeMaxX;
+				}
+				if(true==pr.hasRangeY)
+				{
+					result[base+QStringLiteral("_min_y")]=pr.rangeMinY;
+					result[base+QStringLiteral("_max_y")]=pr.rangeMaxY;
+				}
+				if(true==pr.Valid())
+				{
+					result[base+QStringLiteral("_val_x")]=
+					    (int)(short)towns_->mem.FetchWord(pr.physX);
+					result[base+QStringLiteral("_val_y")]=
+					    (int)(short)towns_->mem.FetchWord(pr.physY);
+				}
+			}
+			result[QStringLiteral("direct_write_count")]=
+			    static_cast<uint>(towns_->mouseCoordWriteScan.DirectWriteCount());
+			result[QStringLiteral("direct_write_ok")]=
+			    towns_->mouseCoordWriteScan.LastDirectWriteOk();
+			result[QStringLiteral("app_guard_blocks")]=
+			    static_cast<uint>(towns_->mouseCoordWriteScan.AppStoreGuardBlockCount());
+			result[QStringLiteral("app_guard_on")]=
+			    towns_->mem.storeGuardActive;
+			int tX=0,tY=0;
+			towns_->mouseCoordWriteScan.GetLastDirectWrite(tX,tY);
+			result[QStringLiteral("direct_target_x")]=tX;
+			result[QStringLiteral("direct_target_y")]=tY;
+			// Who else writes the target words — tells copies apart from
+			// engine-owned state that re-writes itself (e.g. back to screen center).
+			auto guestKeyName=[](uint i)->QString
+			{
+				if(MouseCoordWriteScan::TARGET_SOFT_X==i)
+				{
+					return QStringLiteral("guest_soft_x");
+				}
+				if(MouseCoordWriteScan::TARGET_SOFT_Y==i)
+				{
+					return QStringLiteral("guest_soft_y");
+				}
+				const uint p=i-MouseCoordWriteScan::TARGET_PAIR_BASE;
+				return QStringLiteral("guest_p%1%2").arg(p/2).arg(0==(p&1) ? 'x' : 'y');
+			};
+			for(uint i=0; i<MouseCoordWriteScan::NUM_TARGET_WRITE; ++i)
+			{
+				const auto w=towns_->mouseCoordWriteScan.GetGuestTargetWrite(i);
+				const QString key=guestKeyName(i);
+				result[key+QStringLiteral("_n")]=static_cast<uint>(w.count);
+				result[key+QStringLiteral("_v")]=(int)(short)(w.lastValue&0xffff);
+				result[key+QStringLiteral("_cs")]=static_cast<uint>(w.cs);
+				result[key+QStringLiteral("_eip")]=static_cast<uint>(w.eip);
+			}
+			{
+				const auto tr=towns_->mouseCoordWriteScan.GetGuestWriterTrace();
+				result[QStringLiteral("guest_writer_valid")]=tr.valid;
+				if(true==tr.valid)
+				{
+					QString wn=QStringLiteral("?");
+					if(true==tr.fromChase)
+					{
+						wn=QStringLiteral("chase");
+					}
+					else if(MouseCoordWriteScan::TARGET_SOFT_X==tr.which)
+					{
+						wn=QStringLiteral("softX");
+					}
+					else if(MouseCoordWriteScan::TARGET_SOFT_Y==tr.which)
+					{
+						wn=QStringLiteral("softY");
+					}
+					else if(tr.which<MouseCoordWriteScan::NUM_TARGET_WRITE)
+					{
+						const uint p=tr.which-MouseCoordWriteScan::TARGET_PAIR_BASE;
+						wn=QStringLiteral("pair%1%2").arg(p/2).arg(0==(p&1) ? 'X' : 'Y');
+					}
+					result[QStringLiteral("guest_writer_which")]=wn;
+					result[QStringLiteral("guest_writer_from_chase")]=tr.fromChase;
+					result[QStringLiteral("guest_writer_phys")]=static_cast<uint>(tr.physAddr);
+					result[QStringLiteral("guest_writer_val")]=(int)(short)(tr.value&0xffff);
+					result[QStringLiteral("guest_writer_cs")]=static_cast<uint>(tr.cs);
+					result[QStringLiteral("guest_writer_eip")]=static_cast<uint>(tr.eip);
+					result[QStringLiteral("guest_writer_eax")]=static_cast<uint>(tr.eax);
+					result[QStringLiteral("guest_writer_ebx")]=static_cast<uint>(tr.ebx);
+					result[QStringLiteral("guest_writer_ecx")]=static_cast<uint>(tr.ecx);
+					result[QStringLiteral("guest_writer_edx")]=static_cast<uint>(tr.edx);
+					result[QStringLiteral("guest_writer_esi")]=static_cast<uint>(tr.esi);
+					result[QStringLiteral("guest_writer_edi")]=static_cast<uint>(tr.edi);
+					result[QStringLiteral("guest_writer_ebp")]=static_cast<uint>(tr.ebp);
+					result[QStringLiteral("guest_writer_esp")]=static_cast<uint>(tr.esp);
+					result[QStringLiteral("guest_writer_ds")]=static_cast<uint>(tr.ds);
+					result[QStringLiteral("guest_writer_es")]=static_cast<uint>(tr.es);
+					result[QStringLiteral("guest_writer_ss")]=static_cast<uint>(tr.ss);
+					result[QStringLiteral("guest_writer_ds_base")]=static_cast<uint>(tr.dsBase);
+					result[QStringLiteral("guest_writer_es_base")]=static_cast<uint>(tr.esBase);
+					result[QStringLiteral("guest_writer_ss_base")]=static_cast<uint>(tr.ssBase);
+					result[QStringLiteral("guest_writer_implied_base")]=
+					    static_cast<uint>(tr.impliedDsBase);
+					result[QStringLiteral("guest_writer_has_implied_base")]=tr.hasImpliedDsBase;
+					result[QStringLiteral("guest_writer_store_moffs")]=
+					    static_cast<uint>(tr.storeMoffs);
+					result[QStringLiteral("guest_writer_has_src")]=tr.hasSrc;
+					result[QStringLiteral("guest_writer_src_moffs")]=
+					    static_cast<uint>(tr.srcMoffs);
+					result[QStringLiteral("guest_writer_src_phys")]=
+					    static_cast<uint>(tr.srcPhys);
+					result[QStringLiteral("guest_writer_src_val")]=tr.srcValue;
+					result[QStringLiteral("guest_writer_copy_summary")]=
+					    QString::fromStdString(tr.copySummary);
+					result[QStringLiteral("guest_writer_disasm")]=
+					    QString::fromStdString(tr.disasm);
+					QString nearStr;
+					for(int i=0; i<12; ++i)
+					{
+						if(0!=i)
+						{
+							nearStr+=QLatin1Char(' ');
+						}
+						const unsigned int p=
+						    (tr.physAddr>=8u) ? (tr.physAddr-8u+(unsigned)i*2u)
+						                      : ((unsigned)i*2u);
+						nearStr+=QStringLiteral("%1=%2")
+						             .arg(p,5,16,QLatin1Char('0'))
+						             .arg(tr.nearWords[i],4,16,QLatin1Char('0'));
+					}
+					result[QStringLiteral("guest_writer_near")]=nearStr;
+				}
+			}
+			{
+				unsigned int chase[8]={};
+				unsigned int nChase=0;
+				towns_->mouseCoordWriteScan.GetChasePhys(chase,nChase);
+				result[QStringLiteral("guest_chase_n")]=static_cast<uint>(nChase);
+				for(uint i=0; i<nChase && i<8; ++i)
+				{
+					result[QStringLiteral("guest_chase_%1").arg(i)]=
+					    static_cast<uint>(chase[i]);
+				}
+			}
+			result[QStringLiteral("prof_offset_x")]=p.offsetX;
+			result[QStringLiteral("prof_offset_y")]=p.offsetY;
+			result[QStringLiteral("prof_scale_x")]=p.pair[0].scaleX;
+			result[QStringLiteral("prof_scale_y")]=p.pair[0].scaleY;
+			result[QStringLiteral("prof_invert_x")]=p.invertX;
+			result[QStringLiteral("prof_invert_y")]=p.invertY;
+			result[QStringLiteral("prof_wait_feedback")]=p.waitFeedback;
+			result[QStringLiteral("prof_stop_soft_write")]=p.stopSoftWrite;
+			result[QStringLiteral("prof_verified")]=p.verified;
+			result[QStringLiteral("prof_cd")]=
+			    true==p.HasFingerprint()
+			        ? QStringLiteral("fp_%1")
+			              .arg(p.discFingerprintHash32,8,16,QLatin1Char('0'))
+			        : (true==p.HasContentId()
+			               ? QString::fromStdString(p.discVolumeLabel+"|"+p.discSystemId)
+			               : QString::fromStdString(p.cdBasename));
+			result[QStringLiteral("prof_disc_volume")]=QString::fromStdString(p.discVolumeLabel);
+			result[QStringLiteral("prof_disc_system")]=QString::fromStdString(p.discSystemId);
+			result[QStringLiteral("prof_disc_content_hash32")]=p.discContentHash32;
+			result[QStringLiteral("prof_disc_fingerprint_hash32")]=p.discFingerprintHash32;
+			result[QStringLiteral("prof_file")]=QString::fromStdString(
+			    towns_->mouseCoordWriteScan.ActiveProfileFileName());
+		}
+	}
+	return result;
+}
+
+bool EmulatorController::captureMouseCoordProfileFromSoftCursor()
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	if(true!=towns_->mouseCoordWriteScan.CaptureSoftCursorProfile())
+	{
+		return false;
+	}
+	return towns_->mouseCoordWriteScan.SaveActiveProfile();
+}
+
+bool EmulatorController::saveMouseCoordProfile()
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	return towns_->mouseCoordWriteScan.SaveActiveProfile();
+}
+
+bool EmulatorController::resetMouseCoordProfile()
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	return towns_->mouseCoordWriteScan.ResetProfileSettings();
+}
+
+bool EmulatorController::applyMouseCoordProfile(const QVariantMap &profile)
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	// Preserve [machine] and disc identity from the active disc profile.
+	MouseCoordWriteScan::Profile p=towns_->mouseCoordWriteScan.GetActiveProfile();
+	for(auto &pr : p.pair)
+	{
+		pr=MouseCoordWriteScan::CoordPair();
+	}
+	if(profile.contains(QStringLiteral("prof_px")))
+	{
+		p.physX=profile.value(QStringLiteral("prof_px")).toUInt();
+	}
+	if(profile.contains(QStringLiteral("prof_py")))
+	{
+		p.physY=profile.value(QStringLiteral("prof_py")).toUInt();
+	}
+	for(uint i=0; i<MouseCoordWriteScan::MAX_COORD_PAIRS; ++i)
+	{
+		const QString base=QStringLiteral("prof_pair%1").arg(i);
+		auto &pr=p.pair[i];
+		if(profile.contains(base+QStringLiteral("_x")))
+		{
+			pr.physX=profile.value(base+QStringLiteral("_x")).toUInt();
+		}
+		if(profile.contains(base+QStringLiteral("_y")))
+		{
+			pr.physY=profile.value(base+QStringLiteral("_y")).toUInt();
+		}
+		if(profile.contains(base+QStringLiteral("_bias_x")))
+		{
+			pr.biasX=profile.value(base+QStringLiteral("_bias_x")).toInt();
+		}
+		if(profile.contains(base+QStringLiteral("_bias_y")))
+		{
+			pr.biasY=profile.value(base+QStringLiteral("_bias_y")).toInt();
+		}
+		if(profile.contains(base+QStringLiteral("_scale_x")))
+		{
+			pr.scaleX=profile.value(base+QStringLiteral("_scale_x")).toInt();
+		}
+		if(profile.contains(base+QStringLiteral("_scale_y")))
+		{
+			pr.scaleY=profile.value(base+QStringLiteral("_scale_y")).toInt();
+		}
+		if(profile.contains(base+QStringLiteral("_min_x")))
+		{
+			pr.rangeMinX=profile.value(base+QStringLiteral("_min_x")).toInt();
+			pr.rangeMaxX=profile.value(base+QStringLiteral("_max_x"),pr.rangeMinX).toInt();
+			pr.hasRangeX=true;
+		}
+		if(profile.contains(base+QStringLiteral("_min_y")))
+		{
+			pr.rangeMinY=profile.value(base+QStringLiteral("_min_y")).toInt();
+			pr.rangeMaxY=profile.value(base+QStringLiteral("_max_y"),pr.rangeMinY).toInt();
+			pr.hasRangeY=true;
+		}
+	}
+	if(profile.contains(QStringLiteral("prof_integration_mode")))
+	{
+		const int mode=profile.value(QStringLiteral("prof_integration_mode")).toInt();
+		if(MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL==mode ||
+		   MouseCoordWriteScan::INTEGRATION_MOS==mode ||
+		   MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==mode ||
+		   MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==mode ||
+		   MouseCoordWriteScan::INTEGRATION_AUTO==mode)
+		{
+			p.integrationMode=mode;
+		}
+	}
+	else if(profile.contains(QStringLiteral("prof_feedback_only")) ||
+	        profile.contains(QStringLiteral("prof_enabled")))
+	{
+		if(profile.contains(QStringLiteral("prof_feedback_only")))
+		{
+			p.feedbackOnly=profile.value(QStringLiteral("prof_feedback_only")).toBool();
+		}
+		if(profile.contains(QStringLiteral("prof_enabled")))
+		{
+			p.enabled=profile.value(QStringLiteral("prof_enabled")).toBool();
+		}
+		p.DeriveModeFromLegacyFlags();
+	}
+	p.SyncLegacyFlagsFromMode();
+	if(profile.contains(QStringLiteral("prof_offset_x")))
+	{
+		p.offsetX=profile.value(QStringLiteral("prof_offset_x")).toInt();
+	}
+	if(profile.contains(QStringLiteral("prof_offset_y")))
+	{
+		p.offsetY=profile.value(QStringLiteral("prof_offset_y")).toInt();
+	}
+	if(profile.contains(QStringLiteral("prof_scale_x")))
+	{
+		p.scaleX=profile.value(QStringLiteral("prof_scale_x")).toInt();
+		if(true!=profile.contains(QStringLiteral("prof_pair0_scale_x")))
+		{
+			p.pair[0].scaleX=p.scaleX;
+		}
+	}
+	if(profile.contains(QStringLiteral("prof_scale_y")))
+	{
+		p.scaleY=profile.value(QStringLiteral("prof_scale_y")).toInt();
+		if(true!=profile.contains(QStringLiteral("prof_pair0_scale_y")))
+		{
+			p.pair[0].scaleY=p.scaleY;
+		}
+	}
+	p.scaleX=p.pair[0].scaleX;
+	p.scaleY=p.pair[0].scaleY;
+	if(profile.contains(QStringLiteral("prof_invert_x")))
+	{
+		p.invertX=profile.value(QStringLiteral("prof_invert_x")).toBool();
+	}
+	if(profile.contains(QStringLiteral("prof_invert_y")))
+	{
+		p.invertY=profile.value(QStringLiteral("prof_invert_y")).toBool();
+	}
+	if(profile.contains(QStringLiteral("prof_wait_feedback")))
+	{
+		p.waitFeedback=profile.value(QStringLiteral("prof_wait_feedback")).toBool();
+	}
+	if(profile.contains(QStringLiteral("prof_stop_soft_write")))
+	{
+		p.stopSoftWrite=profile.value(QStringLiteral("prof_stop_soft_write")).toBool();
+	}
+	if(profile.contains(QStringLiteral("prof_app_exec_name")))
+	{
+		// Keep path separators; core NormalizeDosExecPath runs on save/load in INI.
+		p.appExecName=
+		    profile.value(QStringLiteral("prof_app_exec_name")).toString().trimmed().toUpper().toStdString();
+		for(char &c : p.appExecName)
+		{
+			if('/'==c)
+			{
+				c='\\';
+			}
+		}
+	}
+	if(profile.contains(QStringLiteral("prof_app_exec_hash")))
+	{
+		p.appExecHash32=profile.value(QStringLiteral("prof_app_exec_hash")).toUInt();
+	}
+	if(profile.contains(QStringLiteral("prof_verified")))
+	{
+		p.verified=profile.value(QStringLiteral("prof_verified")).toBool();
+	}
+	else
+	{
+		p.verified=true;
+	}
+	p.SyncLegacyFlagsFromMode();
+	// Empty Phys (Clear) is allowed for app-specific modes; runtime apply
+	// simply stays idle until pairs are configured.
+	for(auto &pr : p.pair)
+	{
+		if(true!=pr.Valid())
+		{
+			pr.physX=0;
+			pr.physY=0;
+			pr.hasRangeX=false;
+			pr.hasRangeY=false;
+			pr.rangeMinX=0;
+			pr.rangeMaxX=0;
+			pr.rangeMinY=0;
+			pr.rangeMaxY=0;
+		}
+	}
+	if(true!=p.HasMouseIntegration())
+	{
+		return false;
+	}
+	// Soft phys is unused at runtime — clear so saves do not keep stale IDs.
+	p.physX=0;
+	p.physY=0;
+	const std::string discPath=towns_->cdrom.state.GetDisc().fName;
+	if(true!=discPath.empty())
+	{
+		p.cdBasename=cpputil::GetBaseName(discPath);
+		const auto sz=cpputil::FileSize(discPath);
+		if(0<sz)
+		{
+			p.cdSize=(unsigned long long)sz;
+		}
+		const DiscIdentity discId=towns_->cdrom.state.GetDisc().ComputeIdentity(true);
+		if(true==discId.hasContentId)
+		{
+			p.discVolumeLabel=discId.volumeLabel;
+			p.discSystemId=discId.systemIdentifier;
+			p.discContentHash32=discId.contentHash32;
+		}
+		if(true==discId.hasFingerprint)
+		{
+			p.discFingerprintHash32=discId.fingerprintHash32;
+		}
+	}
+	towns_->mouseCoordWriteScan.SetActiveProfile(p);
+	return true;
+}
+
+bool EmulatorController::applyAndSaveMouseCoordProfile(const QVariantMap &profile)
+{
+	if(true!=applyMouseCoordProfile(profile))
+	{
+		return false;
+	}
+	if(true!=towns_->mouseCoordWriteScan.SaveActiveProfile())
+	{
+		return false;
+	}
+	if(nullptr!=impl_->outside_world)
+	{
+		impl_->outside_world->UpdateEffectiveDifferentialMouseIntegration(*towns_);
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
+bool EmulatorController::bindCurrentAppExecToMouseProfile(void)
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	if(true!=towns_->mouseCoordWriteScan.BindActiveAppExecToProfile())
+	{
+		return false;
+	}
+	if(true!=towns_->mouseCoordWriteScan.SaveActiveProfile())
+	{
+		return false;
+	}
+	if(nullptr!=impl_->outside_world)
+	{
+		impl_->outside_world->UpdateEffectiveDifferentialMouseIntegration(*towns_);
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
+bool EmulatorController::createDiscProfile(const QVariantMap &machine)
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	MouseCoordWriteScan::MachineSettings m=MachineSettingsFromVariantMap(machine);
+	if(true!=towns_->mouseCoordWriteScan.CreateProfileForCurrentDisc(m))
+	{
+		return false;
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
+bool EmulatorController::deleteDiscProfile(void)
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	if(true!=towns_->mouseCoordWriteScan.DeleteProfileForCurrentDisc())
+	{
+		return false;
+	}
+	if(nullptr!=impl_->outside_world)
+	{
+		impl_->outside_world->UpdateEffectiveDifferentialMouseIntegration(*towns_);
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
+bool EmulatorController::saveDiscMachineProfile(const QVariantMap &machine)
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	MouseCoordWriteScan::MachineSettings m=MachineSettingsFromVariantMap(machine);
+	if(true!=towns_->mouseCoordWriteScan.ApplyAndSaveMachineSettings(m))
+	{
+		return false;
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
+bool EmulatorController::updateDiscMachineClock(bool fastMode,int frequencyMhz,int customFrequencyMhz)
+{
+	if(nullptr==towns_)
+	{
+		return false;
+	}
+	frequencyMhz=std::clamp(frequencyMhz,1,100);
+	customFrequencyMhz=std::clamp(customFrequencyMhz,33,60);
+	if(true!=towns_->mouseCoordWriteScan.MergeAndSaveMachineClock(
+	       fastMode,frequencyMhz,customFrequencyMhz))
+	{
+		return false;
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
+void EmulatorController::setUseDiscProfiles(bool enabled)
+{
+	if(nullptr!=towns_)
+	{
+		towns_->var.useDiscProfiles=enabled;
+	}
+	if(nullptr!=impl_->outside_world && nullptr!=towns_)
+	{
+		impl_->outside_world->UpdateEffectiveDifferentialMouseIntegration(*towns_);
+	}
+	Q_EMIT discProfileStateChanged();
 }
 
 void EmulatorController::updateStats()

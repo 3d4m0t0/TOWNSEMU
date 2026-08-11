@@ -141,6 +141,22 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 
 		const bool differential=(nullptr!=owner_ && true==owner_->effectiveDifferentialMouseIntegration);
 		const bool relative_ptr=(nullptr!=inputQueue_ && true==inputQueue_->RelativePointerActive());
+		const bool feeding=(nullptr==owner_ || true==owner_->mouseFeedingEnabled_);
+		const bool was_differential=prev_differential_path_;
+		if(differential!=prev_differential_path_ ||
+		   relative_ptr!=prev_relative_ptr_ ||
+		   feeding!=prev_feeding_)
+		{
+			// Grab/ungrab and abs↔diff often drop the OS button-up; clear host
+			// lastKnownMouse so the VM does not see a stuck press after the switch.
+			if(nullptr!=inputQueue_)
+			{
+				inputQueue_->ClearMouseButtons();
+			}
+			prev_differential_path_=differential;
+			prev_relative_ptr_=relative_ptr;
+			prev_feeding_=feeding;
+		}
 
 		if(true==differential)
 		{
@@ -178,7 +194,7 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 			const int my=lastViewMouseY;
 
 			if(true==resetDiffMouse || true!=diff_mouse_tracking_ready_ ||
-			   true!=prev_effective_differential_)
+			   true!=was_differential)
 			{
 				diffMouseXY[0]=mx;
 				diffMouseXY[1]=my;
@@ -222,7 +238,7 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 		else
 		{
 			diff_mouse_tracking_ready_=false;
-			if(true==prev_effective_differential_)
+			if(true==was_differential)
 			{
 				inputQueue_->CancelCursorWarp();
 			}
@@ -231,7 +247,6 @@ void QtOutsideWorld::QtWindowConnection::Interval(void)
 				inputQueue_->ClearRelativeMotion();
 			}
 		}
-		prev_effective_differential_=differential;
 
 		{
 			std::lock_guard<std::mutex> lock(renderingLock);

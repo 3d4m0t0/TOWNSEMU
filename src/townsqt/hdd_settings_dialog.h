@@ -36,11 +36,13 @@ private:
 	{
 		QCheckBox *enabled=nullptr;
 		QLineEdit *path=nullptr;
+		QString fullPath;
 		QPushButton *create=nullptr;
 		QPushButton *browse=nullptr;
 		QPushButton *remove=nullptr;
 	};
 
+	void setSlotPath(int slot,const QString &fullPath);
 	void updateRowEnabled(int slot);
 	bool createBlankHddImage(const QString &path,int size_mb);
 

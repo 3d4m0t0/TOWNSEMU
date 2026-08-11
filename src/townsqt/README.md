@@ -199,6 +199,22 @@ Select FluidSynth as the MIDI output in Settings, and pick a SoundFont there if 
 | `~/.config/townsqt/roms/` | ROM images |
 | `~/.config/townsqt/hdd/` | SCSI hard-disk images |
 | `~/.config/townsqt/blank_fd/` | blank floppy images |
+| `~/.config/townsqt/profiles/` | Per-CD disc profiles (`fp_XXXXXXXX.ini`) |
+| `~/.config/townsqt/mouse_presets/` | User mouse-integration presets (`mouse_XXXXXXXX.ini`) |
+
+Settings → Mouse integration **Load preset** / **Save to file**:
+load a matching `mouse_<fingerprint>.ini`, or write the current
+app-specific settings to `~/.config/townsqt/mouse_presets/`.
+Lookup: user dir, then `share/townsqt/mouse_presets/`, then files
+embedded in the binary. Apply or OK still writes the disc profile.
+
+`townsqt.conf` `[media]` keys (paths restored on next launch):
+
+| Key | Purpose |
+|-----|---------|
+| `last_cd_image` | Last mounted CD image |
+| `fd0_image` | FD drive 0 image |
+| `fd1_image` | FD drive 1 image |
 
 UI language: `TOWNSQT_LANG` (e.g. `ja`, `en`, `de`, `fr`, `es`, `ko`,
 `zh_CN`, `zh_TW`) or the system locale. Extra translations directory:

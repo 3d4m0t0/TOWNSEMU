@@ -26,8 +26,12 @@ add_executable(${TARGET_NAME}
 	settings_dialog.cpp
 	hdd_settings_dialog.h
 	hdd_settings_dialog.cpp
+	audio_mixer_dialog.h
+	audio_mixer_dialog.cpp
 	townsqt_model_profile.h
 	townsqt_model_profile.cpp
+	townsqt_cpu_profile.h
+	townsqt_cpu_profile.cpp
 	townsqt_rom_availability.h
 	townsqt_rom_availability.cpp
 	townsqt_app_profile.h
@@ -48,6 +52,13 @@ add_executable(${TARGET_NAME}
 	debug_text_window.cpp
 	cdrom_monitor_window.h
 	cdrom_monitor_window.cpp
+	mouse_coord_scan_window.h
+	mouse_coord_scan_window.cpp
+	mouse_coord_profile_page.h
+	mouse_coord_profile_page.cpp
+	townsqt_mouse_preset.h
+	townsqt_mouse_preset.cpp
+	townsqt_mouse_presets.qrc
 	townsqt_drive_access_overlay.h
 	townsqt_drive_access_overlay.cpp
 	shared_rgba_framebuffer.cpp
@@ -73,6 +84,24 @@ add_executable(${TARGET_NAME}
 
 # Binary name matches original convention: Tsugaru_CUI / Tsugaru_GUI → Tsugaru_QT
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "Tsugaru_QT")
+
+# Ship mouse_XXXXXXXX.ini drop-ins without editing the static qrc.
+file(GLOB TOWNSQT_MOUSE_PRESET_FP
+	CONFIGURE_DEPENDS
+	"${CMAKE_CURRENT_SOURCE_DIR}/mouse_presets/mouse_*.ini")
+if(TOWNSQT_MOUSE_PRESET_FP)
+	set(_TOWNSQT_MOUSE_PRESET_FP_QRC
+	    "${CMAKE_CURRENT_BINARY_DIR}/townsqt_mouse_presets_fp.qrc")
+	file(WRITE "${_TOWNSQT_MOUSE_PRESET_FP_QRC}"
+	    "<!DOCTYPE RCC>\n<RCC version=\"1.0\">\n  <qresource prefix=\"/mouse_presets\">\n")
+	foreach(_f IN LISTS TOWNSQT_MOUSE_PRESET_FP)
+		get_filename_component(_name "${_f}" NAME)
+		file(APPEND "${_TOWNSQT_MOUSE_PRESET_FP_QRC}"
+		    "    <file alias=\"${_name}\">${_f}</file>\n")
+	endforeach()
+	file(APPEND "${_TOWNSQT_MOUSE_PRESET_FP_QRC}" "  </qresource>\n</RCC>\n")
+	target_sources(${TARGET_NAME} PRIVATE "${_TOWNSQT_MOUSE_PRESET_FP_QRC}")
+endif()
 
 # m88-qt style: en/ja embedded; other locales from share/townsqt/translations/
 message(STATUS "TownsQt: JSON i18n (TOWNSQT_LANG / share/townsqt/translations)")

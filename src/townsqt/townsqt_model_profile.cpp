@@ -1,141 +1,133 @@
 #include "townsqt_model_profile.h"
 
 #include <QCoreApplication>
+#include <QString>
 
 #include <algorithm>
+#include <vector>
 
 namespace
 {
-QString Tr(const char *text)
+/*! One entry per Tsugaru townsType (same names as TownsTypeToStr / GUI profile list). */
+const TownsQtModelGroup kModelGroups[]={
+    // id matches TownsTypeToStr; label unused (TownsQtModelGroupLabel uses TownsTypeToStr).
+    {"MODEL2", "MODEL2", TOWNSTYPE_MODEL1_2, nullptr, 64, false, false, false},
+    {"2F",     "2F",     TOWNSTYPE_1F_2F,    nullptr, 64, false, false, false},
+    {"20F",    "20F",    TOWNSTYPE_10F_20F,  nullptr, 64, false, false, false},
+    {"UX",     "UX",     TOWNSTYPE_2_UX,     nullptr, 10, false, false, true},
+    {"CX",     "CX",     TOWNSTYPE_2_CX,     nullptr, 64, true,  false, false},
+    {"UG",     "UG",     TOWNSTYPE_2_UG,     nullptr, 10, true,  false, true},
+    {"HG",     "HG",     TOWNSTYPE_2_HG,     nullptr, 64, true,  false, false},
+    {"HR",     "HR",     TOWNSTYPE_2_HR,     nullptr, 64, true,  false, false},
+    {"UR",     "UR",     TOWNSTYPE_2_UR,     nullptr, 64, true,  false, false},
+    {"MA",     "MA",     TOWNSTYPE_2_MA,     nullptr, 64, true,  false, false},
+    {"MX",     "MX",     TOWNSTYPE_2_MX,     nullptr, 64, true,  true,  false},
+    {"ME",     "ME",     TOWNSTYPE_2_ME,     nullptr, 64, true,  true,  false},
+    {"MF",     "MF",     TOWNSTYPE_2_MF_FRESH,nullptr,64, true,  true,  false},
+    {"HC",     "HC",     TOWNSTYPE_2_HC,     nullptr, 64, true,  true,  false},
+    {"MARTY",  "MARTY",  TOWNSTYPE_MARTY,    nullptr, 6,  false, false, false},
+};
+
+constexpr int kDefaultModelGroupIndex=10; // MX
+
+bool ModelFitsSysRomEra(unsigned int towns_type,TownsQtSysRomProfile profile,int level)
 {
-	return QCoreApplication::translate("TownsQtModelProfile",text);
+	if(TownsQtSysRomProfile::PreV2Legacy==profile)
+	{
+		return TOWNSTYPE_MODEL1_2==towns_type ||
+		       TOWNSTYPE_1F_2F==towns_type ||
+		       TOWNSTYPE_10F_20F==towns_type;
+	}
+	if(0>level)
+	{
+		return true;
+	}
+	switch(towns_type)
+	{
+	case TOWNSTYPE_MODEL1_2:
+	case TOWNSTYPE_1F_2F:
+	case TOWNSTYPE_10F_20F:
+		return level<10;
+	case TOWNSTYPE_2_UX:
+		return level<20;
+	case TOWNSTYPE_2_CX:
+		return level>=10 && level<20;
+	case TOWNSTYPE_2_UG:
+	case TOWNSTYPE_2_HG:
+	case TOWNSTYPE_2_HR:
+	case TOWNSTYPE_2_UR:
+	case TOWNSTYPE_2_MA:
+		return level>=20;
+	case TOWNSTYPE_2_MX:
+	case TOWNSTYPE_2_ME:
+	case TOWNSTYPE_2_MF_FRESH:
+		return level>=30;
+	case TOWNSTYPE_2_HC:
+		return level>=50;
+	case TOWNSTYPE_MARTY:
+		return true;
+	default:
+		return true;
+	}
 }
 
-const char *kBulletsGen1[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386DX (machine ID: MODEL2 / 2F / 20F)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE not supported"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC not supported"),
-    nullptr,
-};
-const char *kBulletsUx[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386SX"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX memory map (different ROM/VRAM layout)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 10 MB"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE not supported"),
-    nullptr,
-};
-const char *kBulletsUg[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386SX (UG generation)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX memory map"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 10 MB"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE supported"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","UG and later SCSI / CPU peripheral I/O behavior"),
-    nullptr,
-};
-const char *kBulletsCx[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386DX (CX)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE supported"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","UG-generation SCSI extensions not supported"),
-    nullptr,
-};
-const char *kBulletsHg[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386DX (HG)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE supported"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","UG and later SCSI / CPU peripheral I/O behavior"),
-    nullptr,
-};
-const char *kBulletsHr[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80486SX"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map (386DX family)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE / UG SCSI supported"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC not supported (pre-MX)"),
-    nullptr,
-};
-const char *kBulletsUrMa[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80486DX (UR / MA)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","Standard memory map"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FAST MODE / UG SCSI supported"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC not supported (pre-MX)"),
-    nullptr,
-};
-const char *kBulletsMxGen[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80486DX (MX / ME / MF)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","High-resolution CRTC / display output registers"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","CD-ROM 2x speed supported"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
-    nullptr,
-};
-const char *kBulletsHc[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","Pentium (HC, machine ID report)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","Same high-resolution and CD features as MX generation"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM up to 64 MB"),
-    nullptr,
-};
-const char *kBulletsMarty[]={
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","FM Towns Marty"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","80386SX + Marty-specific ROM mapping"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","No SCSI (I/O disabled)"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","EX-ROM image required"),
-    QT_TRANSLATE_NOOP("TownsQtModelProfile","RAM limited up to before the OS ROM"),
-    nullptr,
-};
-
-const TownsQtModelGroup kModelGroups[]={
-    {"gen1",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","1st gen 386DX (MODEL2 / 2F / 20F)"),
-     TOWNSTYPE_1F_2F,kBulletsGen1,64,false,false,false},
-    {"ux",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX (UX)"),
-     TOWNSTYPE_2_UX,kBulletsUx,10,false,false,true},
-    {"ug",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","386SX (UG)"),
-     TOWNSTYPE_2_UG,kBulletsUg,10,true,false,true},
-    {"cx",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","386DX (CX)"),
-     TOWNSTYPE_2_CX,kBulletsCx,64,true,false,false},
-    {"hg",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","386DX (HG)"),
-     TOWNSTYPE_2_HG,kBulletsHg,64,true,false,false},
-    {"hr",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","486SX (HR)"),
-     TOWNSTYPE_2_HR,kBulletsHr,64,true,false,false},
-    {"ur_ma",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","486DX (UR / MA)"),
-     TOWNSTYPE_2_UR,kBulletsUrMa,64,true,false,false},
-    {"mx_gen",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","486DX high-res (MX / ME / MF)"),
-     TOWNSTYPE_2_MX,kBulletsMxGen,64,true,true,false},
-    {"hc",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","Pentium (HC)"),
-     TOWNSTYPE_2_HC,kBulletsHc,64,true,true,false},
-    {"marty",
-     QT_TRANSLATE_NOOP("TownsQtModelProfile","Marty"),
-     TOWNSTYPE_MARTY,kBulletsMarty,6,false,false,false},
-};
-
-constexpr int kDefaultModelGroupIndex=7;
-
-QString BulletsToHtml(const char *const *bullets)
+bool ModelFitsSysRomProfile(int model_index,TownsQtSysRomProfile profile,bool marty_ex_rom_present)
 {
-	QString html;
-	for(int i=0; nullptr!=bullets[i]; ++i)
+	if(TownsQtModelGroupIsMarty(model_index))
 	{
-		if(0<i)
-		{
-			html+=QStringLiteral("<br>");
-		}
-		html+=QStringLiteral("&#183; ")
-		    +Tr(bullets[i]).toHtmlEscaped();
+		return marty_ex_rom_present;
 	}
-	return html;
+	if(true==TownsQtModelGroupRequiresSxRom(model_index))
+	{
+		return TownsQtSysRomProfile::ModernUnified==profile;
+	}
+	return true;
+}
+
+/*! Map legacy TownsQt model_group ids to current Tsugaru-name ids. */
+int LegacyModelGroupIndexForId(const QString &id)
+{
+	if(QStringLiteral("gen1")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_1F_2F);
+	}
+	if(QStringLiteral("ux")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_UX);
+	}
+	if(QStringLiteral("ug")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_UG);
+	}
+	if(QStringLiteral("cx")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_CX);
+	}
+	if(QStringLiteral("hg")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_HG);
+	}
+	if(QStringLiteral("hr")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_HR);
+	}
+	if(QStringLiteral("ur_ma")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_UR);
+	}
+	if(QStringLiteral("mx_gen")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_MX);
+	}
+	if(QStringLiteral("hc")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_2_HC);
+	}
+	if(QStringLiteral("marty")==id)
+	{
+		return TownsQtModelGroupIndexForTownsType(TOWNSTYPE_MARTY);
+	}
+	return -1;
 }
 }
 
@@ -147,14 +139,7 @@ int TownsQtModelGroupCount()
 const TownsQtModelGroup &TownsQtModelGroupAt(int index)
 {
 	static const TownsQtModelGroup kFallback={
-	    "mx_gen",
-	    QT_TRANSLATE_NOOP("TownsQtModelProfile","486DX high-res (MX / ME / MF)"),
-	    TOWNSTYPE_2_MX,
-	    kBulletsMxGen,
-	    64,
-	    true,
-	    true,
-	    false,
+	    "MX","MX",TOWNSTYPE_2_MX,nullptr,64,true,true,false,
 	};
 	if(index<0 || TownsQtModelGroupCount()<=index)
 	{
@@ -174,7 +159,6 @@ int TownsQtModelGroupIndexForTownsType(unsigned int towns_type)
 	{
 		return kDefaultModelGroupIndex;
 	}
-
 	for(int i=0; i<TownsQtModelGroupCount(); ++i)
 	{
 		if(kModelGroups[i].towns_type==towns_type)
@@ -182,22 +166,6 @@ int TownsQtModelGroupIndexForTownsType(unsigned int towns_type)
 			return i;
 		}
 	}
-
-	switch(towns_type)
-	{
-	case TOWNSTYPE_MODEL1_2:
-	case TOWNSTYPE_10F_20F:
-		return 0;
-	case TOWNSTYPE_2_UR:
-	case TOWNSTYPE_2_MA:
-		return 6;
-	case TOWNSTYPE_2_ME:
-	case TOWNSTYPE_2_MF_FRESH:
-		return 7;
-	default:
-		break;
-	}
-
 	return kDefaultModelGroupIndex;
 }
 
@@ -208,12 +176,13 @@ unsigned int TownsQtModelGroupTownsType(int index)
 
 QString TownsQtModelGroupLabel(int index)
 {
-	return Tr(TownsQtModelGroupAt(index).label);
+	return QString::fromStdString(TownsTypeToStr(TownsQtModelGroupTownsType(index)));
 }
 
 QString TownsQtModelGroupDescription(int index)
 {
-	return BulletsToHtml(TownsQtModelGroupAt(index).hardware_bullets);
+	(void)index;
+	return QString();
 }
 
 QString TownsQtModelGroupId(int index)
@@ -230,6 +199,17 @@ int TownsQtModelGroupIndexForId(const QString &id)
 		{
 			return i;
 		}
+	}
+	const int legacy=LegacyModelGroupIndexForId(id);
+	if(0<=legacy)
+	{
+		return legacy;
+	}
+	// Also accept TownsTypeToStr via StrToTownsType.
+	const unsigned int towns_type=StrToTownsType(id.toStdString());
+	if(TOWNSTYPE_UNKNOWN!=towns_type)
+	{
+		return TownsQtModelGroupIndexForTownsType(towns_type);
 	}
 	return kDefaultModelGroupIndex;
 }
@@ -274,4 +254,111 @@ bool TownsQtModelGroupCdRom2xCapable(int index)
 int TownsQtModelGroupDefaultCdSpeed(int index)
 {
 	return TownsQtModelGroupCdRom2xCapable(index) ? 2 : 0;
+}
+
+bool TownsQtModelGroupSupportsHighRes(int index)
+{
+	const unsigned int tt=TownsQtModelGroupTownsType(index);
+	return TOWNSTYPE_2_MX==tt ||
+	       TOWNSTYPE_2_ME==tt ||
+	       TOWNSTYPE_2_MF_FRESH==tt ||
+	       TOWNSTYPE_2_HC==tt;
+}
+
+bool TownsQtModelGroupSupportsUgGenerationIO(int index)
+{
+	if(true==TownsQtModelGroupIsMarty(index))
+	{
+		return false;
+	}
+	return TOWNSTYPE_2_UG<=TownsQtModelGroupTownsType(index);
+}
+
+bool TownsQtModelGroupEffectiveHighRes(int index,TownsQtSysRomProfile profile)
+{
+	return TownsQtModelGroupSupportsHighRes(index) &&
+	       TownsQtRomAvailability::SysRomSupportsHighResCrtc(profile);
+}
+
+bool TownsQtModelGroupEffectiveHighRes(int index,const QString &rom_dir)
+{
+	return TownsQtModelGroupEffectiveHighRes(
+	    index,
+	    TownsQtRomAvailability::ClassifySysRom(rom_dir));
+}
+
+bool TownsQtModelGroupEffectiveUgGenerationIO(int index,const QString &rom_dir)
+{
+	return TownsQtModelGroupSupportsUgGenerationIO(index) ||
+	       TownsQtRomAvailability::SysRomImpliesUgGenerationIO(rom_dir);
+}
+
+std::vector<int> TownsQtModelGroupsAllowedForCpuAndSysRom(
+    TownsQtCpuKind cpu,
+    TownsQtSysRomProfile profile,
+    int sys_rom_level,
+    bool marty_ex_rom_present)
+{
+	std::vector<int> out;
+	for(int i=0; i<TownsQtModelGroupCount(); ++i)
+	{
+		if(TownsQtCpuKindFromTownsType(TownsQtModelGroupTownsType(i))!=cpu)
+		{
+			continue;
+		}
+		if(true!=ModelFitsSysRomProfile(i,profile,marty_ex_rom_present))
+		{
+			continue;
+		}
+		if(true!=ModelFitsSysRomEra(TownsQtModelGroupTownsType(i),profile,sys_rom_level))
+		{
+			continue;
+		}
+		out.push_back(i);
+	}
+	return out;
+}
+
+int TownsQtModelGroupPreferredForCpuAndSysRom(
+    TownsQtCpuKind cpu,
+    TownsQtSysRomProfile profile,
+    int sys_rom_level,
+    bool marty_ex_rom_present)
+{
+	const auto allowed=TownsQtModelGroupsAllowedForCpuAndSysRom(
+	    cpu,profile,sys_rom_level,marty_ex_rom_present);
+	if(true==allowed.empty())
+	{
+		return TownsQtModelGroupDefaultIndex();
+	}
+	const int hint=TownsQtModelGroupIndexForTownsType(
+	    TownsQtCpuKindTownsType(cpu,sys_rom_level));
+	for(int idx : allowed)
+	{
+		if(idx==hint)
+		{
+			return idx;
+		}
+	}
+	return allowed.front();
+}
+
+int TownsQtModelGroupClampToAllowed(
+    int model_index,
+    TownsQtCpuKind cpu,
+    TownsQtSysRomProfile profile,
+    int sys_rom_level,
+    bool marty_ex_rom_present)
+{
+	const auto allowed=TownsQtModelGroupsAllowedForCpuAndSysRom(
+	    cpu,profile,sys_rom_level,marty_ex_rom_present);
+	for(int idx : allowed)
+	{
+		if(idx==model_index)
+		{
+			return model_index;
+		}
+	}
+	return TownsQtModelGroupPreferredForCpuAndSysRom(
+	    cpu,profile,sys_rom_level,marty_ex_rom_present);
 }

@@ -14,6 +14,7 @@
 #include "i486.h"
 #include "townsqt_argv_from_settings.h"
 #include "townsqt_i18n.h"
+#include "townsqt_cpu_profile.h"
 #include "townsqt_model_profile.h"
 #include "townsqt_paths.h"
 #include "townsqt_rom_availability.h"
@@ -373,25 +374,24 @@ int main(int argc,char *argv[])
 	townsArgv.interactive=false;
 	if(true!=ArgvHasExplicitTownsTypeFlag(argc,argv))
 	{
-		townsArgv.townsType=TownsQtSettings::townsType();
-		const int model_idx=TownsQtSettings::modelGroupIndex();
 		const QString rom_dir=QString::fromStdString(townsArgv.ROMPath);
 		const TownsQtSysRomProfile sys_rom_profile=
 		    TownsQtRomAvailability::ClassifySysRom(rom_dir);
+		const int sys_rom_level=TownsQtRomAvailability::SysRomTownsOsLevel(rom_dir);
 		const bool marty_ex_rom=TownsQtRomAvailability::MartyExRomPresent(rom_dir);
-		if(!TownsQtRomAvailability::ModelGroupAllowedForSysRom(
-		       model_idx,
-		       sys_rom_profile,
-		       marty_ex_rom))
+		const TownsQtCpuKind kind=TownsQtCpuKindClampToAllowed(
+		    TownsQtSettings::cpuKind(),
+		    sys_rom_profile,
+		    sys_rom_level,
+		    marty_ex_rom);
+		if(kind!=TownsQtSettings::cpuKind())
 		{
-			const int preferred=
-			    TownsQtRomAvailability::PreferredModelGroupForSysRom(sys_rom_profile);
-			TownsQtSettings::setModelGroupIndex(preferred);
-			townsArgv.townsType=TownsQtSettings::townsType();
+			TownsQtSettings::setCpuKind(kind);
 			std::fprintf(
 			    stderr,
-			    "Tsugaru_QT: Saved model is incompatible with SYS ROM; using default model.\n");
+			    "Tsugaru_QT: Saved CPU is incompatible with SYS ROM; using an allowed CPU.\n");
 		}
+		townsArgv.townsType=TownsQtSettings::townsType();
 	}
 	else
 	{
@@ -501,6 +501,17 @@ int main(int argc,char *argv[])
 	else
 	{
 		TownsQtSettings::setFastFd(townsArgv.fastFD);
+	}
+
+	{
+		const QString rom_dir=QString::fromStdString(townsArgv.ROMPath);
+		const int model_index=TownsQtSettings::modelGroupIndex();
+		const bool hi=TownsQtModelGroupEffectiveHighRes(model_index,rom_dir);
+		townsArgv.highResAvailable=hi;
+		townsArgv.highResPCM=hi;
+		townsArgv.ugGenerationIO=TownsQtModelGroupEffectiveUgGenerationIO(model_index,rom_dir);
+		TownsQtSettings::setHighResCrtc(hi);
+		TownsQtSettings::setHighResPcm(hi);
 	}
 
 	townsArgv.fmVol=TownsQtSettings::fmChipVolume();

@@ -1,6 +1,6 @@
 #include "settings_dialog.h"
-#include "hdd_settings_dialog.h"
-#include "townsqt_app_profile.h"
+#include "mouse_coord_profile_page.h"
+#include "townsqt_cpu_profile.h"
 #include "townsqt_gameport_options.h"
 #include "townsqt_miniaudio_devices.h"
 #include "townsqt_model_profile.h"
@@ -8,29 +8,41 @@
 #include "townsqt_rom_availability.h"
 #include "townsqt_wayland_idle_inhibit.h"
 
+#include <algorithm>
+#include <initializer_list>
+
 #include <QAbstractButton>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
+#include <QColor>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QFont>
+#include <QFontDatabase>
+#include <QFontInfo>
 #include <QFontMetrics>
 #include <QFrame>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QGuiApplication>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
+#include <QPalette>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScreen>
 #include <QSignalBlocker>
 #include <QSlider>
 #include <QSpinBox>
-#include <QStandardItemModel>
+#include <QStackedWidget>
+#include <QStringList>
+#include <QStyle>
 #include <QTabBar>
 #include <QTabWidget>
 #include <QVBoxLayout>
@@ -47,14 +59,6 @@
 
 namespace
 {
-constexpr int kModelDescriptionLineCount=5;
-
-int ModelDescriptionFixedHeight(const QWidget *widget)
-{
-	const QFontMetrics fm(widget->font());
-	return fm.lineSpacing()*kModelDescriptionLineCount+4;
-}
-
 void CompactVBox(QVBoxLayout *layout)
 {
 	layout->setContentsMargins(4,4,4,4);
@@ -118,6 +122,15 @@ QLabel *MakeIndentedNote(QWidget *parent,const QString &text)
 	return label;
 }
 
+QLabel *MakeSectionLabel(QWidget *parent,const QString &text)
+{
+	auto *label=new QLabel(text,parent);
+	QFont font=label->font();
+	font.setBold(true);
+	label->setFont(font);
+	return label;
+}
+
 void PopulateSoundBackendCombo(QComboBox *combo)
 {
 	if(nullptr==combo)
@@ -130,16 +143,186 @@ void PopulateSoundBackendCombo(QComboBox *combo)
 	combo->addItem(QStringLiteral("ALSA"),QStringLiteral("alsa"));
 	combo->addItem(QStringLiteral("JACK"),QStringLiteral("jack"));
 }
+
+/*! Width for combo text, including JP/EN samples so locale switches do not clip. */
+int ComboTextWidth(const QComboBox *combo,const QStringList &also_consider);
+
+const QStringList &FidelityWidthSamples();
+
+void FitComboToText(QComboBox *combo,const QStringList &also_consider=QStringList())
+{
+	if(nullptr==combo)
+	{
+		return;
+	}
+	combo->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+	combo->setFixedWidth(ComboTextWidth(combo,also_consider));
+}
+
+/*! Match CPU-fidelity label and combo to the wider of JP/EN label and combo samples. */
+void FitFidelityLabelAndCombo(QLabel *label,QComboBox *combo)
+{
+	if(nullptr==combo)
+	{
+		return;
+	}
+	FitComboToText(combo,FidelityWidthSamples());
+	int w=combo->width();
+	if(nullptr!=label)
+	{
+		const QFontMetrics fm(label->font());
+		w=std::max({
+		    w,
+		    fm.horizontalAdvance(label->text()),
+		    fm.horizontalAdvance(QStringLiteral("CPU fidelity")),
+		    fm.horizontalAdvance(QStringLiteral("CPUの再現性")),
+		});
+		label->setAlignment(Qt::AlignHCenter|Qt::AlignVCenter);
+		label->setFixedWidth(w);
+	}
+	combo->setFixedWidth(w);
+}
+
+int ComboTextWidth(const QComboBox *combo,const QStringList &also_consider)
+{
+	const QFontMetrics fm(combo->font());
+	int w=0;
+	for(int i=0; i<combo->count(); ++i)
+	{
+		w=std::max(w,fm.horizontalAdvance(combo->itemText(i)));
+	}
+	for(const QString &sample : also_consider)
+	{
+		w=std::max(w,fm.horizontalAdvance(sample));
+	}
+	const int arrow=combo->style()->pixelMetric(QStyle::PM_MenuButtonIndicator,nullptr,combo);
+	const int frame=2*combo->style()->pixelMetric(QStyle::PM_DefaultFrameWidth,nullptr,combo);
+	return w+arrow+frame+12;
+}
+
+void FitSpinToSample(QSpinBox *spin,const QString &sample)
+{
+	if(nullptr==spin)
+	{
+		return;
+	}
+	const QFontMetrics fm(spin->font());
+	const int buttons=spin->style()->pixelMetric(QStyle::PM_SpinBoxSliderHeight,nullptr,spin);
+	const int frame=2*spin->style()->pixelMetric(QStyle::PM_DefaultFrameWidth,nullptr,spin);
+	// Button column is roughly the control height; use a stable pad for up/down.
+	const int pad=std::max(28,buttons+8);
+	// Numeric spin boxes: +1 digit cell so monospace values (e.g. "8 MB") do not clip.
+	const int mono_pad=fm.horizontalAdvance(QLatin1Char('0'));
+	spin->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+	spin->setFixedWidth(fm.horizontalAdvance(sample)+frame+pad+mono_pad);
+}
+
+void FitButtonToText(QPushButton *button,const QStringList &also_consider=QStringList())
+{
+	if(nullptr==button)
+	{
+		return;
+	}
+	const QFontMetrics fm(button->font());
+	int w=fm.horizontalAdvance(button->text());
+	for(const QString &sample : also_consider)
+	{
+		w=std::max(w,fm.horizontalAdvance(sample));
+	}
+	const int frame=2*button->style()->pixelMetric(QStyle::PM_DefaultFrameWidth,nullptr,button);
+	button->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+	button->setFixedWidth(w+frame+16);
+}
+
+/*! Fixed combo width from samples only (long ALSA destination names must not stretch the row). */
+void FitComboToSamples(QComboBox *combo,const QStringList &samples)
+{
+	if(nullptr==combo || samples.isEmpty())
+	{
+		return;
+	}
+	const QFontMetrics fm(combo->font());
+	int w=0;
+	for(const QString &sample : samples)
+	{
+		w=std::max(w,fm.horizontalAdvance(sample));
+	}
+	const int arrow=combo->style()->pixelMetric(QStyle::PM_MenuButtonIndicator,nullptr,combo);
+	const int frame=2*combo->style()->pixelMetric(QStyle::PM_DefaultFrameWidth,nullptr,combo);
+	combo->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+	combo->setFixedWidth(w+arrow+frame+12);
+}
+
+QStringList MidiOutputWidthSamples()
+{
+	return {
+	    QStringLiteral("FluidSynth"),
+	    QStringLiteral("ALSA"),
+	    QStringLiteral("(none)"),
+	};
+}
+
+QStringList MidiAlsaPortWidthSamples()
+{
+	return {
+	    QStringLiteral("(select)"),
+	    QStringLiteral("(選択)"),
+	    QStringLiteral("128:0 TiMidity"),
+	};
+}
+
+const QStringList &CpuKindWidthSamples()
+{
+	static const QStringList samples={
+	    QStringLiteral("80386DX"),
+	    QStringLiteral("80386SX"),
+	    QStringLiteral("80486SX"),
+	    QStringLiteral("80486DX"),
+	    QStringLiteral("Pentium"),
+	    QStringLiteral("Marty"),
+	};
+	return samples;
+}
+
+const QStringList &ModelWidthSamples()
+{
+	static const QStringList samples={
+	    QStringLiteral("MODEL2"),
+	    QStringLiteral("MARTY"),
+	    QStringLiteral("20F"),
+	};
+	return samples;
+}
+
+const QStringList &FidelityWidthSamples()
+{
+	// EN "HIGH" is wider than JA "高" / "中".
+	static const QStringList samples={
+	    QStringLiteral("MID"),
+	    QStringLiteral("HIGH"),
+	    QStringLiteral("中"),
+	    QStringLiteral("高"),
+	};
+	return samples;
+}
 }
 
 SettingsDialog::Values SettingsDialog::defaultValues()
 {
 	Values v;
 	v.cpuFrequencyMhz=33;
+	v.cpuCustomFrequencyMhz=33;
+	v.cpuFastMode=true;
 	v.memSizeInMB=4;
 	v.cpuHighFidelity=false;
 	v.pretend386DX=false;
 	v.useFPU=false;
+	v.fastScsi=false;
+	v.fastFd=false;
+	v.midiBoard=false;
+	v.highResCrtc=true;
+	v.highResPcm=true;
+	v.cpuKind=TownsQtCpuKindDefault();
 	v.modelGroupIndex=TownsQtModelGroupDefaultIndex();
 	v.displayScale=1;
 	v.autoScaling=false;
@@ -162,9 +345,9 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.maxButtonHoldTimeMs1=0;
 	v.mouseIntegrationSpeed=256;
 	v.considerVRAMOffsetInMouseIntegration=true;
-	v.autoDifferentialOnMouseBIOSStop=true;
+	v.autoDifferentialOnMosUnused=true;
 	v.snapMouseIntegration=false;
-	v.snapMouseWarmupFrames=30;
+	v.snapMouseWarmupFrames=10;
 	v.cddaCacheDuringDataRead=true;
 	v.cddaCachePostReadGraceSec=3;
 	v.mouseMinX=TownsStartParameters::DEFAULT_MOUSE_MINX;
@@ -172,6 +355,26 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.mouseMaxX=TownsStartParameters::DEFAULT_MOUSE_MAXX;
 	v.mouseMaxY=TownsStartParameters::DEFAULT_MOUSE_MAXY;
 	v.appSpecificSetting=TOWNS_APPSPECIFIC_NONE;
+	v.useDiscProfiles=true;
+	v.discMounted=false;
+	v.discProfileAvailable=false;
+	v.discProfileCreateRequested=false;
+	v.discProfileFileName.clear();
+	v.profileCpuFrequencyMhz=33;
+	v.profileCpuCustomFrequencyMhz=33;
+	v.profileCpuFastMode=true;
+	v.profileMemSizeInMB=4;
+	v.profileGamePort0=TOWNS_GAMEPORTEMU_PHYSICAL0;
+	v.profileGamePort1=TOWNS_GAMEPORTEMU_MOUSE;
+	v.profileMaxButtonHoldTimeMs0=0;
+	v.profileMaxButtonHoldTimeMs1=0;
+	v.profileCpuHighFidelity=false;
+	v.profilePretend386DX=false;
+	v.profileUseFPU=false;
+	v.profileFastScsi=false;
+	v.profileFastFd=false;
+	v.profileMidiBoard=false;
+	v.profileHasMouseIntegration=false;
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
 		v.hdd[slot]=Values::HddSlot{};
@@ -186,7 +389,7 @@ SettingsDialog::SettingsDialog(const Values &initial,const QString &romDir,QWidg
 	  rom_dir_(romDir.isEmpty() ? TownsQtPaths::romsDir() : romDir),
 	  marty_ex_rom_present_(TownsQtRomAvailability::MartyExRomPresent(rom_dir_)),
 	  sys_rom_profile_(TownsQtRomAvailability::ClassifySysRom(rom_dir_)),
-	  marty_model_index_(TownsQtModelGroupMartyIndex())
+	  sys_rom_level_(TownsQtRomAvailability::SysRomTownsOsLevel(rom_dir_))
 {
 	setWindowTitle(tr("Settings"));
 	QFont dlg_font=font();
@@ -204,8 +407,17 @@ SettingsDialog::SettingsDialog(const Values &initial,const QString &romDir,QWidg
 		setPalette(QApplication::palette());
 	}
 	buildUi();
+	{
+		const QFont mono=QFontDatabase::systemFont(QFontDatabase::FixedFont);
+		for(QSpinBox *spin : findChildren<QSpinBox*>())
+		{
+			spin->setFont(mono);
+		}
+	}
+	updateCpuComboItems();
+	updateModelComboItems();
+	updateDisplayScaleRange();
 	loadFromValues(values_);
-	updateRestrictedModelComboItems();
 	updateSysRomInfoLabel();
 	updateMachineTabControls();
 	setApplyEnabled(false);
@@ -214,7 +426,125 @@ SettingsDialog::SettingsDialog(const Values &initial,const QString &romDir,QWidg
 
 SettingsDialog::Values SettingsDialog::values() const
 {
-	return values_;
+	Values out=values_;
+	applyToValues(out);
+	return out;
+}
+
+void SettingsDialog::setDiscProfileState(const Values &values)
+{
+	values_.discMounted=values.discMounted;
+	values_.discProfileAvailable=values.discProfileAvailable;
+	values_.discProfileFileName=values.discProfileFileName;
+	values_.profileCpuFrequencyMhz=values.profileCpuFrequencyMhz;
+	values_.profileCpuCustomFrequencyMhz=values.profileCpuCustomFrequencyMhz;
+	values_.profileCpuFastMode=values.profileCpuFastMode;
+	values_.profileMemSizeInMB=values.profileMemSizeInMB;
+	values_.profileGamePort0=values.profileGamePort0;
+	values_.profileGamePort1=values.profileGamePort1;
+	values_.profileMaxButtonHoldTimeMs0=values.profileMaxButtonHoldTimeMs0;
+	values_.profileMaxButtonHoldTimeMs1=values.profileMaxButtonHoldTimeMs1;
+	values_.profileCpuHighFidelity=values.profileCpuHighFidelity;
+	values_.profilePretend386DX=values.profilePretend386DX;
+	values_.profileUseFPU=values.profileUseFPU;
+	values_.profileFastScsi=values.profileFastScsi;
+	values_.profileFastFd=values.profileFastFd;
+	values_.profileMidiBoard=values.profileMidiBoard;
+	values_.profileHasMouseIntegration=values.profileHasMouseIntegration;
+	loading_=true;
+	loadSharedMachineWidgets(values_,editingDiscProfile());
+	loading_=false;
+	updateProfileTabControls();
+	updateMachineTabControls();
+}
+
+void SettingsDialog::setMouseCoordProfile(const QVariantMap &profile,bool mosActive)
+{
+	if(nullptr==mouse_coord_profile_page_)
+	{
+		return;
+	}
+	mouse_coord_profile_page_->setMouseBiosActive(mosActive);
+	mouse_coord_profile_page_->setProfile(profile);
+	updateProfileTabControls();
+}
+
+QVariantMap SettingsDialog::mouseCoordProfile(void) const
+{
+	if(nullptr==mouse_coord_profile_page_)
+	{
+		return QVariantMap();
+	}
+	return mouse_coord_profile_page_->profile();
+}
+
+void SettingsDialog::setGameCursorFromSelection(
+    unsigned int physX,unsigned int physY,
+    unsigned int minX,unsigned int maxX,
+    unsigned int minY,unsigned int maxY,
+    bool hasRangeX,bool hasRangeY)
+{
+	if(nullptr==mouse_coord_profile_page_)
+	{
+		return;
+	}
+	mouse_coord_profile_page_->setGameCursorFromSelection(
+	    physX,physY,minX,maxX,minY,maxY,hasRangeX,hasRangeY);
+}
+
+void SettingsDialog::setGameCursor2FromSelection(
+    unsigned int physX,unsigned int physY)
+{
+	if(nullptr==mouse_coord_profile_page_)
+	{
+		return;
+	}
+	mouse_coord_profile_page_->setGameCursor2FromSelection(physX,physY);
+}
+
+void SettingsDialog::setMouseBiosActive(bool active)
+{
+	if(nullptr==mouse_coord_profile_page_)
+	{
+		return;
+	}
+	mouse_coord_profile_page_->setMouseBiosActive(active);
+}
+
+void SettingsDialog::setLiveAppExec(const QString &name,unsigned int hash32)
+{
+	if(nullptr==mouse_coord_profile_page_)
+	{
+		return;
+	}
+	mouse_coord_profile_page_->setLiveAppExec(name,hash32);
+}
+
+void SettingsDialog::focusMouseIntegrationTab(void)
+{
+	if(nullptr==tabs_ || nullptr==mouse_integration_page_)
+	{
+		return;
+	}
+	tabs_->setCurrentWidget(mouse_integration_page_);
+}
+
+void SettingsDialog::focusBasicsTab(void)
+{
+	if(nullptr==tabs_ || nullptr==machine_page_)
+	{
+		return;
+	}
+	tabs_->setCurrentWidget(machine_page_);
+}
+
+int SettingsDialog::mouseIntegrationTabIndex(void) const
+{
+	if(nullptr==tabs_ || nullptr==mouse_integration_page_)
+	{
+		return -1;
+	}
+	return tabs_->indexOf(mouse_integration_page_);
 }
 
 void SettingsDialog::applyFixedDialogSize()
@@ -231,10 +561,36 @@ void SettingsDialog::applyFixedDialogSize()
 
 	QTabBar *bar=tabs_->tabBar();
 	const QMargins margins=main->contentsMargins();
-	constexpr int kTabWidthFudge=8;
-	const int width=bar->sizeHint().width()+margins.left()+margins.right()+kTabWidthFudge;
 	bar->setUsesScrollButtons(false);
+	bar->setExpanding(true);
+	bar->setElideMode(Qt::ElideNone);
 
+	{
+		const QFontMetrics fm(bar->font());
+		int longest=0;
+		const QStringList tabSamples={
+		    tr("Basics"),QStringLiteral("Basics"),QStringLiteral("基本構成"),
+		    tr("Mouse integration"),QStringLiteral("Mouse integration"),QStringLiteral("マウス統合"),
+		    tr("Video / Audio"),QStringLiteral("Video / Audio"),QStringLiteral("映像／音声"),
+		    tr("Features"),QStringLiteral("Features"),QStringLiteral("機能"),
+		};
+		for(const QString &s : tabSamples)
+		{
+			longest=std::max(longest,fm.horizontalAdvance(s));
+		}
+		for(int i=0; i<bar->count(); ++i)
+		{
+			longest=std::max(longest,fm.horizontalAdvance(bar->tabText(i)));
+		}
+		const int hPad=std::max(
+		    24,bar->style()->pixelMetric(QStyle::PM_TabBarTabHSpace,nullptr,bar));
+		bar->setStyleSheet(
+		    QStringLiteral("QTabBar::tab { min-width: %1px; }").arg(longest+hPad));
+	}
+
+	// Width from minimumSizeHint avoids Expanding rows (game ports / audio device)
+	// pulling the dialog far wider than the MIDI / machine controls.
+	int max_width=0;
 	int max_height=0;
 	const int prev_tab=tabs_->currentIndex();
 	for(int i=0; i<tabs_->count(); ++i)
@@ -247,9 +603,23 @@ void SettingsDialog::applyFixedDialogSize()
 				page_layout->activate();
 			}
 		}
+		max_width=std::max(max_width,minimumSizeHint().width());
 		max_height=std::max(max_height,sizeHint().height());
 	}
 	tabs_->setCurrentIndex(0<=prev_tab ? prev_tab : 0);
+	main->activate();
+
+	// Include tab captions and bottom button row when deciding final fixed size.
+	const int tab_width=bar->sizeHint().width()+margins.left()+margins.right()+12;
+	int button_row_width=0;
+	if(0<main->count())
+	{
+		if(QLayoutItem *item=main->itemAt(main->count()-1))
+		{
+			button_row_width=item->sizeHint().width()+margins.left()+margins.right();
+		}
+	}
+	const int width=std::max({max_width,tab_width,button_row_width});
 	setFixedSize(width,max_height);
 }
 
@@ -262,8 +632,9 @@ void SettingsDialog::buildUi()
 	tabs_=new QTabWidget(this);
 	if(QTabBar *bar=tabs_->tabBar())
 	{
-		bar->setExpanding(false);
+		bar->setExpanding(true);
 		bar->setUsesScrollButtons(false);
+		bar->setElideMode(Qt::ElideNone);
 	}
 	layout->addWidget(tabs_);
 
@@ -272,19 +643,22 @@ void SettingsDialog::buildUi()
 		auto *v=new QVBoxLayout(page);
 		CompactVBox(v);
 
-		auto *main_grid=new QGridLayout();
-		main_grid->setContentsMargins(0,0,0,0);
-		main_grid->setHorizontalSpacing(16);
-		main_grid->setVerticalSpacing(4);
+		machine_global_bar_=new QWidget(page);
+		auto *machine_top=new QHBoxLayout(machine_global_bar_);
+		machine_top->setContentsMargins(0,0,0,0);
+		machine_top->setSpacing(6);
 
-		auto *model_header_widget=new QWidget(page);
-		auto *model_header_layout=new QHBoxLayout(model_header_widget);
-		model_header_layout->setContentsMargins(0,0,0,0);
-		model_header_layout->setSpacing(8);
-		auto *model_caption=new QLabel(tr("Model"),model_header_widget);
-		sys_rom_info_label_=new QLabel(model_header_widget);
-		sys_rom_info_label_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
-		sys_rom_info_label_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
+		auto *machine_left=new QVBoxLayout();
+		machine_left->setContentsMargins(0,0,0,0);
+		machine_left->setSpacing(4);
+
+		auto *bios_row=new QHBoxLayout();
+		bios_row->setContentsMargins(0,0,0,0);
+		bios_row->setSpacing(6);
+		bios_row->addWidget(new QLabel(tr("BIOS"),machine_global_bar_));
+		sys_rom_info_label_=new QLabel(machine_global_bar_);
+		sys_rom_info_label_->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
+		sys_rom_info_label_->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Preferred);
 		QFont info_font=sys_rom_info_label_->font();
 		if(0<info_font.pointSize())
 		{
@@ -292,143 +666,239 @@ void SettingsDialog::buildUi()
 		}
 		sys_rom_info_label_->setFont(info_font);
 		sys_rom_info_label_->setForegroundRole(QPalette::PlaceholderText);
-		model_header_layout->addWidget(model_caption);
-		model_header_layout->addWidget(sys_rom_info_label_,1);
-		main_grid->addWidget(model_header_widget,0,0);
+		bios_row->addWidget(sys_rom_info_label_,0,Qt::AlignLeft|Qt::AlignVCenter);
+		bios_row->addStretch(1);
+		machine_left->addLayout(bios_row);
 
-		model_group_=new QComboBox(page);
-		model_group_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-		for(int i=0; i<TownsQtModelGroupCount(); ++i)
-		{
-			model_group_->addItem(
-			    TownsQtModelGroupLabel(i),
-			    i);
-		}
-		main_grid->addWidget(model_group_,1,0);
-		connect(model_group_,qOverload<int>(&QComboBox::currentIndexChanged),this,[this](int){
-			updateModelDescription();
+		auto *machine_row=new QHBoxLayout();
+		machine_row->setContentsMargins(0,0,0,0);
+		machine_row->setSpacing(6);
+		machine_row->addWidget(new QLabel(tr("CPU"),machine_global_bar_));
+		cpu_kind_=new QComboBox(machine_global_bar_);
+		FitComboToText(cpu_kind_,CpuKindWidthSamples());
+		machine_row->addWidget(cpu_kind_);
+		connect(cpu_kind_,qOverload<int>(&QComboBox::currentIndexChanged),this,[this](int){
+			updateModelComboItems();
 			updateMachineTabControls();
 			markDirty();
 		});
 
-		auto *mem_widget=new QWidget(page);
-		auto *mem_layout=new QHBoxLayout(mem_widget);
-		mem_layout->setContentsMargins(0,0,0,0);
-		mem_layout->setSpacing(8);
-		mem_label_=new QLabel(tr("Memory"),mem_widget);
-		mem_size_mb_=new QSpinBox(mem_widget);
-		mem_size_mb_->setRange(1,64);
-		mem_size_mb_->setSuffix(tr(" MB"));
-		mem_layout->addStretch();
-		mem_layout->addWidget(mem_label_);
-		mem_layout->addWidget(mem_size_mb_);
-		mem_layout->addStretch();
-		main_grid->addWidget(mem_widget,1,1,Qt::AlignVCenter);
-
-		model_description_=new QLabel(page);
-		model_description_->setWordWrap(true);
-		model_description_->setTextFormat(Qt::RichText);
-		model_description_->setAlignment(Qt::AlignTop|Qt::AlignLeft);
-		model_description_->setFixedHeight(ModelDescriptionFixedHeight(page));
-		model_description_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-		main_grid->addWidget(model_description_,2,0,1,1);
-
-		fidelity_box_=new QGroupBox(tr("CPU fidelity"),page);
-		ShrinkGroupBox(fidelity_box_);
-		fidelity_box_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-		auto *fidelity_layout=new QHBoxLayout(fidelity_box_);
-		CompactGroupBoxLayout(fidelity_layout);
-		fidelity_group_=new QButtonGroup(fidelity_box_);
-		auto *fidelity_mid=new QRadioButton(tr("MID"),fidelity_box_);
-		auto *fidelity_high=new QRadioButton(tr("HIGH"),fidelity_box_);
-		fidelity_group_->addButton(fidelity_mid,0);
-		fidelity_group_->addButton(fidelity_high,1);
-		fidelity_layout->addStretch(1);
-		fidelity_layout->addWidget(fidelity_mid);
-		fidelity_layout->addStretch(1);
-		fidelity_layout->addWidget(fidelity_high);
-		fidelity_layout->addStretch(1);
-		main_grid->addWidget(fidelity_box_,2,1,Qt::AlignBottom);
-
-		main_grid->setColumnStretch(0,1);
-		main_grid->setColumnStretch(1,1);
-		main_grid->setRowStretch(2,1);
-		v->addLayout(main_grid);
-		v->addWidget(MakeHorizontalSeparator(page));
-
-		opt_grid_widget_=new QWidget(page);
-		auto *opt_grid=new QGridLayout(opt_grid_widget_);
-		CompactGrid(opt_grid);
-		opt_grid->setColumnStretch(0,1);
-		opt_grid->setColumnStretch(1,1);
-		opt_grid->setColumnStretch(2,1);
-		pretend_386_=new QCheckBox(tr("pretend386DX"),opt_grid_widget_);
-		fast_scsi_=new QCheckBox(tr("FAST SCSI"),opt_grid_widget_);
-		fast_fd_=new QCheckBox(tr("FAST FD"),opt_grid_widget_);
-		use_fpu_=new QCheckBox(tr("80386FPU"),opt_grid_widget_);
-		midi_board_=new QCheckBox(tr("MIDI board"),opt_grid_widget_);
-		hdd_settings_button_=new QPushButton(tr("Hard disk drive settings…"),opt_grid_widget_);
-		opt_grid->addWidget(pretend_386_,0,0);
-		opt_grid->addWidget(fast_scsi_,0,1);
-		opt_grid->addWidget(fast_fd_,0,2);
-		opt_grid->addWidget(use_fpu_,1,0);
-		opt_grid->addWidget(midi_board_,1,1);
-		opt_grid->addWidget(hdd_settings_button_,1,2);
-		v->addWidget(opt_grid_widget_);
-		connect(midi_board_,&QCheckBox::toggled,this,&SettingsDialog::updateAudioTabMidiSection);
-		connect(hdd_settings_button_,&QPushButton::clicked,this,&SettingsDialog::openHddSettingsDialog);
-		v->addWidget(MakeHorizontalSeparator(page));
-
-		auto *app_row=new QHBoxLayout();
-		app_row->setSpacing(8);
-		app_row->addWidget(new QLabel(tr("App-specific settings"),page));
-		app_specific_=new QComboBox(page);
-		app_specific_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-		for(int i=0; i<TownsQtAppProfileCount(); ++i)
-		{
-			app_specific_->addItem(
-			    QString::fromUtf8(TownsQtAppProfileAt(i).label),
-			    TownsQtAppProfileId(i));
-		}
-		app_row->addWidget(app_specific_,1);
-		v->addLayout(app_row);
-		connect(app_specific_,qOverload<int>(&QComboBox::currentIndexChanged),this,[this](int){
-			updateAppSpecificDescription();
+		machine_row->addWidget(new QLabel(tr("Model"),machine_global_bar_));
+		model_group_=new QComboBox(machine_global_bar_);
+		FitComboToText(model_group_,ModelWidthSamples());
+		machine_row->addWidget(model_group_);
+		connect(model_group_,qOverload<int>(&QComboBox::currentIndexChanged),this,[this](int){
+			updateMachineTabControls();
 			markDirty();
 		});
+		machine_left->addLayout(machine_row);
+		machine_top->addLayout(machine_left);
 
-		app_specific_description_=MakeIndentedNote(page,QString());
-		v->addWidget(app_specific_description_);
+		machine_top->addStretch(1);
 
-		FinishTabPage(v,MakeTabFooterNote(
-		    page,
-		    tr("Changes are saved with Apply or OK; the emulator restarts so settings take effect.")));
-		machine_page_=page;
-		tabs_->addTab(page,tr("Machine"));
-	}
+		auto *cap_grid=new QGridLayout();
+		cap_grid->setContentsMargins(0,0,0,0);
+		cap_grid->setHorizontalSpacing(6);
+		cap_grid->setVerticalSpacing(4);
+		auto *high_res_cap_label=new QLabel(tr("High-res / high-res PCM"),machine_global_bar_);
+		auto *ug_io_cap_label=new QLabel(tr("UG SCSI / peripheral I/O"),machine_global_bar_);
+		high_res_status_label_=new QLabel(tr("Disabled"),machine_global_bar_);
+		ug_io_status_label_=new QLabel(tr("Disabled"),machine_global_bar_);
+		cap_grid->addWidget(high_res_cap_label,0,0,Qt::AlignRight|Qt::AlignVCenter);
+		cap_grid->addWidget(high_res_status_label_,0,1,Qt::AlignLeft|Qt::AlignVCenter);
+		cap_grid->addWidget(ug_io_cap_label,1,0,Qt::AlignRight|Qt::AlignVCenter);
+		cap_grid->addWidget(ug_io_status_label_,1,1,Qt::AlignLeft|Qt::AlignVCenter);
+		machine_top->addLayout(cap_grid);
 
-	{
-		auto *page=new QWidget(tabs_);
-		auto *v=new QVBoxLayout(page);
-		CompactVBox(v);
+		machine_top->addStretch(1);
+		v->addWidget(machine_global_bar_);
+		v->addWidget(MakeHorizontalSeparator(page));
+
+		disc_profile_bar_=new QWidget(page);
+		auto *prof_bar=new QVBoxLayout(disc_profile_bar_);
+		prof_bar->setContentsMargins(0,0,0,0);
+		prof_bar->setSpacing(4);
+		auto *prof_row=new QHBoxLayout();
+		prof_row->setContentsMargins(0,0,0,0);
+		prof_row->setSpacing(8);
+		disc_profile_status_label_=new QLabel(disc_profile_bar_);
+		disc_profile_status_label_->setWordWrap(true);
+		disc_profile_status_label_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
+		prof_row->addWidget(disc_profile_status_label_,1);
+		disc_profile_action_btn_=new QPushButton(tr("Create profile"),disc_profile_bar_);
+		connect(disc_profile_action_btn_,&QPushButton::clicked,this,[this](){
+			if(true==values_.discProfileAvailable)
+			{
+				const QString name=values_.discProfileFileName.isEmpty() ?
+				    tr("(unnamed)") : values_.discProfileFileName;
+				const auto reply=QMessageBox::question(
+				    this,
+				    tr("Delete disc profile"),
+				    tr("Delete the disc profile \"%1\"?\n"
+				       "Per-disc machine and mouse settings will be removed.\n"
+				       "This cannot be undone.").arg(name),
+				    QMessageBox::Yes|QMessageBox::No,
+				    QMessageBox::No);
+				if(QMessageBox::Yes!=reply)
+				{
+					return;
+				}
+				Q_EMIT deleteDiscProfileRequested();
+				return;
+			}
+			values_.discProfileCreateRequested=true;
+			Q_EMIT createDiscProfileRequested();
+			markDirty();
+		});
+		prof_row->addWidget(disc_profile_action_btn_,0,Qt::AlignTop);
+		prof_bar->addLayout(prof_row);
+		auto *file_row=new QHBoxLayout();
+		file_row->setContentsMargins(0,0,0,0);
+		file_row->setSpacing(8);
+		file_row->addWidget(new QLabel(tr("Profile file"),disc_profile_bar_));
+		disc_profile_file_label_=new QLabel(disc_profile_bar_);
+		disc_profile_file_label_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+		disc_profile_file_label_->setWordWrap(true);
+		disc_profile_file_label_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
+		file_row->addWidget(disc_profile_file_label_,1);
+		prof_bar->addLayout(file_row);
+		v->addWidget(disc_profile_bar_);
+
+		profile_fields_box_=new QWidget(page);
+		profile_fields_box_->setObjectName(QStringLiteral("profileFieldsBox"));
+		auto *profile_v=new QVBoxLayout(profile_fields_box_);
+		profile_v->setContentsMargins(4,4,4,4);
+		profile_v->setSpacing(4);
+
+		auto *fast_row_host=new QWidget(profile_fields_box_);
+		auto *fast_row=new QHBoxLayout(fast_row_host);
+		fast_row->setContentsMargins(0,0,0,0);
+		fast_row->setSpacing(8);
+		cpu_freq_group_=new QButtonGroup(fast_row_host);
+		cpu_freq_group_->setExclusive(true);
+		cpu_freq_compat_=new QRadioButton(tr("Compatible"),fast_row_host);
+		cpu_freq_16_=new QRadioButton(QStringLiteral("16MHz"),fast_row_host);
+		cpu_freq_20_=new QRadioButton(QStringLiteral("20MHz"),fast_row_host);
+		cpu_freq_25_=new QRadioButton(QStringLiteral("25MHz"),fast_row_host);
+		cpu_freq_custom_=new QRadioButton(fast_row_host);
+		cpu_freq_group_->addButton(cpu_freq_compat_,-1);
+		cpu_freq_group_->addButton(cpu_freq_16_,16);
+		cpu_freq_group_->addButton(cpu_freq_20_,20);
+		cpu_freq_group_->addButton(cpu_freq_25_,25);
+		cpu_freq_group_->addButton(cpu_freq_custom_,0);
+		fast_row->addWidget(cpu_freq_compat_);
+		fast_row->addWidget(cpu_freq_16_);
+		fast_row->addWidget(cpu_freq_20_);
+		fast_row->addWidget(cpu_freq_25_);
+		fast_row->addWidget(cpu_freq_custom_);
+		cpu_freq_custom_mhz_=new QSpinBox(fast_row_host);
+		cpu_freq_custom_mhz_->setRange(33,60);
+		cpu_freq_custom_mhz_->setSuffix(tr(" MHz"));
+		FitSpinToSample(cpu_freq_custom_mhz_,QStringLiteral("60")+tr(" MHz"));
+		fast_row->addWidget(cpu_freq_custom_mhz_);
+		fast_row->addStretch(1);
+		connect(cpu_freq_group_,&QButtonGroup::idToggled,this,[this](int id,bool checked){
+			if(!checked || loading_)
+			{
+				return;
+			}
+			if(0<=id)
+			{
+				values_.cpuFrequencyMhz=(0==id) ? selectedCpuCustomFrequencyMhz() : id;
+			}
+			updateFastModeControls();
+			markDirty();
+		});
+		connect(cpu_freq_custom_mhz_,qOverload<int>(&QSpinBox::valueChanged),this,[this](int){
+			if(loading_)
+			{
+				return;
+			}
+			if(nullptr!=cpu_freq_custom_ && true!=cpu_freq_custom_->isChecked())
+			{
+				QSignalBlocker blocker(cpu_freq_custom_);
+				cpu_freq_custom_->setChecked(true);
+			}
+			values_.cpuFrequencyMhz=selectedCpuCustomFrequencyMhz();
+			updateFastModeControls();
+			markDirty();
+		});
+		profile_v->addWidget(fast_row_host);
+
+		opt_grid_widget_=new QWidget(profile_fields_box_);
+		auto *opt_outer=new QVBoxLayout(opt_grid_widget_);
+		CompactVBox(opt_outer);
+		opt_outer->setContentsMargins(0,0,0,0);
+
+		auto *opt_top=new QHBoxLayout();
+		opt_top->setContentsMargins(0,0,0,0);
+		opt_top->setSpacing(6);
+
+		auto *checks=new QGridLayout();
+		CompactGrid(checks);
+		checks->setContentsMargins(0,0,0,0);
+		checks->setColumnStretch(0,0);
+		checks->setColumnStretch(1,0);
+		checks->setColumnStretch(2,0);
+		pretend_386_=new QCheckBox(tr("Pretend 386DX"),opt_grid_widget_);
+		use_fpu_=new QCheckBox(tr("80386FPU"),opt_grid_widget_);
+		fast_scsi_=new QCheckBox(tr("Fast SCSI"),opt_grid_widget_);
+		fast_fd_=new QCheckBox(tr("Fast FD"),opt_grid_widget_);
+		midi_board_=new QCheckBox(tr("MIDI board"),opt_grid_widget_);
+		connect(midi_board_,&QCheckBox::toggled,this,&SettingsDialog::updateAudioTabMidiSection);
+		checks->addWidget(pretend_386_,0,0,Qt::AlignLeft|Qt::AlignVCenter);
+		checks->addWidget(use_fpu_,0,1,Qt::AlignLeft|Qt::AlignVCenter);
+		checks->addWidget(fast_scsi_,1,0,Qt::AlignLeft|Qt::AlignVCenter);
+		checks->addWidget(fast_fd_,1,1,Qt::AlignLeft|Qt::AlignVCenter);
+		checks->addWidget(midi_board_,1,2,Qt::AlignLeft|Qt::AlignVCenter);
+		opt_top->addLayout(checks,1);
+
+		auto *opt_sep=new QFrame(opt_grid_widget_);
+		opt_sep->setFrameShape(QFrame::VLine);
+		opt_sep->setFrameShadow(QFrame::Sunken);
+		opt_top->addWidget(opt_sep);
+
+		auto *mem_fidelity=new QGridLayout();
+		mem_fidelity->setContentsMargins(0,0,0,0);
+		mem_fidelity->setHorizontalSpacing(6);
+		mem_fidelity->setVerticalSpacing(checks->verticalSpacing());
+		mem_label_=new QLabel(tr("Memory"),opt_grid_widget_);
+		mem_size_mb_=new QSpinBox(opt_grid_widget_);
+		mem_size_mb_->setRange(1,64);
+		mem_size_mb_->setSuffix(tr(" MB"));
+		FitSpinToSample(mem_size_mb_,QStringLiteral("64")+tr(" MB"));
+		auto *fidelity_label=new QLabel(tr("CPU fidelity"),opt_grid_widget_);
+		cpu_fidelity_=new QComboBox(opt_grid_widget_);
+		cpu_fidelity_->addItem(tr("MID"),0);
+		cpu_fidelity_->addItem(tr("HIGH"),1);
+		FitFidelityLabelAndCombo(fidelity_label,cpu_fidelity_);
+		mem_fidelity->addWidget(fidelity_label,0,0,Qt::AlignRight|Qt::AlignVCenter);
+		mem_fidelity->addWidget(cpu_fidelity_,0,1,Qt::AlignLeft|Qt::AlignVCenter);
+		mem_fidelity->addWidget(mem_label_,1,0,Qt::AlignRight|Qt::AlignVCenter);
+		mem_fidelity->addWidget(mem_size_mb_,1,1,Qt::AlignLeft|Qt::AlignVCenter);
+		opt_top->addLayout(mem_fidelity);
+		opt_outer->addLayout(opt_top);
+		profile_v->addWidget(opt_grid_widget_);
+
+		profile_v->addWidget(MakeHorizontalSeparator(profile_fields_box_));
 
 		auto *joystick_grid=new QGridLayout();
 		joystick_grid->setHorizontalSpacing(16);
 		joystick_grid->setVerticalSpacing(4);
-		joystick_grid->setColumnStretch(0,4);
-		joystick_grid->setColumnStretch(1,1);
-		joystick_grid->addWidget(new QLabel(tr("Game pad / mouse ports"),page),0,0);
-		joystick_grid->addWidget(new QLabel(tr("Max button hold time"),page),0,1);
+		joystick_grid->setColumnStretch(0,1);
+		joystick_grid->setColumnStretch(1,0);
+		joystick_grid->addWidget(new QLabel(tr("Game pad / mouse ports"),profile_fields_box_),0,0);
+		joystick_grid->addWidget(new QLabel(tr("Max button hold time"),profile_fields_box_),0,1);
 
-		gameport0_=new QComboBox(page);
-		gameport1_=new QComboBox(page);
+		gameport0_=new QComboBox(profile_fields_box_);
+		gameport1_=new QComboBox(profile_fields_box_);
 		gameport0_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
 		gameport1_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
 		TownsQtGamePortOptions::PopulateCombo(gameport0_,TOWNS_GAMEPORTEMU_PHYSICAL0);
 		TownsQtGamePortOptions::PopulateCombo(gameport1_,TOWNS_GAMEPORTEMU_MOUSE);
 
-		max_button_hold0_=new QSpinBox(page);
-		max_button_hold1_=new QSpinBox(page);
+		max_button_hold0_=new QSpinBox(profile_fields_box_);
+		max_button_hold1_=new QSpinBox(profile_fields_box_);
 		for(QSpinBox *spin : {max_button_hold0_,max_button_hold1_})
 		{
 			spin->setRange(0,9999);
@@ -438,92 +908,41 @@ void SettingsDialog::buildUi()
 
 		auto *port0_row=new QHBoxLayout();
 		port0_row->setSpacing(8);
-		port0_row->addWidget(new QLabel(QStringLiteral("0"),page));
+		port0_row->addWidget(new QLabel(QStringLiteral("0"),profile_fields_box_));
 		port0_row->addWidget(gameport0_,1);
 		joystick_grid->addLayout(port0_row,1,0);
 
 		auto *hold0_row=new QHBoxLayout();
 		hold0_row->setSpacing(8);
-		hold0_row->addWidget(new QLabel(tr("Button 0"),page));
+		hold0_row->addWidget(new QLabel(tr("Button 0"),profile_fields_box_));
 		hold0_row->addWidget(max_button_hold0_);
 		joystick_grid->addLayout(hold0_row,1,1);
 
 		auto *port1_row=new QHBoxLayout();
 		port1_row->setSpacing(8);
-		port1_row->addWidget(new QLabel(QStringLiteral("1"),page));
+		port1_row->addWidget(new QLabel(QStringLiteral("1"),profile_fields_box_));
 		port1_row->addWidget(gameport1_,1);
 		joystick_grid->addLayout(port1_row,2,0);
 
 		auto *hold1_row=new QHBoxLayout();
 		hold1_row->setSpacing(8);
-		hold1_row->addWidget(new QLabel(tr("Button 1"),page));
+		hold1_row->addWidget(new QLabel(tr("Button 1"),profile_fields_box_));
 		hold1_row->addWidget(max_button_hold1_);
 		joystick_grid->addLayout(hold1_row,2,1);
 
-		v->addLayout(joystick_grid);
+		profile_v->addLayout(joystick_grid);
+		v->addWidget(profile_fields_box_);
 
-		auto *speed_box=new QGroupBox(tr("Mouse movement speed"),page);
-		ShrinkGroupBox(speed_box);
-		auto *speed_layout=new QHBoxLayout(speed_box);
-		CompactGroupBoxLayout(speed_layout);
-		mouse_speed_slider_=new QSlider(Qt::Horizontal,speed_box);
-		mouse_speed_slider_->setRange(32,256);
-		mouse_speed_value_=new QLabel(speed_box);
-		mouse_speed_value_->setMinimumWidth(28);
-		mouse_speed_value_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
-		speed_layout->addWidget(mouse_speed_slider_,1);
-		speed_layout->addWidget(mouse_speed_value_);
-		connect(mouse_speed_slider_,&QSlider::valueChanged,this,[this](int value){
-			if(nullptr!=mouse_speed_value_)
-			{
-				mouse_speed_value_->setText(QString::number(value));
-			}
-		});
-		v->addWidget(speed_box);
-
-		auto *range_box=new QGroupBox(tr("Mouse coordinate range"),page);
-		ShrinkGroupBox(range_box);
-		auto *range_layout=new QGridLayout(range_box);
-		CompactGrid(range_layout);
-		mouse_vram_offset_=new QCheckBox(tr("Consider VRAM offset"),range_box);
-		mouse_min_x_=new QSpinBox(range_box);
-		mouse_min_y_=new QSpinBox(range_box);
-		mouse_max_x_=new QSpinBox(range_box);
-		mouse_max_y_=new QSpinBox(range_box);
-		for(QSpinBox *spin : {mouse_min_x_,mouse_min_y_,mouse_max_x_,mouse_max_y_})
-		{
-			spin->setRange(-32768,32767);
-		}
-		range_layout->addWidget(mouse_vram_offset_,0,0);
-		range_layout->addWidget(new QLabel(tr("MinX"),range_box),0,1);
-		range_layout->addWidget(mouse_min_x_,0,2);
-		range_layout->addWidget(new QLabel(tr("MinY"),range_box),0,3);
-		range_layout->addWidget(mouse_min_y_,0,4);
-		range_layout->addWidget(new QLabel(tr("MaxX"),range_box),1,1);
-		range_layout->addWidget(mouse_max_x_,1,2);
-		range_layout->addWidget(new QLabel(tr("MaxY"),range_box),1,3);
-		range_layout->addWidget(mouse_max_y_,1,4);
-		range_layout->setColumnStretch(0,1);
-		v->addWidget(range_box);
-
-		auto *mouse_integration_separator=new QFrame(page);
-		mouse_integration_separator->setFrameShape(QFrame::HLine);
-		mouse_integration_separator->setFrameShadow(QFrame::Sunken);
-		v->addWidget(mouse_integration_separator);
-
-		auto_diff_on_mouse_bios_stop_=new QCheckBox(
-		    tr("Auto-switch to differential when Mouse BIOS stops"),page);
-		v->addWidget(auto_diff_on_mouse_bios_stop_);
-		v->addWidget(MakeIndentedNote(
+		auto *basics_footer=MakeTabFooterNote(
 		    page,
-		    tr("Absolute and instant integration are unavailable while Mouse BIOS is stopped.\n"
-		       "Automatically switch to differential input to keep the mouse usable.")));
-
-		FinishTabPage(v,MakeTabFooterNote(
-		    page,
-		    tr("Changes take effect immediately when you press Apply or OK.")));
-		peripheral_page_=page;
-		tabs_->addTab(page,tr("Mouse & Game Pad"));
+		    tr("Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
+		       "Memory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
+		       "Create a disc profile when a CD is mounted to save per-disc settings."));
+		basics_footer->setMaximumWidth(640);
+		basics_footer_label_=basics_footer;
+		FinishTabPage(v,basics_footer);
+		machine_page_=page;
+		tabs_->addTab(page,tr("Basics"));
 	}
 
 	{
@@ -531,15 +950,30 @@ void SettingsDialog::buildUi()
 		auto *v=new QVBoxLayout(page);
 		CompactVBox(v);
 
-		auto *scale_row=new QHBoxLayout();
-		scale_row->setSpacing(12);
+		mouse_coord_profile_page_=new MouseCoordProfilePage(page);
+		connect(mouse_coord_profile_page_,&MouseCoordProfilePage::contentChanged,
+		        this,&SettingsDialog::markDirty);
+		connect(mouse_coord_profile_page_,&MouseCoordProfilePage::bindCurrentAppExecRequested,
+		        this,&SettingsDialog::bindCurrentAppExecRequested);
+		connect(mouse_coord_profile_page_,&MouseCoordProfilePage::openMemoryScanRequested,
+		        this,&SettingsDialog::openMemoryScanRequested);
+		v->addWidget(mouse_coord_profile_page_,1);
+
+		FinishTabPage(v);
+		mouse_integration_page_=page;
+		tabs_->addTab(page,tr("Mouse integration"));
+	}
+
+	{
+		auto *page=new QWidget(tabs_);
+		auto *v=new QVBoxLayout(page);
+		CompactVBox(v);
+
+		v->addWidget(MakeSectionLabel(page,tr("Video")));
+
 		display_scale_=new QSpinBox(page);
 		display_scale_->setRange(1,8);
 		display_scale_->setSuffix(tr("x"));
-		scale_row->addWidget(new QLabel(tr("Window scale:"),page));
-		scale_row->addWidget(display_scale_);
-		scale_row->addSpacing(16);
-		scale_row->addWidget(new QLabel(tr("Sprite transfer"),page));
 		sprite_group_=new QButtonGroup(page);
 		auto *sprite_standard=new QRadioButton(tr("Normal"),page);
 		auto *sprite_double=new QRadioButton(tr("Double"),page);
@@ -547,69 +981,56 @@ void SettingsDialog::buildUi()
 		sprite_group_->addButton(sprite_standard,0);
 		sprite_group_->addButton(sprite_double,1);
 		sprite_group_->addButton(sprite_max,2);
-		scale_row->addWidget(sprite_standard);
-		scale_row->addWidget(sprite_double);
-		scale_row->addWidget(sprite_max);
+
+		auto *scale_lbl=new QLabel(tr("Window scale:"),page);
+		auto *sprite_lbl=new QLabel(tr("Sprite transfer speed:"),page);
+		{
+			const QFontMetrics fm(scale_lbl->font());
+			const int titleW=std::max({
+			    fm.horizontalAdvance(tr("Window scale:")),
+			    fm.horizontalAdvance(tr("Sprite transfer speed:")),
+			    fm.horizontalAdvance(QStringLiteral("Window scale:")),
+			    fm.horizontalAdvance(QStringLiteral("Sprite transfer speed:")),
+			    fm.horizontalAdvance(QStringLiteral("ウインドウ倍率：")),
+			    fm.horizontalAdvance(QStringLiteral("スプライト転送速度：")),
+			});
+			scale_lbl->setFixedWidth(titleW);
+			sprite_lbl->setFixedWidth(titleW);
+			scale_lbl->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+			sprite_lbl->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+		}
+
+		auto *scale_row=new QHBoxLayout();
+		scale_row->setSpacing(8);
+		scale_row->addWidget(scale_lbl);
+		scale_row->addWidget(display_scale_);
 		scale_row->addStretch();
 		v->addLayout(scale_row);
 
+		auto *sprite_row=new QHBoxLayout();
+		sprite_row->setSpacing(8);
+		sprite_row->addWidget(sprite_lbl);
+		sprite_row->addWidget(sprite_standard);
+		sprite_row->addWidget(sprite_double);
+		sprite_row->addWidget(sprite_max);
+		sprite_row->addStretch();
+		v->addLayout(sprite_row);
+
 		auto *video_grid=new QGridLayout();
 		CompactGrid(video_grid);
-		auto_scale_=new QCheckBox(tr("Fit scale to window"),page);
-		maintain_aspect_=new QCheckBox(tr("Maintain aspect ratio"),page);
 		scanline_15k_=new QCheckBox(tr("15 kHz scan-line effect"),page);
 		damper_wire_=new QCheckBox(tr("Damper-wire line"),page);
 		fullscreen_vsync_=new QCheckBox(tr("VSync in fullscreen"),page);
-		video_grid->addWidget(auto_scale_,0,0);
-		video_grid->addWidget(maintain_aspect_,0,1);
-		video_grid->addWidget(scanline_15k_,1,0);
-		video_grid->addWidget(damper_wire_,1,1);
-		video_grid->addWidget(fullscreen_vsync_,2,0);
+		video_grid->addWidget(scanline_15k_,0,0);
+		video_grid->addWidget(damper_wire_,0,1);
+		video_grid->addWidget(fullscreen_vsync_,1,0);
 		video_grid->setColumnStretch(0,1);
 		video_grid->setColumnStretch(1,1);
 		v->addLayout(video_grid);
 
-		FinishTabPage(v,MakeTabFooterNote(
-		    page,
-		    tr("Changes take effect immediately when you press Apply or OK.")));
-		video_page_=page;
-		tabs_->addTab(page,tr("Display"));
-	}
+		v->addWidget(MakeHorizontalSeparator(page));
 
-	{
-		auto *page=new QWidget(tabs_);
-		auto *v=new QVBoxLayout(page);
-		CompactVBox(v);
-
-		auto make_volume_row=[&](const QString &label,QSlider *&slider,QLabel *&value_label){
-			auto *row=new QHBoxLayout();
-			row->setSpacing(8);
-			auto *name=new QLabel(label,page);
-			name->setMinimumWidth(48);
-			row->addWidget(name);
-			slider=new QSlider(Qt::Horizontal,page);
-			slider->setRange(0,100);
-			value_label=new QLabel(page);
-			value_label->setMinimumWidth(36);
-			value_label->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
-			row->addWidget(slider,1);
-			row->addWidget(value_label);
-			v->addLayout(row);
-			connect(slider,&QSlider::valueChanged,this,[value_label](int value){
-				if(nullptr!=value_label)
-				{
-					value_label->setText(QStringLiteral("%1%").arg(value));
-				}
-			});
-		};
-
-		auto *volume_heading=new QLabel(tr("Volume"),page);
-		volume_heading->setAlignment(Qt::AlignCenter);
-		v->addWidget(volume_heading);
-		make_volume_row(tr("FM"),fm_volume_slider_,fm_volume_value_);
-		make_volume_row(tr("PCM"),pcm_volume_slider_,pcm_volume_value_);
-		make_volume_row(tr("CDDA"),cdda_volume_slider_,cdda_volume_value_);
-		make_volume_row(tr("MIDI"),midi_volume_slider_,midi_volume_value_);
+		v->addWidget(MakeSectionLabel(page,tr("Audio")));
 
 		auto *pcm_grid=new QGridLayout();
 		CompactGrid(pcm_grid);
@@ -651,45 +1072,92 @@ void SettingsDialog::buildUi()
 		connect(sound_backend_,qOverload<int>(&QComboBox::currentIndexChanged),this,&SettingsDialog::onAudioBackendChanged);
 		populateSoundDeviceCombo(QString());
 
-		auto *midi_output_row=new QHBoxLayout();
-		midi_output_row->setSpacing(8);
-		midi_output_row->addWidget(new QLabel(tr("MIDI output:"),page));
+		auto *midi_line=new QHBoxLayout();
+		midi_line->setContentsMargins(0,0,0,0);
+		midi_line->setSpacing(6);
+		auto *midi_output_label=new QLabel(tr("MIDI output"),page);
 		midi_output_=new QComboBox(page);
-		midi_output_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-		midi_output_row->addWidget(midi_output_,1);
-		v->addLayout(midi_output_row);
+		midi_output_->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+		midi_line->addWidget(midi_output_label);
+		midi_line->addWidget(midi_output_);
+		connect(midi_output_,qOverload<int>(&QComboBox::currentIndexChanged),this,&SettingsDialog::onMidiOutputChanged);
 
-		midi_fluidsynth_panel_=new QWidget(page);
-		auto *sf_layout=new QVBoxLayout(midi_fluidsynth_panel_);
-		sf_layout->setContentsMargins(0,0,0,0);
-		sf_layout->setSpacing(3);
-		auto *sf_row=new QHBoxLayout();
-		sf_row->setSpacing(8);
-		sf_row->addWidget(new QLabel(tr("SoundFont:"),midi_fluidsynth_panel_));
+		midi_detail_stack_=new QStackedWidget(page);
+		midi_detail_stack_->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+
+		midi_fluidsynth_panel_=new QWidget(midi_detail_stack_);
+		auto *sf_row=new QHBoxLayout(midi_fluidsynth_panel_);
+		sf_row->setContentsMargins(0,0,0,0);
+		sf_row->setSpacing(4);
+		auto *sf_label=new QLabel(tr("SoundFont"),midi_fluidsynth_panel_);
 		midi_soundfont_edit_=new QLineEdit(midi_fluidsynth_panel_);
 		midi_soundfont_edit_->setReadOnly(true);
 		midi_soundfont_edit_->setPlaceholderText(tr("(not set)"));
+		midi_soundfont_edit_->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+		midi_soundfont_edit_->setMinimumWidth(0);
+		{
+			const QFontMetrics fm(midi_soundfont_edit_->font());
+			const int sample=std::max({
+			    fm.horizontalAdvance(QStringLiteral("GeneralUser.sf2")),
+			    fm.horizontalAdvance(QStringLiteral("(not set)")),
+			    fm.horizontalAdvance(QStringLiteral("（未指定）")),
+			});
+			midi_soundfont_edit_->setFixedWidth(sample+20);
+		}
 		midi_soundfont_browse_=new QPushButton(tr("Browse…"),midi_fluidsynth_panel_);
-		sf_row->addWidget(midi_soundfont_edit_,1);
+		FitButtonToText(
+		    midi_soundfont_browse_,
+		    {QStringLiteral("Browse…"),QStringLiteral("参照…"),QStringLiteral("参照")});
+		{
+			const QFontMetrics fm(sf_label->font());
+			const int label_w=std::max({
+			    fm.horizontalAdvance(tr("MIDI output")),
+			    fm.horizontalAdvance(QStringLiteral("MIDI output")),
+			    fm.horizontalAdvance(QStringLiteral("MIDI出力")),
+			    fm.horizontalAdvance(tr("SoundFont")),
+			    fm.horizontalAdvance(QStringLiteral("SoundFont")),
+			    fm.horizontalAdvance(tr("port")),
+			    fm.horizontalAdvance(QStringLiteral("port")),
+			    fm.horizontalAdvance(QStringLiteral("ポート")),
+			});
+			midi_output_label->setFixedWidth(label_w);
+			midi_output_label->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+			sf_label->setFixedWidth(label_w);
+			sf_label->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+		}
+		sf_row->addWidget(sf_label);
+		sf_row->addWidget(midi_soundfont_edit_);
 		sf_row->addWidget(midi_soundfont_browse_);
-		sf_layout->addLayout(sf_row);
-		sf_layout->addWidget(MakeIndentedNote(
-		    midi_fluidsynth_panel_,
-		    tr("SoundFont (.sf2) file for FluidSynth. If unset, environment variables and system defaults are searched.")));
-		v->addWidget(midi_fluidsynth_panel_);
 		connect(midi_soundfont_browse_,&QPushButton::clicked,this,&SettingsDialog::browseMidiSoundFont);
 
-		midi_alsa_note_=MakeIndentedNote(
-		    page,
-		    tr("Send MIDI via the ALSA sequencer. Use a patch bay (e.g. aconnect) to connect Tsugaru_QT’s output port to a destination."));
-		midi_alsa_note_->setVisible(false);
-		v->addWidget(midi_alsa_note_);
+		midi_alsa_port_panel_=new QWidget(midi_detail_stack_);
+		auto *port_row=new QHBoxLayout(midi_alsa_port_panel_);
+		port_row->setContentsMargins(0,0,0,0);
+		port_row->setSpacing(sf_row->spacing());
+		auto *port_label=new QLabel(tr("port"),midi_alsa_port_panel_);
+		port_label->setFixedWidth(sf_label->width());
+		port_label->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+		midi_alsa_port_=new QComboBox(midi_alsa_port_panel_);
+		midi_alsa_port_->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+		midi_alsa_port_->setFixedWidth(
+		    midi_soundfont_edit_->width()+sf_row->spacing()+midi_soundfont_browse_->width());
+		port_row->addWidget(port_label);
+		port_row->addWidget(midi_alsa_port_);
+		connect(midi_alsa_port_,qOverload<int>(&QComboBox::currentIndexChanged),this,[this](int){
+			markDirty();
+		});
+
+		midi_detail_stack_->addWidget(midi_fluidsynth_panel_);
+		midi_detail_stack_->addWidget(midi_alsa_port_panel_);
+		midi_line->addWidget(midi_detail_stack_);
+		midi_line->addStretch();
+		v->addLayout(midi_line);
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
 		    tr("Changes take effect immediately when you press Apply or OK.")));
-		audio_page_=page;
-		tabs_->addTab(page,tr("Audio"));
+		display_audio_page_=page;
+		tabs_->addTab(page,tr("Video / Audio"));
 	}
 
 	{
@@ -697,33 +1165,29 @@ void SettingsDialog::buildUi()
 		auto *v=new QVBoxLayout(page);
 		CompactVBox(v);
 
+		use_disc_profiles_=new QCheckBox(tr("Use disc profiles"),page);
+		connect(use_disc_profiles_,&QCheckBox::toggled,this,[this](bool){
+			updateMachineTabControls();
+		});
+		v->addWidget(use_disc_profiles_);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("Save settings per mounted CD as a disc profile under profiles/.\n"
+		       "When enabled, a matching profile automatically overrides Basics defaults\n"
+		       "at startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\n"
+		       "also stored and restored when the profile is applied.")));
+
 		idle_inhibit_=new QCheckBox(tr("Inhibit display idle"),page);
 		v->addWidget(idle_inhibit_);
 		v->addWidget(MakeIndentedNote(
 		    page,
 		    tr("Prevents automatic screen blanking/dimming on Wayland sessions.")));
 
-		snap_mouse_integration_=new QCheckBox(tr("Instant mouse integration (test)"),page);
+		snap_mouse_integration_=new QCheckBox(tr("Faster mouse integration"),page);
 		v->addWidget(snap_mouse_integration_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Test feature that snaps the guest mouse coordinates to the host immediately.\n"
-		       "Compared with gradual integration, this reduces mouse input latency.\n"
-		       "After enabling, a warm-up period uses gradual integration before switching to instant snapping.")));
-
-		auto *warmup_row=new QHBoxLayout();
-		warmup_row->setContentsMargins(22,0,0,0);
-		warmup_row->addWidget(new QLabel(tr("Instant integration warm-up:"),page));
-		snap_mouse_warmup_=new QSpinBox(page);
-		snap_mouse_warmup_->setRange(0,600);
-		snap_mouse_warmup_->setSuffix(tr(" frames"));
-		warmup_row->addWidget(snap_mouse_warmup_);
-		warmup_row->addStretch();
-		v->addLayout(warmup_row);
-		v->addWidget(MakeIndentedNote(
-		    page,
-		    tr("Set to 0 to skip warm-up and use instant integration from the start.")));
-		connect(snap_mouse_integration_,&QCheckBox::toggled,snap_mouse_warmup_,&QWidget::setEnabled);
+		    tr("Mouse BIOS integration that writes guest memory to reduce latency.")));
 
 		auto *cdda_cache_row=new QHBoxLayout();
 		cdda_cache_during_data_read_=new QCheckBox(tr("CDDA cache:"),page);
@@ -736,18 +1200,18 @@ void SettingsDialog::buildUi()
 		v->addLayout(cdda_cache_row);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("EMU feature: bulk-cache the audio track on play at host speed (not\n"
-		       "limited by CD-ROM speed).  Data-sector reads keep music playing from\n"
-		       "the cache while guest status/SubQ look like a normal stop.  Same-track\n"
-		       "play reuses the cache; a different track or disc change discards it.\n"
-		       "The value on the right is how long host cache mixing continues after\n"
-		       "a data-read burst without an explicit PLAY/RESUME.")));
+		    tr("Bulk-prefetch the CDDA audio track and keep playing through data reads\n"
+		       "without interrupting playback. The value is how many seconds until\n"
+		       "playback is considered finished.")));
 		connect(cdda_cache_during_data_read_,&QCheckBox::toggled,cdda_cache_post_read_grace_sec_,&QWidget::setEnabled);
 
-		auto *separator=new QFrame(page);
-		separator->setFrameShape(QFrame::HLine);
-		separator->setFrameShadow(QFrame::Sunken);
-		v->addWidget(separator);
+		auto_diff_on_mos_unused_=new QCheckBox(
+		    tr("MOS unused detection (test)"),page);
+		v->addWidget(auto_diff_on_mos_unused_);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("Even while Mouse BIOS is running, if it is unused, end mouse integration\n"
+		       "and switch to mouse capture.")));
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
@@ -779,10 +1243,11 @@ void SettingsDialog::buildUi()
 
 	connectDirtyTracking();
 	connect(tabs_,&QTabWidget::currentChanged,this,[this](int index){
-		if(nullptr!=tabs_ && tabs_->widget(index)==audio_page_)
+		if(nullptr!=tabs_ && tabs_->widget(index)==display_audio_page_)
 		{
 			updateAudioTabMidiSection();
 		}
+		Q_UNUSED(index);
 	});
 	updateAudioTabMidiSection();
 }
@@ -821,6 +1286,16 @@ void SettingsDialog::setApplyEnabled(bool enabled)
 	{
 		apply_button_->setEnabled(enabled);
 	}
+}
+
+bool SettingsDialog::applyPending(void) const
+{
+	return nullptr!=apply_button_ && apply_button_->isEnabled();
+}
+
+void SettingsDialog::setApplyPending(bool pending)
+{
+	setApplyEnabled(pending);
 }
 
 void SettingsDialog::markDirty()
@@ -929,104 +1404,141 @@ void SettingsDialog::populateMidiOutputCombo(const QString &select_id)
 		return;
 	}
 	const QString keep=select_id.isNull() ? midi_output_->currentData().toString() : select_id;
+	const QSignalBlocker blocker(midi_output_);
 	midi_output_->clear();
 #if defined(__linux__)
-	const MidiBackendProbe::Kind backend=MidiBackendProbe::PreferredBackend();
-	if(MidiBackendProbe::Kind::FluidSynth==backend)
+	const bool have_fluid=MidiBackendProbe::IsFluidSynthLibraryAvailable();
+	const bool have_alsa=MidiBackendProbe::IsAlsaSequencerAvailable();
+	if(true==have_fluid)
 	{
-		midi_output_->addItem(tr("FluidSynth (built-in)"),QStringLiteral("fluidsynth"));
+		midi_output_->addItem(tr("FluidSynth"),QStringLiteral("fluidsynth"));
 	}
-	else if(MidiBackendProbe::Kind::AlsaSeq==backend)
+	if(true==have_alsa)
 	{
-		midi_output_->addItem(tr("(select destination)"),QString());
-		for(const auto &entry : ListAlsaMidiOutputDestinations())
-		{
-			midi_output_->addItem(
-			    QString::fromStdString(entry.label),
-			    QString::fromStdString(entry.id));
-		}
+		midi_output_->addItem(tr("ALSA"),QStringLiteral("alsa"));
 	}
-	else
+	if(0==midi_output_->count())
 	{
-		midi_output_->addItem(tr("(no MIDI outputs available)"),QString());
+		midi_output_->addItem(tr("(none)"),QString());
 		midi_output_->setEnabled(false);
+		FitComboToSamples(midi_output_,MidiOutputWidthSamples());
 		return;
 	}
 	midi_output_->setEnabled(true);
-	const int idx=midi_output_->findData(keep);
-	if(0<=idx)
+	QString select=keep;
+	if(select!=QStringLiteral("fluidsynth") && select!=QStringLiteral("alsa"))
 	{
-		midi_output_->setCurrentIndex(idx);
+		if(select.contains(QLatin1Char(':')))
+		{
+			select=QStringLiteral("alsa");
+		}
+		else if(true==have_fluid)
+		{
+			select=QStringLiteral("fluidsynth");
+		}
+		else
+		{
+			select=QStringLiteral("alsa");
+		}
+	}
+	const int idx=midi_output_->findData(select);
+	midi_output_->setCurrentIndex(0<=idx ? idx : 0);
+	FitComboToSamples(midi_output_,MidiOutputWidthSamples());
+#else
+	midi_output_->addItem(tr("(none)"),QString());
+	midi_output_->setEnabled(false);
+	FitComboToSamples(midi_output_,MidiOutputWidthSamples());
+#endif
+}
+
+void SettingsDialog::populateMidiAlsaPortCombo(const QString &select_id)
+{
+	if(nullptr==midi_alsa_port_)
+	{
+		return;
+	}
+	const QString keep=select_id.isNull() ? midi_alsa_port_->currentData().toString() : select_id;
+	const QSignalBlocker blocker(midi_alsa_port_);
+	midi_alsa_port_->clear();
+#if defined(__linux__)
+	midi_alsa_port_->addItem(tr("(select)"),QString());
+	for(const auto &entry : ListAlsaMidiOutputDestinations())
+	{
+		midi_alsa_port_->addItem(
+		    QString::fromStdString(entry.label),
+		    QString::fromStdString(entry.id));
+	}
+	const int idx=midi_alsa_port_->findData(keep);
+	midi_alsa_port_->setCurrentIndex(0<=idx ? idx : 0);
+#else
+	midi_alsa_port_->addItem(tr("(select)"),QString());
+#endif
+	if(nullptr!=midi_soundfont_edit_ && nullptr!=midi_soundfont_browse_)
+	{
+		midi_alsa_port_->setFixedWidth(
+		    midi_soundfont_edit_->width()+4+midi_soundfont_browse_->width());
 	}
 	else
 	{
-		midi_output_->setCurrentIndex(0);
+		FitComboToSamples(midi_alsa_port_,MidiAlsaPortWidthSamples());
 	}
-#else
-	midi_output_->addItem(tr("(unsupported)"),QString());
-	midi_output_->setEnabled(false);
-#endif
+}
+
+void SettingsDialog::onMidiOutputChanged()
+{
+	updateAudioTabMidiSection();
+	markDirty();
 }
 
 void SettingsDialog::updateAudioTabMidiSection()
 {
 	const bool midi_board=nullptr!=midi_board_ && midi_board_->isChecked();
 #if defined(__linux__)
-	const MidiBackendProbe::Kind backend=MidiBackendProbe::PreferredBackend();
-	const bool fluidsynth=(MidiBackendProbe::Kind::FluidSynth==backend);
-	const bool alsa_seq=(MidiBackendProbe::Kind::AlsaSeq==backend);
-	const bool midi_vol_enabled=midi_board && fluidsynth;
-	if(nullptr!=midi_volume_slider_)
-	{
-		midi_volume_slider_->setEnabled(midi_vol_enabled);
-	}
-	if(nullptr!=midi_volume_value_)
-	{
-		midi_volume_value_->setEnabled(midi_vol_enabled);
-	}
+	const QString output=
+	    nullptr!=midi_output_ ? midi_output_->currentData().toString() : QString();
+	const bool fluidsynth=(output==QStringLiteral("fluidsynth"));
+	const bool alsa_seq=(output==QStringLiteral("alsa"));
 	if(nullptr!=midi_output_)
 	{
-		const QString keep=midi_output_->currentData().toString();
-		QSignalBlocker blocker(midi_output_);
-		midi_output_->setEnabled(midi_board && (fluidsynth || alsa_seq));
-		populateMidiOutputCombo(keep);
+		const bool have_choice=
+		    0<=midi_output_->findData(QStringLiteral("fluidsynth")) ||
+		    0<=midi_output_->findData(QStringLiteral("alsa"));
+		midi_output_->setEnabled(midi_board && have_choice);
 	}
-		if(nullptr!=midi_fluidsynth_panel_)
-		{
-			midi_fluidsynth_panel_->setVisible(midi_board && fluidsynth);
-		}
-		if(nullptr!=midi_soundfont_edit_)
-		{
-			midi_soundfont_edit_->setEnabled(midi_board && fluidsynth);
-		}
-		if(nullptr!=midi_soundfont_browse_)
-		{
-			midi_soundfont_browse_->setEnabled(midi_board && fluidsynth);
-		}
-		if(nullptr!=midi_alsa_note_)
+	if(nullptr!=midi_detail_stack_)
 	{
-		midi_alsa_note_->setVisible(midi_board && alsa_seq);
+		const bool show_detail=midi_board && (fluidsynth || alsa_seq);
+		midi_detail_stack_->setVisible(show_detail);
+		if(true==show_detail)
+		{
+			midi_detail_stack_->setCurrentWidget(fluidsynth ? midi_fluidsynth_panel_ : midi_alsa_port_panel_);
+		}
+	}
+	if(nullptr!=midi_soundfont_edit_)
+	{
+		midi_soundfont_edit_->setEnabled(midi_board && fluidsynth);
+	}
+	if(nullptr!=midi_soundfont_browse_)
+	{
+		midi_soundfont_browse_->setEnabled(midi_board && fluidsynth);
+	}
+	if(nullptr!=midi_alsa_port_)
+	{
+		midi_alsa_port_->setEnabled(midi_board && alsa_seq);
+		if(nullptr!=midi_soundfont_edit_ && nullptr!=midi_soundfont_browse_)
+		{
+			midi_alsa_port_->setFixedWidth(
+			    midi_soundfont_edit_->width()+4+midi_soundfont_browse_->width());
+		}
 	}
 #else
-	if(nullptr!=midi_volume_slider_)
-	{
-		midi_volume_slider_->setEnabled(false);
-	}
-	if(nullptr!=midi_volume_value_)
-	{
-		midi_volume_value_->setEnabled(false);
-	}
 	if(nullptr!=midi_output_)
 	{
 		midi_output_->setEnabled(false);
 	}
-	if(nullptr!=midi_fluidsynth_panel_)
+	if(nullptr!=midi_detail_stack_)
 	{
-		midi_fluidsynth_panel_->setVisible(false);
-	}
-	if(nullptr!=midi_alsa_note_)
-	{
-		midi_alsa_note_->setVisible(false);
+		midi_detail_stack_->setVisible(false);
 	}
 #endif
 }
@@ -1055,48 +1567,138 @@ void SettingsDialog::browseMidiSoundFont()
 	markDirty();
 }
 
-void SettingsDialog::updateModelDescription()
+void SettingsDialog::updateCpuComboItems()
 {
-	if(nullptr==model_group_ || nullptr==model_description_)
+	if(nullptr==cpu_kind_)
 	{
 		return;
 	}
-	const int index=model_group_->currentData().toInt();
-	model_description_->setText(TownsQtModelGroupDescription(index));
+	const TownsQtCpuKind previous=currentCpuKind();
+	const auto allowed=TownsQtCpuKindsAllowedForSysRom(
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
+	const QSignalBlocker blocker(cpu_kind_);
+	cpu_kind_->clear();
+	for(TownsQtCpuKind kind : allowed)
+	{
+		cpu_kind_->addItem(TownsQtCpuKindLabel(kind),static_cast<int>(kind));
+	}
+	const TownsQtCpuKind select=TownsQtCpuKindClampToAllowed(
+	    previous,
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
+	const int row=cpu_kind_->findData(static_cast<int>(select));
+	if(0<=row)
+	{
+		cpu_kind_->setCurrentIndex(row);
+	}
+	else if(0<cpu_kind_->count())
+	{
+		cpu_kind_->setCurrentIndex(0);
+	}
+	FitComboToText(cpu_kind_,CpuKindWidthSamples());
 }
 
-void SettingsDialog::updateRestrictedModelComboItems()
+void SettingsDialog::updateModelComboItems()
 {
 	if(nullptr==model_group_)
 	{
 		return;
 	}
-	auto *model=qobject_cast<QStandardItemModel*>(model_group_->model());
-	if(nullptr==model)
+	const TownsQtCpuKind cpu=currentCpuKind();
+	const int previous=currentModelGroupIndex();
+	const auto allowed=TownsQtModelGroupsAllowedForCpuAndSysRom(
+	    cpu,
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
+	const QSignalBlocker blocker(model_group_);
+	model_group_->clear();
+	for(int idx : allowed)
+	{
+		model_group_->addItem(TownsQtModelGroupLabel(idx),idx);
+	}
+	const int select=TownsQtModelGroupClampToAllowed(
+	    previous,
+	    cpu,
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
+	const int row=model_group_->findData(select);
+	if(0<=row)
+	{
+		model_group_->setCurrentIndex(row);
+	}
+	else if(0<model_group_->count())
+	{
+		model_group_->setCurrentIndex(0);
+	}
+	FitComboToText(model_group_,ModelWidthSamples());
+}
+
+TownsQtCpuKind SettingsDialog::currentCpuKind() const
+{
+	if(nullptr==cpu_kind_ || 0>cpu_kind_->currentIndex())
+	{
+		return TownsQtCpuKindPreferredForSysRom(
+		    sys_rom_profile_,
+		    sys_rom_level_,
+		    marty_ex_rom_present_);
+	}
+	const int data=cpu_kind_->currentData().toInt();
+	if(0>data)
+	{
+		return TownsQtCpuKindPreferredForSysRom(
+		    sys_rom_profile_,
+		    sys_rom_level_,
+		    marty_ex_rom_present_);
+	}
+	return static_cast<TownsQtCpuKind>(data);
+}
+
+int SettingsDialog::currentModelGroupIndex() const
+{
+	if(nullptr==model_group_ || 0>model_group_->currentIndex())
+	{
+		return TownsQtModelGroupPreferredForCpuAndSysRom(
+		    currentCpuKind(),
+		    sys_rom_profile_,
+		    sys_rom_level_,
+		    marty_ex_rom_present_);
+	}
+	const int data=model_group_->currentData().toInt();
+	if(0>data)
+	{
+		return TownsQtModelGroupPreferredForCpuAndSysRom(
+		    currentCpuKind(),
+		    sys_rom_profile_,
+		    sys_rom_level_,
+		    marty_ex_rom_present_);
+	}
+	return data;
+}
+
+void SettingsDialog::updateDisplayScaleRange()
+{
+	if(nullptr==display_scale_)
 	{
 		return;
 	}
-	for(int i=0; i<TownsQtModelGroupCount(); ++i)
+	QScreen *screen=this->screen();
+	if(nullptr==screen)
 	{
-		QStandardItem *item=model->item(i);
-		if(nullptr==item)
-		{
-			continue;
-		}
-		bool enabled=TownsQtRomAvailability::ModelGroupAllowedForSysRom(
-		    i,
-		    sys_rom_profile_,
-		    marty_ex_rom_present_);
-		item->setEnabled(enabled);
+		screen=QGuiApplication::primaryScreen();
 	}
-}
-
-bool SettingsDialog::isModelSelectionAllowed(int model_index) const
-{
-	return TownsQtRomAvailability::ModelGroupAllowedForSysRom(
-	    model_index,
-	    sys_rom_profile_,
-	    marty_ex_rom_present_);
+	const QSize avail=nullptr!=screen ? screen->availableGeometry().size() : QSize(1920,1080);
+	// Approximate menu/status chrome; MainWindow uses live heights. DE scale is in availableGeometry (DIP).
+	const int max_scale=TownsQtSettings::maxDisplayScaleForAvailableSize(avail,0,52);
+	display_scale_->setMaximum(std::max(1,max_scale));
+	if(display_scale_->value()>display_scale_->maximum())
+	{
+		display_scale_->setValue(display_scale_->maximum());
+	}
 }
 
 void SettingsDialog::updateSysRomInfoLabel()
@@ -1108,26 +1710,304 @@ void SettingsDialog::updateSysRomInfoLabel()
 	sys_rom_info_label_->setText(TownsQtRomAvailability::SysRomSummary(rom_dir_));
 }
 
+void SettingsDialog::updateFastModeControls()
+{
+	const bool custom=nullptr!=cpu_freq_custom_ && cpu_freq_custom_->isChecked();
+	if(nullptr!=cpu_freq_custom_mhz_)
+	{
+		cpu_freq_custom_mhz_->setEnabled(custom);
+	}
+}
+
+int SettingsDialog::selectedCpuCustomFrequencyMhz() const
+{
+	if(nullptr!=cpu_freq_custom_mhz_)
+	{
+		return std::clamp(cpu_freq_custom_mhz_->value(),33,60);
+	}
+	const int fallback=editingDiscProfile() ?
+	    values_.profileCpuCustomFrequencyMhz : values_.cpuCustomFrequencyMhz;
+	return std::clamp(fallback,33,60);
+}
+
+bool SettingsDialog::selectedCpuFastMode() const
+{
+	if(nullptr!=cpu_freq_compat_)
+	{
+		return true!=cpu_freq_compat_->isChecked();
+	}
+	return editingDiscProfile() ? values_.profileCpuFastMode : values_.cpuFastMode;
+}
+
+int SettingsDialog::selectedCpuFrequencyMhz() const
+{
+	if(nullptr!=cpu_freq_custom_ && cpu_freq_custom_->isChecked())
+	{
+		return selectedCpuCustomFrequencyMhz();
+	}
+	if(nullptr!=cpu_freq_group_)
+	{
+		const int id=cpu_freq_group_->checkedId();
+		if(16==id || 20==id || 25==id)
+		{
+			return id;
+		}
+	}
+	// Compatibility mode (or unset): keep the last active / custom frequency.
+	const int active=editingDiscProfile() ?
+	    values_.profileCpuFrequencyMhz : values_.cpuFrequencyMhz;
+	if(16==active || 20==active || 25==active)
+	{
+		return active;
+	}
+	return selectedCpuCustomFrequencyMhz();
+}
+
+void SettingsDialog::setCpuFrequencyWidgets(bool fast_mode,int active_mhz,int custom_mhz)
+{
+	custom_mhz=std::clamp(custom_mhz,33,60);
+	if(nullptr!=cpu_freq_custom_mhz_)
+	{
+		QSignalBlocker blocker(cpu_freq_custom_mhz_);
+		cpu_freq_custom_mhz_->setValue(custom_mhz);
+	}
+	QRadioButton *target=cpu_freq_compat_;
+	if(true==fast_mode)
+	{
+		target=cpu_freq_custom_;
+		if(16==active_mhz)
+		{
+			target=cpu_freq_16_;
+		}
+		else if(20==active_mhz)
+		{
+			target=cpu_freq_20_;
+		}
+		else if(25==active_mhz)
+		{
+			target=cpu_freq_25_;
+		}
+	}
+	if(nullptr!=target)
+	{
+		QSignalBlocker blocker(target);
+		target->setChecked(true);
+	}
+	updateFastModeControls();
+}
+
+bool SettingsDialog::editingDiscProfile(void) const
+{
+	return true==values_.discProfileAvailable;
+}
+
+void SettingsDialog::applyProfileEditAppearance(void)
+{
+	const bool editing=editingDiscProfile();
+	if(nullptr!=profile_fields_box_)
+	{
+		// Borderless container: amber fill only while editing a disc profile.
+		// Use palette (not stylesheet) so children keep the dialog font/size.
+		if(true==editing)
+		{
+			profile_fields_box_->setAutoFillBackground(true);
+			QPalette pal=QApplication::palette(profile_fields_box_);
+			const QColor amber(255,243,220);
+			pal.setColor(QPalette::Window,amber);
+			pal.setColor(QPalette::Base,amber);
+			profile_fields_box_->setPalette(pal);
+		}
+		else
+		{
+			profile_fields_box_->setAutoFillBackground(false);
+			profile_fields_box_->setPalette(QApplication::palette(profile_fields_box_));
+		}
+		profile_fields_box_->setFont(font());
+	}
+
+	if(nullptr!=basics_footer_label_)
+	{
+		if(true==editing)
+		{
+			basics_footer_label_->setText(
+			    tr("Editing the disc profile (fp_XXXXXXXX.ini, amber block).\n"
+			       "Apply or OK saves clock, memory, ports, and options to the profile.\n"
+			       "CPU and model stay global in townsqt.conf and are not stored in the profile.\n"
+			       "Memory and CPU fidelity changes restart the emulator."));
+		}
+		else if(true==values_.discMounted)
+		{
+			basics_footer_label_->setText(
+			    tr("No disc profile for this CD yet. Use Create profile to save per-disc settings.\n"
+			       "Until then, Apply or OK saves Basics defaults to townsqt.conf.\n"
+			       "Memory and CPU fidelity changes restart the emulator; game-port changes apply immediately."));
+		}
+		else
+		{
+			basics_footer_label_->setText(
+			    tr("Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
+			       "Memory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
+			       "Create a disc profile when a CD is mounted to save per-disc settings."));
+		}
+	}
+}
+
+void SettingsDialog::loadSharedMachineWidgets(const Values &values,bool fromProfile)
+{
+	const int freq=fromProfile ? values.profileCpuFrequencyMhz : values.cpuFrequencyMhz;
+	const int custom=fromProfile ? values.profileCpuCustomFrequencyMhz : values.cpuCustomFrequencyMhz;
+	const bool fast=fromProfile ? values.profileCpuFastMode : values.cpuFastMode;
+	const int mem=fromProfile ? values.profileMemSizeInMB : values.memSizeInMB;
+	const bool fidelity=fromProfile ? values.profileCpuHighFidelity : values.cpuHighFidelity;
+	const bool pretend=fromProfile ? values.profilePretend386DX : values.pretend386DX;
+	const bool fpu=fromProfile ? values.profileUseFPU : values.useFPU;
+	const bool scsi=fromProfile ? values.profileFastScsi : values.fastScsi;
+	const bool fd=fromProfile ? values.profileFastFd : values.fastFd;
+	const bool midi=fromProfile ? values.profileMidiBoard : values.midiBoard;
+	const unsigned int gp0=fromProfile ? values.profileGamePort0 : values.gamePort0;
+	const unsigned int gp1=fromProfile ? values.profileGamePort1 : values.gamePort1;
+	const int hold0=fromProfile ? values.profileMaxButtonHoldTimeMs0 : values.maxButtonHoldTimeMs0;
+	const int hold1=fromProfile ? values.profileMaxButtonHoldTimeMs1 : values.maxButtonHoldTimeMs1;
+
+	setCpuFrequencyWidgets(fast,freq,custom);
+	if(nullptr!=mem_size_mb_)
+	{
+		const int max_mem=TownsQtModelGroupMaxMemMb(currentModelGroupIndex());
+		mem_size_mb_->setMaximum(max_mem);
+		mem_size_mb_->setValue(std::clamp(mem,1,max_mem));
+	}
+	if(nullptr!=cpu_fidelity_)
+	{
+		const int row=cpu_fidelity_->findData(fidelity ? 1 : 0);
+		cpu_fidelity_->setCurrentIndex(0<=row ? row : 0);
+	}
+	if(nullptr!=pretend_386_)
+	{
+		pretend_386_->setChecked(pretend);
+	}
+	if(nullptr!=use_fpu_)
+	{
+		use_fpu_->setChecked(fpu);
+	}
+	if(nullptr!=fast_scsi_)
+	{
+		fast_scsi_->setChecked(scsi);
+	}
+	if(nullptr!=fast_fd_)
+	{
+		fast_fd_->setChecked(fd);
+	}
+	if(nullptr!=midi_board_)
+	{
+		midi_board_->setChecked(midi);
+	}
+	if(nullptr!=gameport0_)
+	{
+		TownsQtGamePortOptions::PopulateCombo(gameport0_,gp0);
+	}
+	if(nullptr!=gameport1_)
+	{
+		TownsQtGamePortOptions::PopulateCombo(gameport1_,gp1);
+	}
+	if(nullptr!=max_button_hold0_)
+	{
+		max_button_hold0_->setValue(std::max(0,hold0));
+	}
+	if(nullptr!=max_button_hold1_)
+	{
+		max_button_hold1_->setValue(std::max(0,hold1));
+	}
+}
+
+void SettingsDialog::readSharedMachineWidgets(Values &out,bool toProfile) const
+{
+	const int freq=selectedCpuFrequencyMhz();
+	const int custom=selectedCpuCustomFrequencyMhz();
+	const bool fast=selectedCpuFastMode();
+	const int mem=nullptr!=mem_size_mb_ ? mem_size_mb_->value() :
+	    (toProfile ? values_.profileMemSizeInMB : values_.memSizeInMB);
+	const bool fidelity=nullptr!=cpu_fidelity_ ?
+	    (1==cpu_fidelity_->currentData().toInt()) :
+	    (toProfile ? values_.profileCpuHighFidelity : values_.cpuHighFidelity);
+	const bool pretend=nullptr!=pretend_386_ ? pretend_386_->isChecked() :
+	    (toProfile ? values_.profilePretend386DX : values_.pretend386DX);
+	const bool fpu=nullptr!=use_fpu_ ? use_fpu_->isChecked() :
+	    (toProfile ? values_.profileUseFPU : values_.useFPU);
+	const bool scsi=nullptr!=fast_scsi_ ? fast_scsi_->isChecked() :
+	    (toProfile ? values_.profileFastScsi : values_.fastScsi);
+	const bool fd=nullptr!=fast_fd_ ? fast_fd_->isChecked() :
+	    (toProfile ? values_.profileFastFd : values_.fastFd);
+	const bool midi=nullptr!=midi_board_ ? midi_board_->isChecked() :
+	    (toProfile ? values_.profileMidiBoard : values_.midiBoard);
+	const unsigned int gp0=nullptr!=gameport0_ ?
+	    TownsQtGamePortOptions::ComboSelection(gameport0_,TOWNS_GAMEPORTEMU_PHYSICAL0) :
+	    (toProfile ? values_.profileGamePort0 : values_.gamePort0);
+	const unsigned int gp1=nullptr!=gameport1_ ?
+	    TownsQtGamePortOptions::ComboSelection(gameport1_,TOWNS_GAMEPORTEMU_MOUSE) :
+	    (toProfile ? values_.profileGamePort1 : values_.gamePort1);
+	const int hold0=nullptr!=max_button_hold0_ ? max_button_hold0_->value() :
+	    (toProfile ? values_.profileMaxButtonHoldTimeMs0 : values_.maxButtonHoldTimeMs0);
+	const int hold1=nullptr!=max_button_hold1_ ? max_button_hold1_->value() :
+	    (toProfile ? values_.profileMaxButtonHoldTimeMs1 : values_.maxButtonHoldTimeMs1);
+
+	if(true==toProfile)
+	{
+		out.profileCpuFrequencyMhz=freq;
+		out.profileCpuCustomFrequencyMhz=custom;
+		out.profileCpuFastMode=fast;
+		out.profileMemSizeInMB=mem;
+		out.profileCpuHighFidelity=fidelity;
+		out.profilePretend386DX=pretend;
+		out.profileUseFPU=fpu;
+		out.profileFastScsi=scsi;
+		out.profileFastFd=fd;
+		out.profileMidiBoard=midi;
+		out.profileGamePort0=gp0;
+		out.profileGamePort1=gp1;
+		out.profileMaxButtonHoldTimeMs0=hold0;
+		out.profileMaxButtonHoldTimeMs1=hold1;
+	}
+	else
+	{
+		out.cpuFrequencyMhz=freq;
+		out.cpuCustomFrequencyMhz=custom;
+		out.cpuFastMode=fast;
+		out.memSizeInMB=mem;
+		out.cpuHighFidelity=fidelity;
+		out.pretend386DX=pretend;
+		out.useFPU=fpu;
+		out.fastScsi=scsi;
+		out.fastFd=fd;
+		out.midiBoard=midi;
+		out.gamePort0=gp0;
+		out.gamePort1=gp1;
+		out.maxButtonHoldTimeMs0=hold0;
+		out.maxButtonHoldTimeMs1=hold1;
+		// Seed profile fields for Create profile from current Basics.
+		out.profileCpuFrequencyMhz=freq;
+		out.profileCpuCustomFrequencyMhz=custom;
+		out.profileCpuFastMode=fast;
+		out.profileMemSizeInMB=mem;
+		out.profileCpuHighFidelity=fidelity;
+		out.profilePretend386DX=pretend;
+		out.profileUseFPU=fpu;
+		out.profileFastScsi=scsi;
+		out.profileFastFd=fd;
+		out.profileMidiBoard=midi;
+		out.profileGamePort0=gp0;
+		out.profileGamePort1=gp1;
+		out.profileMaxButtonHoldTimeMs0=hold0;
+		out.profileMaxButtonHoldTimeMs1=hold1;
+	}
+}
+
 void SettingsDialog::updateMachineTabControls()
 {
-	updateRestrictedModelComboItems();
-	if(nullptr==model_group_)
-	{
-		return;
-	}
-
-	int model_index=model_group_->currentData().toInt();
-	if(model_index<0)
-	{
-		model_index=model_group_->currentIndex();
-	}
-	const bool marty_mode=TownsQtModelGroupIsMarty(model_index);
+	const TownsQtCpuKind kind=currentCpuKind();
+	const int model_index=currentModelGroupIndex();
+	const bool marty_mode=TownsQtCpuKindIsMarty(kind);
 	const bool editable=!marty_mode;
 
-	if(nullptr!=mem_label_)
-	{
-		mem_label_->setEnabled(editable);
-	}
 	if(nullptr!=mem_size_mb_)
 	{
 		const int max_mem=TownsQtModelGroupMaxMemMb(model_index);
@@ -1136,101 +2016,192 @@ void SettingsDialog::updateMachineTabControls()
 		{
 			mem_size_mb_->setValue(max_mem);
 		}
-		mem_size_mb_->setEnabled(editable);
 	}
-	if(nullptr!=pretend_386_)
+	if(nullptr!=model_group_)
 	{
-		pretend_386_->setEnabled(editable);
-	}
-	if(nullptr!=use_fpu_)
-	{
-		use_fpu_->setEnabled(editable);
-	}
-	if(nullptr!=fast_scsi_)
-	{
-		fast_scsi_->setEnabled(editable);
-	}
-	if(nullptr!=fast_fd_)
-	{
-		fast_fd_->setEnabled(editable);
-	}
-	if(nullptr!=midi_board_)
-	{
-		midi_board_->setEnabled(editable);
-	}
-	if(nullptr!=hdd_settings_button_)
-	{
-		hdd_settings_button_->setEnabled(editable);
+		model_group_->setEnabled(0<model_group_->count());
 	}
 	if(nullptr!=opt_grid_widget_)
 	{
 		opt_grid_widget_->setEnabled(editable);
+		opt_grid_widget_->setToolTip(QString());
+	}
+	for(QWidget *w : std::initializer_list<QWidget *>{
+	    mem_label_,mem_size_mb_,pretend_386_,use_fpu_,fast_scsi_,fast_fd_,
+	    midi_board_,cpu_fidelity_,cpu_freq_compat_,cpu_freq_16_,cpu_freq_20_,
+	    cpu_freq_25_,cpu_freq_custom_,gameport0_,gameport1_,
+	    max_button_hold0_,max_button_hold1_})
+	{
+		if(nullptr!=w)
+		{
+			w->setEnabled(editable);
+			w->setToolTip(QString());
+		}
+	}
+	if(nullptr!=cpu_freq_custom_mhz_)
+	{
+		const bool custom=nullptr!=cpu_freq_custom_ && cpu_freq_custom_->isChecked();
+		cpu_freq_custom_mhz_->setEnabled(editable && custom);
+		cpu_freq_custom_mhz_->setToolTip(QString());
+	}
+	applyProfileEditAppearance();
+	updateCapabilityStatusLabels();
+}
+
+void SettingsDialog::updateCapabilityStatusLabels()
+{
+	const int model_index=currentModelGroupIndex();
+	const bool hi=TownsQtModelGroupEffectiveHighRes(model_index,sys_rom_profile_);
+	const bool ug=TownsQtModelGroupEffectiveUgGenerationIO(model_index,rom_dir_);
+	if(nullptr!=high_res_status_label_)
+	{
+		high_res_status_label_->setText(hi ? tr("Enabled") : tr("Disabled"));
+	}
+	if(nullptr!=ug_io_status_label_)
+	{
+		ug_io_status_label_->setText(ug ? tr("Enabled") : tr("Disabled"));
 	}
 }
 
-void SettingsDialog::updateAppSpecificDescription()
+void SettingsDialog::updateProfileTabControls()
 {
-	if(nullptr==app_specific_ || nullptr==app_specific_description_)
+	const bool mounted=values_.discMounted;
+	const bool haveProfile=values_.discProfileAvailable;
+	if(nullptr!=disc_profile_bar_)
 	{
-		return;
+		disc_profile_bar_->setVisible(true);
 	}
-	const int index=app_specific_->currentIndex();
-	app_specific_description_->setText(TownsQtAppProfileDescription(index));
+	if(nullptr!=disc_profile_status_label_)
+	{
+		disc_profile_status_label_->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
+		if(true!=mounted)
+		{
+			disc_profile_status_label_->setText(tr("No CD mounted."));
+		}
+		else if(true!=haveProfile)
+		{
+			disc_profile_status_label_->setText(tr("No profile for this disc."));
+		}
+		else
+		{
+			disc_profile_status_label_->setText(tr("Disc profile loaded."));
+		}
+	}
+	if(nullptr!=disc_profile_file_label_)
+	{
+		if(true!=mounted)
+		{
+			disc_profile_file_label_->setText(tr("(no CD)"));
+		}
+		else if(true!=haveProfile)
+		{
+			disc_profile_file_label_->setText(tr("(none)"));
+		}
+		else if(values_.discProfileFileName.isEmpty())
+		{
+			disc_profile_file_label_->setText(tr("(unnamed)"));
+		}
+		else
+		{
+			disc_profile_file_label_->setText(values_.discProfileFileName);
+		}
+	}
+	if(nullptr!=disc_profile_action_btn_)
+	{
+		disc_profile_action_btn_->setVisible(mounted);
+		disc_profile_action_btn_->setEnabled(mounted);
+		if(true==haveProfile)
+		{
+			disc_profile_action_btn_->setText(tr("Delete profile"));
+		}
+		else
+		{
+			disc_profile_action_btn_->setText(tr("Create profile"));
+		}
+	}
+	applyProfileEditAppearance();
+	const bool mouseTabOn=mounted && haveProfile;
+	if(nullptr!=tabs_ && nullptr!=mouse_integration_page_)
+	{
+		const int mouseIdx=tabs_->indexOf(mouse_integration_page_);
+		if(0<=mouseIdx)
+		{
+			// Use the tab bar only. QTabWidget::setTabEnabled() also setEnabled(false)
+			// on the page, which makes QComboBox item data read as 0 and corrupts
+			// integration_mode on Apply/OK.
+			if(nullptr!=tabs_->tabBar())
+			{
+				tabs_->tabBar()->setTabEnabled(mouseIdx,mouseTabOn);
+			}
+			// Keep the page widget itself enabled so combo itemData stays trustworthy
+			// even if an older path left it disabled.
+			mouse_integration_page_->setEnabled(true);
+			if(true!=mouseTabOn && tabs_->currentIndex()==mouseIdx)
+			{
+				tabs_->setCurrentWidget(machine_page_);
+			}
+		}
+	}
+	if(nullptr!=mouse_coord_profile_page_)
+	{
+		mouse_coord_profile_page_->setEditorEnabled(mouseTabOn);
+	}
 }
 
 void SettingsDialog::loadFromValues(const Values &values)
 {
 	loading_=true;
-	if(nullptr!=mem_size_mb_)
+	const TownsQtCpuKind kind=TownsQtCpuKindClampToAllowed(
+	    values.cpuKind,
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
+	const int model_index=TownsQtModelGroupClampToAllowed(
+	    values.modelGroupIndex,
+	    kind,
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
+	if(nullptr!=cpu_kind_)
 	{
-		const int max_mem=TownsQtModelGroupMaxMemMb(values.modelGroupIndex);
-		mem_size_mb_->setMaximum(max_mem);
-		mem_size_mb_->setValue(std::clamp(values.memSizeInMB,1,max_mem));
-	}
-	if(nullptr!=fidelity_group_)
-	{
-		if(QAbstractButton *btn=fidelity_group_->button(values.cpuHighFidelity ? 1 : 0))
+		const int row=cpu_kind_->findData(static_cast<int>(kind));
+		if(0<=row)
 		{
-			btn->setChecked(true);
+			cpu_kind_->setCurrentIndex(row);
+		}
+		updateModelComboItems();
+		if(nullptr!=model_group_)
+		{
+			const int model_row=model_group_->findData(model_index);
+			if(0<=model_row)
+			{
+				model_group_->setCurrentIndex(model_row);
+			}
 		}
 	}
-	if(nullptr!=pretend_386_)
-	{
-		pretend_386_->setChecked(values.pretend386DX);
-	}
-	if(nullptr!=use_fpu_)
-	{
-		use_fpu_->setChecked(values.useFPU);
-	}
-	if(nullptr!=fast_scsi_)
-	{
-		fast_scsi_->setChecked(values.fastScsi);
-	}
-	if(nullptr!=fast_fd_)
-	{
-		fast_fd_->setChecked(values.fastFd);
-	}
-	if(nullptr!=midi_board_)
-	{
-		midi_board_->setChecked(values.midiBoard);
-	}
-	if(nullptr!=model_group_)
-	{
-		int model_index=std::clamp(
-		    values.modelGroupIndex,
-		    0,
-		    TownsQtModelGroupCount()-1);
-		if(false==isModelSelectionAllowed(model_index))
-		{
-			model_index=TownsQtRomAvailability::PreferredModelGroupForSysRom(sys_rom_profile_);
-		}
-		model_group_->setCurrentIndex(model_group_->findData(model_index));
-		updateModelDescription();
-		updateMachineTabControls();
-	}
+	values_.discMounted=values.discMounted;
+	values_.discProfileAvailable=values.discProfileAvailable;
+	values_.discProfileFileName=values.discProfileFileName;
+	values_.profileCpuFrequencyMhz=values.profileCpuFrequencyMhz;
+	values_.profileCpuCustomFrequencyMhz=values.profileCpuCustomFrequencyMhz;
+	values_.profileCpuFastMode=values.profileCpuFastMode;
+	values_.profileMemSizeInMB=values.profileMemSizeInMB;
+	values_.profileGamePort0=values.profileGamePort0;
+	values_.profileGamePort1=values.profileGamePort1;
+	values_.profileMaxButtonHoldTimeMs0=values.profileMaxButtonHoldTimeMs0;
+	values_.profileMaxButtonHoldTimeMs1=values.profileMaxButtonHoldTimeMs1;
+	values_.profileCpuHighFidelity=values.profileCpuHighFidelity;
+	values_.profilePretend386DX=values.profilePretend386DX;
+	values_.profileUseFPU=values.profileUseFPU;
+	values_.profileFastScsi=values.profileFastScsi;
+	values_.profileFastFd=values.profileFastFd;
+	values_.profileMidiBoard=values.profileMidiBoard;
+	values_.profileHasMouseIntegration=values.profileHasMouseIntegration;
+	values_.discProfileCreateRequested=false;
+	// CPU/model always from global Values; shared fields from profile when present.
+	loadSharedMachineWidgets(values,values.discProfileAvailable);
+	updateMachineTabControls();
 	display_scale_->setValue(values.displayScale);
-	auto_scale_->setChecked(values.autoScaling);
-	maintain_aspect_->setChecked(values.maintainAspect);
 	damper_wire_->setChecked(values.damperWireLine);
 	scanline_15k_->setChecked(values.scanLineEffectIn15KHz);
 	fullscreen_vsync_->setChecked(values.fullscreenVsync);
@@ -1247,22 +2218,6 @@ void SettingsDialog::loadFromValues(const Values &values)
 	if(QAbstractButton *sprite_btn=sprite_group_->button(values.spriteTransferMode))
 	{
 		sprite_btn->setChecked(true);
-	}
-	if(nullptr!=fm_volume_slider_)
-	{
-		fm_volume_slider_->setValue(std::clamp(values.fmVolumePercent,0,100));
-	}
-	if(nullptr!=pcm_volume_slider_)
-	{
-		pcm_volume_slider_->setValue(std::clamp(values.pcmVolumePercent,0,100));
-	}
-	if(nullptr!=cdda_volume_slider_)
-	{
-		cdda_volume_slider_->setValue(std::clamp(values.cddaVolumePercent,0,100));
-	}
-	if(nullptr!=midi_volume_slider_)
-	{
-		midi_volume_slider_->setValue(std::clamp(values.midiVolumePercent,0,100));
 	}
 	if(nullptr!=midi_soundfont_edit_)
 	{
@@ -1281,6 +2236,7 @@ void SettingsDialog::loadFromValues(const Values &values)
 	if(nullptr!=midi_output_)
 	{
 		populateMidiOutputCombo(values.midiOutput);
+		populateMidiAlsaPortCombo(values.midiAlsaPort);
 	}
 	if(nullptr!=pcm_lpf_enabled_)
 	{
@@ -1299,11 +2255,6 @@ void SettingsDialog::loadFromValues(const Values &values)
 	{
 		snap_mouse_integration_->setChecked(values.snapMouseIntegration);
 	}
-	if(nullptr!=snap_mouse_warmup_)
-	{
-		snap_mouse_warmup_->setValue(std::clamp(values.snapMouseWarmupFrames,0,600));
-		snap_mouse_warmup_->setEnabled(values.snapMouseIntegration);
-	}
 	if(nullptr!=cdda_cache_during_data_read_)
 	{
 		cdda_cache_during_data_read_->setChecked(values.cddaCacheDuringDataRead);
@@ -1313,61 +2264,15 @@ void SettingsDialog::loadFromValues(const Values &values)
 		cdda_cache_post_read_grace_sec_->setValue(std::clamp(values.cddaCachePostReadGraceSec,1,60));
 		cdda_cache_post_read_grace_sec_->setEnabled(values.cddaCacheDuringDataRead);
 	}
-	if(nullptr!=gameport0_)
+	if(nullptr!=auto_diff_on_mos_unused_)
 	{
-		TownsQtGamePortOptions::PopulateCombo(gameport0_,values.gamePort0);
+		auto_diff_on_mos_unused_->setChecked(values.autoDifferentialOnMosUnused);
 	}
-	if(nullptr!=gameport1_)
+	if(nullptr!=use_disc_profiles_)
 	{
-		TownsQtGamePortOptions::PopulateCombo(gameport1_,values.gamePort1);
+		use_disc_profiles_->setChecked(values.useDiscProfiles);
 	}
-	if(nullptr!=max_button_hold0_)
-	{
-		max_button_hold0_->setValue(std::max(0,values.maxButtonHoldTimeMs0));
-	}
-	if(nullptr!=max_button_hold1_)
-	{
-		max_button_hold1_->setValue(std::max(0,values.maxButtonHoldTimeMs1));
-	}
-	if(nullptr!=mouse_speed_slider_)
-	{
-		const int speed=std::clamp(values.mouseIntegrationSpeed,32,256);
-		mouse_speed_slider_->setValue(speed);
-		if(nullptr!=mouse_speed_value_)
-		{
-			mouse_speed_value_->setText(QString::number(speed));
-		}
-	}
-	if(nullptr!=mouse_vram_offset_)
-	{
-		mouse_vram_offset_->setChecked(values.considerVRAMOffsetInMouseIntegration);
-	}
-	if(nullptr!=auto_diff_on_mouse_bios_stop_)
-	{
-		auto_diff_on_mouse_bios_stop_->setChecked(values.autoDifferentialOnMouseBIOSStop);
-	}
-	if(nullptr!=mouse_min_x_)
-	{
-		mouse_min_x_->setValue(values.mouseMinX);
-	}
-	if(nullptr!=mouse_min_y_)
-	{
-		mouse_min_y_->setValue(values.mouseMinY);
-	}
-	if(nullptr!=mouse_max_x_)
-	{
-		mouse_max_x_->setValue(values.mouseMaxX);
-	}
-	if(nullptr!=mouse_max_y_)
-	{
-		mouse_max_y_->setValue(values.mouseMaxY);
-	}
-	if(nullptr!=app_specific_)
-	{
-		const int app_index=TownsQtAppProfileIndexForApp(values.appSpecificSetting);
-		app_specific_->setCurrentIndex(app_index);
-		updateAppSpecificDescription();
-	}
+	updateProfileTabControls();
 	updateFunctionTab();
 	updateAudioTabMidiSection();
 	loading_=false;
@@ -1375,50 +2280,52 @@ void SettingsDialog::loadFromValues(const Values &values)
 
 void SettingsDialog::applyToValues(Values &out) const
 {
-	out.cpuFrequencyMhz=values_.cpuFrequencyMhz;
-	if(nullptr!=mem_size_mb_)
+	// CPU / model always global.
+	out.cpuKind=currentCpuKind();
+	out.modelGroupIndex=currentModelGroupIndex();
+	const bool profileMode=out.discProfileAvailable || values_.discProfileAvailable;
+	// Preserve global machine fields when editing a profile (Basics widgets bind to profile*).
+	if(true==profileMode)
 	{
-		out.memSizeInMB=mem_size_mb_->value();
+		out.cpuFrequencyMhz=values_.cpuFrequencyMhz;
+		out.cpuCustomFrequencyMhz=values_.cpuCustomFrequencyMhz;
+		out.cpuFastMode=values_.cpuFastMode;
+		out.memSizeInMB=values_.memSizeInMB;
+		out.cpuHighFidelity=values_.cpuHighFidelity;
+		out.pretend386DX=values_.pretend386DX;
+		out.useFPU=values_.useFPU;
+		out.fastScsi=values_.fastScsi;
+		out.fastFd=values_.fastFd;
+		out.midiBoard=values_.midiBoard;
+		out.gamePort0=values_.gamePort0;
+		out.gamePort1=values_.gamePort1;
+		out.maxButtonHoldTimeMs0=values_.maxButtonHoldTimeMs0;
+		out.maxButtonHoldTimeMs1=values_.maxButtonHoldTimeMs1;
+		readSharedMachineWidgets(out,true);
 	}
-	if(nullptr!=fidelity_group_)
+	else
 	{
-		out.cpuHighFidelity=(1==fidelity_group_->checkedId());
+		readSharedMachineWidgets(out,false);
 	}
-	if(nullptr!=pretend_386_)
+	out.cpuKind=TownsQtCpuKindClampToAllowed(
+	    currentCpuKind(),
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
+	out.modelGroupIndex=TownsQtModelGroupClampToAllowed(
+	    currentModelGroupIndex(),
+	    out.cpuKind,
+	    sys_rom_profile_,
+	    sys_rom_level_,
+	    marty_ex_rom_present_);
 	{
-		out.pretend386DX=pretend_386_->isChecked();
-	}
-	if(nullptr!=use_fpu_)
-	{
-		out.useFPU=use_fpu_->isChecked();
-	}
-	if(nullptr!=fast_scsi_)
-	{
-		out.fastScsi=fast_scsi_->isChecked();
-	}
-	if(nullptr!=fast_fd_)
-	{
-		out.fastFd=fast_fd_->isChecked();
-	}
-	if(nullptr!=midi_board_)
-	{
-		out.midiBoard=midi_board_->isChecked();
-	}
-	if(nullptr!=model_group_)
-	{
-		out.modelGroupIndex=model_group_->currentData().toInt();
-		if(out.modelGroupIndex<0)
-		{
-			out.modelGroupIndex=TownsQtModelGroupDefaultIndex();
-		}
-		if(false==isModelSelectionAllowed(out.modelGroupIndex))
-		{
-			out.modelGroupIndex=TownsQtRomAvailability::PreferredModelGroupForSysRom(sys_rom_profile_);
-		}
+		const bool hi=TownsQtModelGroupEffectiveHighRes(out.modelGroupIndex,sys_rom_profile_);
+		out.highResCrtc=hi;
+		out.highResPcm=hi;
 	}
 	out.displayScale=display_scale_->value();
-	out.autoScaling=auto_scale_->isChecked();
-	out.maintainAspect=maintain_aspect_->isChecked();
+	out.autoScaling=false;
+	out.maintainAspect=true;
 	out.damperWireLine=damper_wire_->isChecked();
 	out.scanLineEffectIn15KHz=scanline_15k_->isChecked();
 	out.fullscreenVsync=fullscreen_vsync_->isChecked();
@@ -1431,22 +2338,11 @@ void SettingsDialog::applyToValues(Values &out) const
 	{
 		out.audioDevice=sound_device_->currentData().toString();
 	}
-	if(nullptr!=fm_volume_slider_)
-	{
-		out.fmVolumePercent=fm_volume_slider_->value();
-	}
-	if(nullptr!=pcm_volume_slider_)
-	{
-		out.pcmVolumePercent=pcm_volume_slider_->value();
-	}
-	if(nullptr!=cdda_volume_slider_)
-	{
-		out.cddaVolumePercent=cdda_volume_slider_->value();
-	}
-	if(nullptr!=midi_volume_slider_)
-	{
-		out.midiVolumePercent=midi_volume_slider_->value();
-	}
+	// Volumes are owned by the Audio mixer dialog.
+	out.fmVolumePercent=TownsQtSettings::fmVolumePercent();
+	out.pcmVolumePercent=TownsQtSettings::pcmVolumePercent();
+	out.cddaVolumePercent=TownsQtSettings::cddaVolumePercent();
+	out.midiVolumePercent=TownsQtSettings::midiVolumePercent();
 	if(nullptr!=midi_soundfont_edit_)
 	{
 		out.midiSoundFont=midi_soundfont_path_.trimmed();
@@ -1454,6 +2350,10 @@ void SettingsDialog::applyToValues(Values &out) const
 	if(nullptr!=midi_output_)
 	{
 		out.midiOutput=midi_output_->currentData().toString();
+	}
+	if(nullptr!=midi_alsa_port_)
+	{
+		out.midiAlsaPort=midi_alsa_port_->currentData().toString();
 	}
 	if(nullptr!=pcm_lpf_enabled_)
 	{
@@ -1468,10 +2368,6 @@ void SettingsDialog::applyToValues(Values &out) const
 	{
 		out.snapMouseIntegration=snap_mouse_integration_->isChecked();
 	}
-	if(nullptr!=snap_mouse_warmup_)
-	{
-		out.snapMouseWarmupFrames=snap_mouse_warmup_->value();
-	}
 	if(nullptr!=cdda_cache_during_data_read_)
 	{
 		out.cddaCacheDuringDataRead=cdda_cache_during_data_read_->isChecked();
@@ -1485,59 +2381,22 @@ void SettingsDialog::applyToValues(Values &out) const
 	{
 		out.spriteTransferMode=0;
 	}
-	if(nullptr!=gameport0_)
+	if(nullptr!=auto_diff_on_mos_unused_)
 	{
-		out.gamePort0=TownsQtGamePortOptions::ComboSelection(gameport0_,TOWNS_GAMEPORTEMU_PHYSICAL0);
+		out.autoDifferentialOnMosUnused=auto_diff_on_mos_unused_->isChecked();
 	}
-	if(nullptr!=gameport1_)
-	{
-		out.gamePort1=TownsQtGamePortOptions::ComboSelection(gameport1_,TOWNS_GAMEPORTEMU_MOUSE);
-	}
-	if(nullptr!=max_button_hold0_)
-	{
-		out.maxButtonHoldTimeMs0=max_button_hold0_->value();
-	}
-	if(nullptr!=max_button_hold1_)
-	{
-		out.maxButtonHoldTimeMs1=max_button_hold1_->value();
-	}
-	if(nullptr!=mouse_speed_slider_)
-	{
-		out.mouseIntegrationSpeed=mouse_speed_slider_->value();
-	}
-	if(nullptr!=mouse_vram_offset_)
-	{
-		out.considerVRAMOffsetInMouseIntegration=mouse_vram_offset_->isChecked();
-	}
-	if(nullptr!=auto_diff_on_mouse_bios_stop_)
-	{
-		out.autoDifferentialOnMouseBIOSStop=auto_diff_on_mouse_bios_stop_->isChecked();
-	}
-	if(nullptr!=mouse_min_x_)
-	{
-		out.mouseMinX=mouse_min_x_->value();
-	}
-	if(nullptr!=mouse_min_y_)
-	{
-		out.mouseMinY=mouse_min_y_->value();
-	}
-	if(nullptr!=mouse_max_x_)
-	{
-		out.mouseMaxX=mouse_max_x_->value();
-	}
-	if(nullptr!=mouse_max_y_)
-	{
-		out.mouseMaxY=mouse_max_y_->value();
-	}
-	if(nullptr!=app_specific_)
-	{
-		const int index=app_specific_->currentIndex();
-		out.appSpecificSetting=TownsQtAppProfileApp(index);
-	}
+	out.useDiscProfiles=nullptr!=use_disc_profiles_ && use_disc_profiles_->isChecked();
+	out.discMounted=values_.discMounted;
+	out.discProfileAvailable=values_.discProfileAvailable;
+	out.discProfileFileName=values_.discProfileFileName;
+	out.discProfileCreateRequested=values_.discProfileCreateRequested;
+	out.profileHasMouseIntegration=values_.profileHasMouseIntegration;
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
 		out.hdd[slot]=values_.hdd[slot];
 	}
+	// Machine tab no longer exposes app-specific settings; keep NONE.
+	out.appSpecificSetting=TOWNS_APPSPECIFIC_NONE;
 }
 
 void SettingsDialog::resetCurrentTabToDefaults()
@@ -1550,16 +2409,18 @@ void SettingsDialog::resetCurrentTabToDefaults()
 	loading_=true;
 	if(page==machine_page_)
 	{
+		setCpuFrequencyWidgets(
+		    default_values_.cpuFastMode,
+		    default_values_.cpuFrequencyMhz,
+		    default_values_.cpuCustomFrequencyMhz);
 		if(nullptr!=mem_size_mb_)
 		{
 			mem_size_mb_->setValue(default_values_.memSizeInMB);
 		}
-		if(nullptr!=fidelity_group_)
+		if(nullptr!=cpu_fidelity_)
 		{
-			if(QAbstractButton *btn=fidelity_group_->button(default_values_.cpuHighFidelity ? 1 : 0))
-			{
-				btn->setChecked(true);
-			}
+			const int row=cpu_fidelity_->findData(default_values_.cpuHighFidelity ? 1 : 0);
+			cpu_fidelity_->setCurrentIndex(0<=row ? row : 0);
 		}
 		if(nullptr!=pretend_386_)
 		{
@@ -1585,26 +2446,35 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		{
 			values_.hdd[slot]=default_values_.hdd[slot];
 		}
-		if(nullptr!=model_group_)
+		if(nullptr!=cpu_kind_)
 		{
-			int model_index=default_values_.modelGroupIndex;
-			if(false==marty_ex_rom_present_ && model_index==marty_model_index_)
+			const TownsQtCpuKind kind=TownsQtCpuKindClampToAllowed(
+			    default_values_.cpuKind,
+			    sys_rom_profile_,
+			    sys_rom_level_,
+			    marty_ex_rom_present_);
+			const int row=cpu_kind_->findData(static_cast<int>(kind));
+			if(0<=row)
 			{
-				model_index=TownsQtModelGroupDefaultIndex();
+				cpu_kind_->setCurrentIndex(row);
 			}
-			model_group_->setCurrentIndex(model_group_->findData(model_index));
-			updateModelDescription();
+			updateModelComboItems();
+			if(nullptr!=model_group_)
+			{
+				const int model_index=TownsQtModelGroupClampToAllowed(
+				    default_values_.modelGroupIndex,
+				    kind,
+				    sys_rom_profile_,
+				    sys_rom_level_,
+				    marty_ex_rom_present_);
+				const int model_row=model_group_->findData(model_index);
+				if(0<=model_row)
+				{
+					model_group_->setCurrentIndex(model_row);
+				}
+			}
 			updateMachineTabControls();
 		}
-		if(nullptr!=app_specific_)
-		{
-			const int app_index=TownsQtAppProfileIndexForApp(default_values_.appSpecificSetting);
-			app_specific_->setCurrentIndex(app_index);
-			updateAppSpecificDescription();
-		}
-	}
-	else if(page==peripheral_page_)
-	{
 		if(nullptr!=gameport0_)
 		{
 			TownsQtGamePortOptions::PopulateCombo(gameport0_,default_values_.gamePort0);
@@ -1621,40 +2491,10 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		{
 			max_button_hold1_->setValue(default_values_.maxButtonHoldTimeMs1);
 		}
-		if(nullptr!=mouse_speed_slider_)
-		{
-			mouse_speed_slider_->setValue(default_values_.mouseIntegrationSpeed);
-		}
-		if(nullptr!=mouse_vram_offset_)
-		{
-			mouse_vram_offset_->setChecked(default_values_.considerVRAMOffsetInMouseIntegration);
-		}
-		if(nullptr!=auto_diff_on_mouse_bios_stop_)
-		{
-			auto_diff_on_mouse_bios_stop_->setChecked(default_values_.autoDifferentialOnMouseBIOSStop);
-		}
-		if(nullptr!=mouse_min_x_)
-		{
-			mouse_min_x_->setValue(default_values_.mouseMinX);
-		}
-		if(nullptr!=mouse_min_y_)
-		{
-			mouse_min_y_->setValue(default_values_.mouseMinY);
-		}
-		if(nullptr!=mouse_max_x_)
-		{
-			mouse_max_x_->setValue(default_values_.mouseMaxX);
-		}
-		if(nullptr!=mouse_max_y_)
-		{
-			mouse_max_y_->setValue(default_values_.mouseMaxY);
-		}
 	}
-	else if(page==video_page_)
+	else if(page==display_audio_page_)
 	{
 		display_scale_->setValue(default_values_.displayScale);
-		auto_scale_->setChecked(default_values_.autoScaling);
-		maintain_aspect_->setChecked(default_values_.maintainAspect);
 		damper_wire_->setChecked(default_values_.damperWireLine);
 		scanline_15k_->setChecked(default_values_.scanLineEffectIn15KHz);
 		fullscreen_vsync_->setChecked(default_values_.fullscreenVsync);
@@ -1662,9 +2502,6 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		{
 			btn->setChecked(true);
 		}
-	}
-	else if(page==audio_page_)
-	{
 		if(nullptr!=pcm_resample_sinc_)
 		{
 			pcm_resample_sinc_->setChecked(default_values_.pcmResampleHighQuality);
@@ -1675,32 +2512,6 @@ void SettingsDialog::resetCurrentTabToDefaults()
 			sound_backend_->setCurrentIndex(0<=backend_idx ? backend_idx : 0);
 			populateSoundDeviceCombo(default_values_.audioBackend,default_values_.audioDevice);
 		}
-		if(nullptr!=fm_volume_slider_)
-		{
-			fm_volume_slider_->setValue(default_values_.fmVolumePercent);
-		}
-		if(nullptr!=pcm_volume_slider_)
-		{
-			pcm_volume_slider_->setValue(default_values_.pcmVolumePercent);
-		}
-		if(nullptr!=cdda_volume_slider_)
-		{
-			cdda_volume_slider_->setValue(default_values_.cddaVolumePercent);
-		}
-		if(nullptr!=midi_volume_slider_)
-		{
-			midi_volume_slider_->setValue(default_values_.midiVolumePercent);
-		}
-		if(nullptr!=midi_soundfont_edit_)
-		{
-			midi_soundfont_path_.clear();
-			midi_soundfont_edit_->clear();
-			midi_soundfont_edit_->setToolTip(QString());
-		}
-		if(nullptr!=midi_output_)
-		{
-			populateMidiOutputCombo(default_values_.midiOutput);
-		}
 		if(nullptr!=pcm_lpf_enabled_)
 		{
 			pcm_lpf_enabled_->setChecked(default_values_.pcmLpfEnabled);
@@ -1710,10 +2521,32 @@ void SettingsDialog::resetCurrentTabToDefaults()
 			pcm_lpf_cutoff_->setValue(default_values_.pcmLpfCutoffHz);
 			pcm_lpf_cutoff_->setEnabled(default_values_.pcmLpfEnabled);
 		}
-		updateAudioTabMidiSection();
+		if(nullptr!=midi_soundfont_edit_)
+		{
+			midi_soundfont_path_=default_values_.midiSoundFont;
+			if(midi_soundfont_path_.isEmpty())
+			{
+				midi_soundfont_edit_->clear();
+				midi_soundfont_edit_->setToolTip(QString());
+			}
+			else
+			{
+				midi_soundfont_edit_->setText(QFileInfo(midi_soundfont_path_).fileName());
+				midi_soundfont_edit_->setToolTip(midi_soundfont_path_);
+			}
+		}
+		if(nullptr!=midi_output_)
+		{
+			populateMidiOutputCombo(default_values_.midiOutput);
+			populateMidiAlsaPortCombo(default_values_.midiAlsaPort);
+		}
 	}
 	else if(page==function_page_)
 	{
+		if(nullptr!=use_disc_profiles_)
+		{
+			use_disc_profiles_->setChecked(default_values_.useDiscProfiles);
+		}
 		if(nullptr!=idle_inhibit_)
 		{
 			idle_inhibit_->setChecked(default_values_.waylandIdleInhibit);
@@ -1722,10 +2555,7 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		{
 			snap_mouse_integration_->setChecked(default_values_.snapMouseIntegration);
 		}
-		if(nullptr!=snap_mouse_warmup_)
-		{
-			snap_mouse_warmup_->setValue(default_values_.snapMouseWarmupFrames);
-		}
+		values_.snapMouseWarmupFrames=default_values_.snapMouseWarmupFrames;
 		if(nullptr!=cdda_cache_during_data_read_)
 		{
 			cdda_cache_during_data_read_->setChecked(default_values_.cddaCacheDuringDataRead);
@@ -1734,41 +2564,13 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		{
 			cdda_cache_post_read_grace_sec_->setValue(default_values_.cddaCachePostReadGraceSec);
 		}
+		if(nullptr!=auto_diff_on_mos_unused_)
+		{
+			auto_diff_on_mos_unused_->setChecked(default_values_.autoDifferentialOnMosUnused);
+		}
 		updateFunctionTab();
 	}
 	loading_=false;
+	updateAudioTabMidiSection();
 	markDirty();
-}
-
-void SettingsDialog::openHddSettingsDialog()
-{
-	HddSettingsDialog::Slot slots[TownsQtSettings::kHddSlotCount];
-	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
-	{
-		slots[slot].enabled=values_.hdd[slot].enabled;
-		slots[slot].path=values_.hdd[slot].path;
-	}
-
-	HddSettingsDialog dlg(slots,this);
-	if(QDialog::Accepted!=dlg.exec())
-	{
-		return;
-	}
-
-	dlg.copySlotsTo(slots);
-	bool changed=false;
-	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
-	{
-		if(values_.hdd[slot].enabled!=slots[slot].enabled ||
-		   values_.hdd[slot].path!=slots[slot].path)
-		{
-			changed=true;
-		}
-		values_.hdd[slot].enabled=slots[slot].enabled;
-		values_.hdd[slot].path=slots[slot].path;
-	}
-	if(changed)
-	{
-		markDirty();
-	}
 }

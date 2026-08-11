@@ -1,1039 +1,64 @@
 {
   "translations": [
     {
-      "context": "MainWindow",
-      "source": "About Tsugaru %1",
-      "translation": "Tsugaru %1 정보"
+      "context": "AudioMixerDialog",
+      "source": "Audio mixer",
+      "translation": "Audio mixer"
     },
     {
-      "context": "MainWindow",
-      "source": "Starting…",
-      "translation": "시작 중…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Restarting the emulator…",
-      "translation": "에뮬레이터를 다시 시작하는 중…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Emulator restarted",
-      "translation": "에뮬레이터를 다시 시작했습니다"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Operation",
-      "translation": "조작(&O)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Reset",
-      "translation": "리셋(&R)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Fast mode",
-      "translation": "고속 모드"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Custom…",
-      "translation": "사용자 지정…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CPU frequency",
-      "translation": "CPU 주파수"
-    },
-    {
-      "context": "MainWindow",
-      "source": "MHz:",
-      "translation": "MHz:"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Game pads…",
-      "translation": "게임패드…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Normal",
-      "translation": "표준"
-    },
-    {
-      "context": "MainWindow",
-      "source": "2x",
-      "translation": "2배"
-    },
-    {
-      "context": "MainWindow",
-      "source": "4x",
-      "translation": "4배"
-    },
-    {
-      "context": "MainWindow",
-      "source": "8x",
-      "translation": "8배"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Max",
-      "translation": "최대"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Double",
-      "translation": "배속"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Toggle &fullscreen",
-      "translation": "전체 화면 전환(&F)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Quit",
-      "translation": "종료(&Q)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Disk",
-      "translation": "디스크(&D)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Open CD image…",
-      "translation": "CD 이미지 열기(&O)…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Eject CD",
-      "translation": "CD 꺼내기(&E)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open &recent files",
-      "translation": "최근 파일 열기(&R)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open FD image (%1)…",
-      "translation": "FD 이미지 열기 (%1)…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Eject FD",
-      "translation": "FD 꺼내기"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open recent files",
-      "translation": "최근 파일 열기"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Write protect",
-      "translation": "쓰기 금지"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Create blank FD image",
-      "translation": "빈 FD 이미지 만들기"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Tools",
-      "translation": "도구(&T)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Settings…",
-      "translation": "설정(&S)…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Drive access",
-      "translation": "드라이브 액세스"
-    },
-    {
-      "context": "MainWindow",
-      "source": "MIDI monitor",
-      "translation": "MIDI 모니터"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CPU / CS:EIP history",
-      "translation": "CPU / CS:EIP 기록"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
-      "translation": "CPU 레지스터, 현재 명령, CS:EIP 기록, 콜 스택을 표시합니다. 창이 열려 있는 동안 코어 디버거를 사용합니다."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "디버그 표시"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Mouse integration coords",
-      "translation": "마우스 통합 좌표"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Help",
-      "translation": "도움말(&H)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD-ROM speed  %1",
-      "translation": "CD-ROM 속도  %1"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Sprite transfer  %1",
-      "translation": "스프라이트 전송  %1"
-    },
-    {
-      "context": "MainWindow",
-      "source": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty emulator<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>",
-      "translation": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty 에뮬레이터<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Original",
-      "translation": "오리지널"
-    },
-    {
-      "context": "MainWindow",
-      "source": "The selected model did not match the SYS ROM, so it was reset to the default.",
-      "translation": "선택한 모델이 SYS ROM과 맞지 않아 기본 모델로 되돌렸습니다."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open CD image",
-      "translation": "CD 이미지 열기"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)",
-      "translation": "CD 이미지 (*.cue *.iso *.bin *.mds *.chd);;모든 파일 (*)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open FD image (%1)",
-      "translation": "FD 이미지 열기 (%1)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)",
-      "translation": "플로피 이미지 (*.d77 *.xdf *.hdm *.fdd *.bin);;모든 파일 (*)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Failed to create the FD image.",
-      "translation": "FD 이미지를 만들지 못했습니다."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Unsupported floppy-image extension.",
-      "translation": "Unsupported floppy-image extension."
-    },
-    {
-      "context": "MainWindow",
-      "source": "The file already exists. Overwrite it?",
-      "translation": "The file already exists. Overwrite it?"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Clear list",
-      "translation": "목록 지우기"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD ejected",
-      "translation": "CD를 꺼냈습니다"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD: %1",
-      "translation": "CD: %1"
-    },
-    {
-      "context": "MainWindow",
-      "source": "FD%1 ejected",
-      "translation": "FD%1을(를) 꺼냈습니다"
-    },
-    {
-      "context": "MainWindow",
-      "source": "FD%1: %2",
-      "translation": "FD%1: %2"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Host:%1,%2  Guest:%3  MOS:%4  TBIOS:%5  %6",
-      "translation": "호스트:%1,%2  게스트:%3  MOS:%4  TBIOS:%5  %6"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5",
-      "translation": "Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Tsugaru_QT",
-      "translation": "Tsugaru_QT"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Emulator stopped",
-      "translation": "에뮬레이터를 중지했습니다"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Auto",
-      "translation": "자동"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Settings",
-      "translation": "설정"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Model",
-      "translation": "모델"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Memory",
-      "translation": "메모리"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " MB",
-      "translation": " MB"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "CPU fidelity",
-      "translation": "CPU 재현성"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MID",
-      "translation": "MID"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "HIGH",
-      "translation": "HIGH"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "pretend386DX",
-      "translation": "pretend386DX"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "80386FPU",
-      "translation": "80386FPU"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "FAST SCSI",
-      "translation": "FAST SCSI"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "FAST FD",
-      "translation": "FAST FD"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MIDI board",
-      "translation": "MIDI 보드"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "App-specific settings",
-      "translation": "앱별 특수 설정"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Changes are saved with Apply or OK; the emulator restarts so settings take effect.",
-      "translation": "적용 또는 확인으로 저장되며, 설정을 반영하기 위해 에뮬레이터가 다시 시작됩니다."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Machine",
-      "translation": "머신"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Game pad / mouse ports",
-      "translation": "게임패드/마우스 단자"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Max button hold time",
-      "translation": "최대 버튼 누름 시간"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " ms",
-      "translation": " ms"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Any",
-      "translation": "임의"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Button 0",
-      "translation": "버튼 0"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Button 1",
-      "translation": "버튼 1"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Mouse movement speed",
-      "translation": "마우스 이동 속도"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Mouse coordinate range",
-      "translation": "마우스 좌표 범위"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Consider VRAM offset",
-      "translation": "VRAM 오프셋 고려"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Differential mouse integration",
-      "translation": "차분 마우스 통합"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MinX",
-      "translation": "MinX"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MinY",
-      "translation": "MinY"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MaxX",
-      "translation": "MaxX"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MaxY",
-      "translation": "MaxY"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Changes take effect immediately when you press Apply or OK.",
-      "translation": "적용 또는 확인 시 바로 반영됩니다."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Peripherals",
-      "translation": "주변기기"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "x",
-      "translation": "x"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Window scale:",
-      "translation": "창 배율:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Sprite transfer",
-      "translation": "스프라이트 전송"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Normal",
-      "translation": "표준"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Double",
-      "translation": "배속"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Max",
-      "translation": "최대"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Fit scale to window",
-      "translation": "창에 맞춰 배율 조정"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Maintain aspect ratio",
-      "translation": "가로세로비 유지"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "15 kHz scan-line effect",
-      "translation": "15 kHz 주사선 효과"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Damper-wire line",
-      "translation": "댐퍼 와이어 선"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "VSync in fullscreen",
-      "translation": "전체 화면 VSync 동기화"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Display",
-      "translation": "영상"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Volume",
-      "translation": "음량"
-    },
-    {
-      "context": "SettingsDialog",
+      "context": "AudioMixerDialog",
       "source": "FM",
       "translation": "FM"
     },
     {
-      "context": "SettingsDialog",
+      "context": "AudioMixerDialog",
       "source": "PCM",
       "translation": "PCM"
     },
     {
-      "context": "SettingsDialog",
+      "context": "AudioMixerDialog",
       "source": "CDDA",
       "translation": "CDDA"
     },
     {
-      "context": "SettingsDialog",
+      "context": "AudioMixerDialog",
       "source": "MIDI",
       "translation": "MIDI"
     },
     {
-      "context": "SettingsDialog",
-      "source": "Use sinc interpolation for PCM resampling",
-      "translation": "PCM 리샘플에 sinc 보간 사용"
+      "context": "AudioMixerDialog",
+      "source": "Close",
+      "translation": "Close"
     },
     {
-      "context": "SettingsDialog",
-      "source": "PCM LPF",
-      "translation": "PCM LPF"
+      "context": "CdromMonitorWindow",
+      "source": "CD-ROM monitor",
+      "translation": "CD-ROM monitor"
     },
     {
-      "context": "SettingsDialog",
-      "source": " Hz",
-      "translation": " Hz"
+      "context": "CdromMonitorWindow",
+      "source": "CD-ROM",
+      "translation": "CD-ROM"
     },
     {
-      "context": "SettingsDialog",
-      "source": "Without sinc interpolation, linear interpolation is used.",
-      "translation": "sinc 보간을 쓰지 않으면 선형 보간을 사용합니다."
+      "context": "CdromMonitorWindow",
+      "source": "CDDA",
+      "translation": "CDDA"
     },
     {
-      "context": "SettingsDialog",
-      "source": "Output device:",
-      "translation": "출력 장치:"
+      "context": "CdromMonitorWindow",
+      "source": "CDDA cache",
+      "translation": "CDDA cache"
     },
     {
-      "context": "SettingsDialog",
-      "source": "Backend:",
-      "translation": "백엔드:"
+      "context": "DebugTextWindow",
+      "source": "Clear",
+      "translation": "Clear"
     },
     {
-      "context": "SettingsDialog",
-      "source": "MIDI output:",
-      "translation": "MIDI 출력:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "SoundFont:",
-      "translation": "사운드폰트:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(not set)",
-      "translation": "(미지정)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Browse…",
-      "translation": "찾아보기…"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "SoundFont (.sf2) file for FluidSynth. If unset, environment variables and system defaults are searched.",
-      "translation": "FluidSynth용 SoundFont(.sf2) 파일입니다. 미지정 시 환경 변수와 시스템 기본 경로를 찾습니다."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Send MIDI via the ALSA sequencer. Use a patch bay (e.g. aconnect) to connect Tsugaru_QT’s output port to a destination.",
-      "translation": "ALSA 시퀀서로 MIDI를 출력합니다. aconnect 등으로 Tsugaru_QT 출력 포트를 대상에 연결하세요."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Audio",
-      "translation": "음성"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Inhibit display idle",
-      "translation": "디스플레이 유휴 억제"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "Wayland 세션에서 화면 자동 꺼짐/어두워짐을 막습니다."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Instant mouse integration (test)",
-      "translation": "마우스 즉시 통합 (테스트)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
-      "translation": "게스트 마우스 좌표를 호스트에 즉시 맞추는 테스트 기능입니다.\n켜면 워밍업 동안 점진 통합 후 즉시 통합으로 전환됩니다."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Instant integration warm-up:",
-      "translation": "즉시 통합 워밍업:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " frames",
-      "translation": " 프레임"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Set to 0 to skip warm-up and use instant integration from the start.",
-      "translation": "0이면 워밍업 없이 처음부터 즉시 통합합니다."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Features",
-      "translation": "기능"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Standard settings (&D)",
-      "translation": "표준 설정(&D)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Default",
-      "translation": "기본값"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "%1 (not found)",
-      "translation": "%1 (찾을 수 없음)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Available only on sessions that support Wayland idle-inhibit.",
-      "translation": "Wayland idle-inhibit를 지원하는 세션에서만 사용할 수 있습니다."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "FluidSynth (built-in)",
-      "translation": "FluidSynth (내장)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(select destination)",
-      "translation": "(연결 대상 선택)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(no MIDI outputs available)",
-      "translation": "(사용 가능한 MIDI 출력 없음)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(unsupported)",
-      "translation": "(미지원)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Select SoundFont",
-      "translation": "SoundFont 선택"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "SoundFont (*.sf2);;All files (*)",
-      "translation": "SoundFont (*.sf2);;모든 파일 (*)"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "Free compatible ROM",
-      "translation": "무료 호환 ROM"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "Legacy · UX/UG unsupported",
-      "translation": "레거시 · UX/UG 미지원"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "For 386DX · UX/UG unsupported",
-      "translation": "386DX용 · UX/UG 미지원"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "386SX/DX compatible",
-      "translation": "386SX/DX 양대응"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "Not found",
-      "translation": "미검출"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "FMT_SYS.ROM: not found",
-      "translation": "FMT_SYS.ROM: 미검출"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "FMT_SYS.ROM: unknown (%1)",
-      "translation": "FMT_SYS.ROM: 알 수 없음 (%1)"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "FMT_SYS.ROM: %1 (%2)",
-      "translation": "FMT_SYS.ROM: %1 (%2)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "None",
-      "translation": "없음"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse",
-      "translation": "마우스"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard",
-      "translation": "키보드"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "CyberStick",
-      "translation": "CyberStick"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via keyboard",
-      "translation": "키보드로 마우스"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via numeric keypad",
-      "translation": "숫자 패드로 마우스"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (CAPCOM CPSF)",
-      "translation": "키보드 (CAPCOM CPSF)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (6-button pad)",
-      "translation": "키보드 (6버튼 패드)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (Libble Rabble)",
-      "translation": "키보드 (Libble Rabble)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (Marty Pad)",
-      "translation": "키보드 (Marty Pad)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (digital)",
-      "translation": "게임패드 #%1 (디지털)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via gamepad #%1",
-      "translation": "게임패드 #%1로 마우스"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (CyberStick)",
-      "translation": "게임패드 #%1 (CyberStick)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (CAPCOM CPSF)",
-      "translation": "게임패드 #%1 (CAPCOM CPSF)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (6-button pad)",
-      "translation": "게임패드 #%1 (6버튼 패드)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (Marty Pad)",
-      "translation": "게임패드 #%1 (Marty Pad)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (analog)",
-      "translation": "게임패드 #%1 (아날로그)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via analog #%1",
-      "translation": "아날로그 #%1로 마우스"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (Libble Rabble)",
-      "translation": "게임패드 #%1 (Libble Rabble)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "1st gen 386DX (MODEL2 / 2F / 20F)",
-      "translation": "1세대 386DX (MODEL2 / 2F / 20F)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX (UX)",
-      "translation": "386SX (UX)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX (UG)",
-      "translation": "386SX (UG)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386DX (CX)",
-      "translation": "386DX (CX)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386DX (HG)",
-      "translation": "386DX (HG)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "486SX (HR)",
-      "translation": "486SX (HR)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "486DX (UR / MA)",
-      "translation": "486DX (UR / MA)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "486DX high-res (MX / ME / MF)",
-      "translation": "486DX 고해상도 (MX / ME / MF)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Pentium (HC)",
-      "translation": "Pentium (HC)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Marty",
-      "translation": "Marty"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386DX (machine ID: MODEL2 / 2F / 20F)",
-      "translation": "80386DX (머신 ID: MODEL2 / 2F / 20F)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Standard memory map (386DX)",
-      "translation": "표준 메모리 맵 (386DX)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "RAM up to 64 MB",
-      "translation": "RAM 최대 64 MB"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FAST MODE not supported",
-      "translation": "FAST MODE 미지원"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "High-resolution CRTC not supported",
-      "translation": "고해상도 CRTC 미지원"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386SX",
-      "translation": "80386SX"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX memory map (different ROM/VRAM layout)",
-      "translation": "386SX용 메모리 맵 (ROM/VRAM 배치가 다름)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "RAM up to 10 MB",
-      "translation": "RAM 최대 10 MB"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386SX (UG generation)",
-      "translation": "80386SX (UG 세대)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX memory map",
-      "translation": "386SX용 메모리 맵"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FAST MODE supported",
-      "translation": "FAST MODE 지원"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "UG and later SCSI / CPU peripheral I/O behavior",
-      "translation": "UG 이후 SCSI / CPU 주변 I/O 동작"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386DX (CX)",
-      "translation": "80386DX (CX)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "UG-generation SCSI extensions not supported",
-      "translation": "UG 세대 SCSI 확장은 미지원"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386DX (HG)",
-      "translation": "80386DX (HG)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80486SX",
-      "translation": "80486SX"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Standard memory map (386DX family)",
-      "translation": "표준 메모리 맵 (386DX 계열)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FAST MODE / UG SCSI supported",
-      "translation": "FAST MODE / UG SCSI 지원"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "High-resolution CRTC not supported (pre-MX)",
-      "translation": "고해상도 CRTC 미지원 (MX 미만)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80486DX (UR / MA)",
-      "translation": "80486DX (UR / MA)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Standard memory map",
-      "translation": "표준 메모리 맵"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80486DX (MX / ME / MF)",
-      "translation": "80486DX (MX / ME / MF)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "High-resolution CRTC / display output registers",
-      "translation": "고해상도 CRTC / 화상 출력 레지스터 대응"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "CD-ROM 2x speed supported",
-      "translation": "CD-ROM 2배속 지원"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Pentium (HC, machine ID report)",
-      "translation": "Pentium (HC, 머신 ID 보고)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Same high-resolution and CD features as MX generation",
-      "translation": "MX 세대와 같은 고해상도·CD 기능"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FM Towns Marty",
-      "translation": "FM Towns Marty"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386SX + Marty-specific ROM mapping",
-      "translation": "80386SX + Marty 전용 ROM 매핑"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "No SCSI (I/O disabled)",
-      "translation": "SCSI 미탑재 (I/O 비활성)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "EX-ROM image required",
-      "translation": "EX-ROM 이미지 필요"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "RAM limited up to before the OS ROM",
-      "translation": "RAM은 OS ROM 직전까지"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Hard disk drive settings…",
-      "translation": "Hard disk drive settings…"
+      "context": "DebugTextWindow",
+      "source": "Close",
+      "translation": "Close"
     },
     {
       "context": "HddSettingsDialog",
@@ -1104,6 +129,1296 @@
       "context": "HddSettingsDialog",
       "source": "Select hard disk image",
       "translation": "Select hard disk image"
+    },
+    {
+      "context": "MainWindow",
+      "source": "About Tsugaru %1",
+      "translation": "Tsugaru %1 정보"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Starting…",
+      "translation": "시작 중…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Restarting the emulator…",
+      "translation": "에뮬레이터를 다시 시작하는 중…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator restarted",
+      "translation": "에뮬레이터를 다시 시작했습니다"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Operation",
+      "translation": "조작(&O)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Restart",
+      "translation": "&Restart"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Compatible",
+      "translation": "Compatible"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Game pads…",
+      "translation": "게임패드…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Window scale",
+      "translation": "Window scale"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Decrease window scale",
+      "translation": "Decrease window scale"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Increase window scale",
+      "translation": "Increase window scale"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Toggle &fullscreen",
+      "translation": "전체 화면 전환(&F)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Quit",
+      "translation": "종료(&Q)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&CD-ROM",
+      "translation": "&CD-ROM"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Open CD image…",
+      "translation": "CD 이미지 열기(&O)…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Eject CD",
+      "translation": "CD 꺼내기(&E)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open &recent files",
+      "translation": "최근 파일 열기(&R)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Disk",
+      "translation": "디스크(&D)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Hard disk drive settings…",
+      "translation": "Hard disk drive settings…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open FD image (%1)…",
+      "translation": "FD 이미지 열기 (%1)…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Eject FD",
+      "translation": "FD 꺼내기"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open recent files",
+      "translation": "최근 파일 열기"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Write protect",
+      "translation": "쓰기 금지"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Create blank FD image",
+      "translation": "빈 FD 이미지 만들기"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Tools",
+      "translation": "도구(&T)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Settings…",
+      "translation": "설정(&S)…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Audio mixer…",
+      "translation": "Audio mixer…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Drive access",
+      "translation": "드라이브 액세스"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FPS display",
+      "translation": "FPS display"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Show FPS, emulation Hz, and present-queue stats in the window title.",
+      "translation": "Show FPS, emulation Hz, and present-queue stats in the window title."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "디버그 표시"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration coords",
+      "translation": "마우스 통합 좌표"
+    },
+    {
+      "context": "MainWindow",
+      "source": "MIDI monitor",
+      "translation": "MIDI 모니터"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD-ROM monitor",
+      "translation": "CD-ROM monitor"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Log CD-ROM commands, CDDA play/stop, and data-sector access.",
+      "translation": "Log CD-ROM commands, CDDA play/stop, and data-sector access."
+    },
+    {
+      "context": "MainWindow",
+      "source": "APP monitor",
+      "translation": "APP monitor"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Log guest EXE/EXP identity, MOS session, in-game phase, and mouse apply.",
+      "translation": "Log guest EXE/EXP identity, MOS session, in-game phase, and mouse apply."
+    },
+    {
+      "context": "MainWindow",
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / CS:EIP 기록"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "CPU 레지스터, 현재 명령, CS:EIP 기록, 콜 스택을 표시합니다. 창이 열려 있는 동안 코어 디버거를 사용합니다."
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Help",
+      "translation": "도움말(&H)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Disc profile clock updated.",
+      "translation": "Disc profile clock updated."
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD-ROM speed  %1",
+      "translation": "CD-ROM 속도  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Sprite transfer  %1",
+      "translation": "스프라이트 전송  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not apply mouse profile (need a disc profile).",
+      "translation": "Could not apply mouse profile (need a disc profile)."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not create disc profile.",
+      "translation": "Could not create disc profile."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not delete disc profile.",
+      "translation": "Could not delete disc profile."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Disc profile deleted.",
+      "translation": "Disc profile deleted."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Bound current EXP to disc profile.",
+      "translation": "Bound current EXP to disc profile."
+    },
+    {
+      "context": "MainWindow",
+      "source": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty emulator<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>",
+      "translation": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty 에뮬레이터<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Original",
+      "translation": "오리지널"
+    },
+    {
+      "context": "MainWindow",
+      "source": "The selected CPU/model did not match the SYS ROM, so it was reset to an allowed value.",
+      "translation": "The selected CPU/model did not match the SYS ROM, so it was reset to an allowed value."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not save disc profile.",
+      "translation": "Could not save disc profile."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open CD image",
+      "translation": "CD 이미지 열기"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)",
+      "translation": "CD 이미지 (*.cue *.iso *.bin *.mds *.chd);;모든 파일 (*)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open FD image (%1)",
+      "translation": "FD 이미지 열기 (%1)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)",
+      "translation": "플로피 이미지 (*.d77 *.xdf *.hdm *.fdd *.bin);;모든 파일 (*)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to create the FD image.",
+      "translation": "FD 이미지를 만들지 못했습니다."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Unsupported floppy-image extension.",
+      "translation": "Unsupported floppy-image extension."
+    },
+    {
+      "context": "MainWindow",
+      "source": "The file already exists. Overwrite it?",
+      "translation": "The file already exists. Overwrite it?"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Clear list",
+      "translation": "목록 지우기"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD ejected",
+      "translation": "CD를 꺼냈습니다"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD: %1",
+      "translation": "CD: %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FD%1 ejected",
+      "translation": "FD%1을(를) 꺼냈습니다"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FD%1: %2",
+      "translation": "FD%1: %2"
+    },
+    {
+      "context": "MainWindow",
+      "source": " — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5",
+      "translation": " — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Profile enabled",
+      "translation": "Profile enabled"
+    },
+    {
+      "context": "MainWindow",
+      "source": "A disc profile is loaded and “Use disc profiles” is on.",
+      "translation": "A disc profile is loaded and “Use disc profiles” is on."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration debug",
+      "translation": "Mouse integration debug"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture ON — list refresh / prune (profile paused).",
+      "translation": "Mouse capture ON — list refresh / prune (profile paused)."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture OFF — profile mouse mode restored.",
+      "translation": "Mouse capture OFF — profile mouse mode restored."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Scan on — adding candidates (mouse capture ON). ESC to stop.",
+      "translation": "Scan on — adding candidates (mouse capture ON). ESC to stop."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Scan off — capture may stay on for prune.",
+      "translation": "Scan off — capture may stay on for prune."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Stopped (ESC) — profile mouse mode restored.",
+      "translation": "Stopped (ESC) — profile mouse mode restored."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Check one X and one Y candidate, then Update.",
+      "translation": "Check one X and one Y candidate, then Update."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Updated Mouse integration setting from selected X/Y.",
+      "translation": "Updated Mouse integration setting from selected X/Y."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Tsugaru_QT",
+      "translation": "Tsugaru_QT"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator stopped",
+      "translation": "에뮬레이터를 중지했습니다"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (app-specific settings)",
+      "translation": "Mouse integration (app-specific settings)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor.",
+      "translation": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (Mouse BIOS)",
+      "translation": "Mouse integration (Mouse BIOS)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.",
+      "translation": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture",
+      "translation": "Mouse capture"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Middle button to release",
+      "translation": "Middle button to release"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture is active. Press the middle mouse button to release capture.",
+      "translation": "Mouse capture is active. Press the middle mouse button to release capture."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture (released)",
+      "translation": "Mouse capture (released)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Click to capture",
+      "translation": "Click to capture"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it.",
+      "translation": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it."
+    },
+    {
+      "context": "MainWindow",
+      "source": "%1x",
+      "translation": "%1x"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Window scale (%1x)",
+      "translation": "Window scale (%1x)"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Default",
+      "translation": "기본"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse capture",
+      "translation": "Mouse capture"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (Mouse BIOS)",
+      "translation": "Mouse integration (Mouse BIOS)"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (app-specific settings)",
+      "translation": "Mouse integration (app-specific settings)"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Clear",
+      "translation": "Clear"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Clear Game Phys / Phys 2 / range / scale / invert / Bind. You can Apply or OK with Phys unset.",
+      "translation": "Clear Game Phys / Phys 2 / range / scale / invert / Bind. You can Apply or OK with Phys unset."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse operation type",
+      "translation": "Mouse operation type"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Current EXP:",
+      "translation": "Current EXP:"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Linked EXP:",
+      "translation": "Linked EXP:"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Bind",
+      "translation": "Bind"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Bind app-specific mouse integration to the latest DOS Load/Exec (INT 21H AH=4BH). Under DOS extenders (RUN386), bind the .EXP payload when shown.",
+      "translation": "Bind app-specific mouse integration to the latest DOS Load/Exec (INT 21H AH=4BH). Under DOS extenders (RUN386), bind the .EXP payload when shown."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Phys search",
+      "translation": "Phys search"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Open Memory scan to find guest RAM cursor coordinates.\nSettings closes while the scan window is open.",
+      "translation": "Open Memory scan to find guest RAM cursor coordinates.\nSettings closes while the scan window is open."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load preset",
+      "translation": "Load preset"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile.",
+      "translation": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Save to file",
+      "translation": "Save to file"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Write the current app-specific mouse settings to\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini.\nEnabled when app-specific Phys is set.",
+      "translation": "Write the current app-specific mouse settings to\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini.\nEnabled when app-specific Phys is set."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Axis",
+      "translation": "Axis"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Phys",
+      "translation": "Phys"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Min",
+      "translation": "Min"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Max",
+      "translation": "Max"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Offset",
+      "translation": "Offset"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Scale",
+      "translation": "Scale"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Invert",
+      "translation": "Invert"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value.",
+      "translation": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Multiplies the mapped write value for this Phys pair (0 = no multiply).",
+      "translation": "Multiplies the mapped write value for this Phys pair (0 = no multiply)."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Invert X",
+      "translation": "Invert X"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Invert Y",
+      "translation": "Invert Y"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "X",
+      "translation": "X"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Y",
+      "translation": "Y"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Phys 2",
+      "translation": "Phys 2"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "X2",
+      "translation": "X2"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Y2",
+      "translation": "Y2"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Memory write",
+      "translation": "Memory write"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "On: poke Game Phys in guest RAM (range clamp).\nOff: feed host−guest deltas through the gameport.",
+      "translation": "On: poke Game Phys in guest RAM (range clamp).\nOff: feed host−guest deltas through the gameport."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Wait for gameport input to apply",
+      "translation": "Wait for gameport input to apply"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "When on, hold the next gameport packet until Phys updates or the port is idle. Turn off for continuous refill (may oscillate on delayed guest feedback). Only used for gameport mode (memory write off).",
+      "translation": "When on, hold the next gameport packet until Phys updates or the port is idle. Turn off for continuous refill (may oscillate on delayed guest feedback). Only used for gameport mode (memory write off)."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Stop writing to Mouse BIOS soft-cursor phys",
+      "translation": "Stop writing to Mouse BIOS soft-cursor phys"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "When on, do not write Mouse BIOS soft coordinates while MOS is alive. Game Phys / gameport still follow app-specific settings.",
+      "translation": "When on, do not write Mouse BIOS soft coordinates while MOS is alive. Game Phys / gameport still follow app-specific settings."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
+      "translation": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse capture: always uses mouse capture. Mouse integration is not performed.",
+      "translation": "Mouse capture: always uses mouse capture. Mouse integration is not performed."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
+      "translation": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved.",
+      "translation": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport.",
+      "translation": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Could not write mouse preset:\n%1",
+      "translation": "Could not write mouse preset:\n%1"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Memory scan",
+      "translation": "Memory scan"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Scan",
+      "translation": "Scan"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Scan RAM for new coordinate candidates (also turns Mouse capture ON).\nMove the mouse in the emu view.  ESC stops Scan and capture.",
+      "translation": "Scan RAM for new coordinate candidates (also turns Mouse capture ON).\nMove the mouse in the emu view.  ESC stops Scan and capture."
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Mouse capture ON",
+      "translation": "Mouse capture ON"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Uncheck or ESC restores the profile mouse mode.",
+      "translation": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Uncheck or ESC restores the profile mouse mode."
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Clear min max",
+      "translation": "Clear min max"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Reset observed min..max on all candidates.\nStarts again from the next sampled value.",
+      "translation": "Reset observed min..max on all candidates.\nStarts again from the next sampled value."
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Clear candidates",
+      "translation": "Clear candidates"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Remove unselected",
+      "translation": "Remove unselected"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Delete rows with none of Watch / Chase / X / Y / X2 / Y2 checked.",
+      "translation": "Delete rows with none of Watch / Chase / X / Y / X2 / Y2 checked."
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Update",
+      "translation": "Update"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Copy the checked X/Y pair (and min..max) into Mouse integration.\nIf X2/Y2 are also checked, fill Phys 2 as well.\nCloses Memory scan and reopens Settings. Does not save — use Apply or OK there.",
+      "translation": "Copy the checked X/Y pair (and min..max) into Mouse integration.\nIf X2/Y2 are also checked, fill Phys 2 as well.\nCloses Memory scan and reopens Settings. Does not save — use Apply or OK there."
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Cancel",
+      "translation": "Cancel"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Close Memory scan and return to Settings → Mouse integration.",
+      "translation": "Close Memory scan and return to Settings → Mouse integration."
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Watch",
+      "translation": "Watch"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Chase",
+      "translation": "Chase"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "X",
+      "translation": "X"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Y",
+      "translation": "Y"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "X2",
+      "translation": "X2"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Y2",
+      "translation": "Y2"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "phys",
+      "translation": "phys"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "sz",
+      "translation": "sz"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "value",
+      "translation": "value"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "min..max",
+      "translation": "min..max"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "span",
+      "translation": "span"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "changes",
+      "translation": "changes"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Scan = add candidates (turns Mouse capture ON).\nMouse capture ON alone = refresh values / prune noise (no new picks).\nWatch = keep in list after Scan stops.\nChase = follow guest-writer SOURCE; moves to the new SOURCE when found.\nAlso adds nearby phys (±32 bytes) whose value Δ matches host/IO mouse Δ.\nX/Y = primary Game Phys pair.  X2/Y2 = optional Phys 2 pair.\nGreen phys = MOS soft-cursor words (writable if set as Phys).\nBlue phys = disc-profile pair.  span = max−min; oversized rows are pruned.\nESC ends capture (+ Scan).",
+      "translation": "Scan = add candidates (turns Mouse capture ON).\nMouse capture ON alone = refresh values / prune noise (no new picks).\nWatch = keep in list after Scan stops.\nChase = follow guest-writer SOURCE; moves to the new SOURCE when found.\nAlso adds nearby phys (±32 bytes) whose value Δ matches host/IO mouse Δ.\nX/Y = primary Game Phys pair.  X2/Y2 = optional Phys 2 pair.\nGreen phys = MOS soft-cursor words (writable if set as Phys).\nBlue phys = disc-profile pair.  span = max−min; oversized rows are pruned.\nESC ends capture (+ Scan)."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Auto",
+      "translation": "자동"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Settings",
+      "translation": "설정"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Basics",
+      "translation": "Basics"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Mouse integration",
+      "translation": "Mouse integration"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Video / Audio",
+      "translation": "Video / Audio"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Features",
+      "translation": "기능"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "BIOS",
+      "translation": "BIOS"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CPU",
+      "translation": "CPU"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Model",
+      "translation": "Model"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "High-res / high-res PCM",
+      "translation": "High-res / high-res PCM"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "UG SCSI / peripheral I/O",
+      "translation": "UG SCSI / peripheral I/O"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Disabled",
+      "translation": "Disabled"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Create profile",
+      "translation": "Create profile"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(unnamed)",
+      "translation": "(unnamed)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Delete disc profile",
+      "translation": "Delete disc profile"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone.",
+      "translation": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Profile file",
+      "translation": "Profile file"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Compatible",
+      "translation": "Compatible"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " MHz",
+      "translation": " MHz"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Pretend 386DX",
+      "translation": "Pretend 386DX"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "80386FPU",
+      "translation": "80386FPU"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Fast SCSI",
+      "translation": "Fast SCSI"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Fast FD",
+      "translation": "Fast FD"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MIDI board",
+      "translation": "MIDI 보드"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Memory",
+      "translation": "메모리"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " MB",
+      "translation": " MB"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CPU fidelity",
+      "translation": "CPU 재현성"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MID",
+      "translation": "MID"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "HIGH",
+      "translation": "HIGH"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Game pad / mouse ports",
+      "translation": "게임패드/마우스 단자"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Max button hold time",
+      "translation": "최대 버튼 누름 시간"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " ms",
+      "translation": " ms"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Any",
+      "translation": "임의"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Button 0",
+      "translation": "버튼 0"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Button 1",
+      "translation": "버튼 1"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings.",
+      "translation": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Video",
+      "translation": "Video"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "x",
+      "translation": "x"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Normal",
+      "translation": "표준"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Double",
+      "translation": "배속"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Max",
+      "translation": "최대"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Window scale:",
+      "translation": "Window scale:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Sprite transfer speed:",
+      "translation": "Sprite transfer speed:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "15 kHz scan-line effect",
+      "translation": "15 kHz 주사선 효과"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Damper-wire line",
+      "translation": "댐퍼 와이어 선"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "VSync in fullscreen",
+      "translation": "전체 화면 VSync 동기화"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Audio",
+      "translation": "Audio"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Use sinc interpolation for PCM resampling",
+      "translation": "PCM 리샘플에 sinc 보간 사용"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "PCM LPF",
+      "translation": "PCM LPF"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " Hz",
+      "translation": " Hz"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Without sinc interpolation, linear interpolation is used.",
+      "translation": "sinc 보간을 쓰지 않으면 선형 보간을 사용합니다."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Output device:",
+      "translation": "출력 장치:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Backend:",
+      "translation": "백엔드:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MIDI output",
+      "translation": "MIDI output"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "SoundFont",
+      "translation": "SoundFont"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(not set)",
+      "translation": "(미지정)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Browse…",
+      "translation": "찾아보기…"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "port",
+      "translation": "port"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Changes take effect immediately when you press Apply or OK.",
+      "translation": "적용 또는 확인 시 바로 반영됩니다."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Use disc profiles",
+      "translation": "Use disc profiles"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Save settings per mounted CD as a disc profile under profiles/.\nWhen enabled, a matching profile automatically overrides Basics defaults\nat startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\nalso stored and restored when the profile is applied.",
+      "translation": "Save settings per mounted CD as a disc profile under profiles/.\nWhen enabled, a matching profile automatically overrides Basics defaults\nat startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\nalso stored and restored when the profile is applied."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Inhibit display idle",
+      "translation": "디스플레이 유휴 억제"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
+      "translation": "Wayland 세션에서 화면 자동 꺼짐/어두워짐을 막습니다."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Faster mouse integration",
+      "translation": "Faster mouse integration"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Mouse BIOS integration that writes guest memory to reduce latency.",
+      "translation": "Mouse BIOS integration that writes guest memory to reduce latency."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CDDA cache:",
+      "translation": "CDDA cache:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " s",
+      "translation": " s"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Bulk-prefetch the CDDA audio track and keep playing through data reads\nwithout interrupting playback. The value is how many seconds until\nplayback is considered finished.",
+      "translation": "Bulk-prefetch the CDDA audio track and keep playing through data reads\nwithout interrupting playback. The value is how many seconds until\nplayback is considered finished."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MOS unused detection (test)",
+      "translation": "MOS unused detection (test)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture.",
+      "translation": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Standard settings (&D)",
+      "translation": "표준 설정(&D)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Default",
+      "translation": "기본값"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "%1 (not found)",
+      "translation": "%1 (찾을 수 없음)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Available only on sessions that support Wayland idle-inhibit.",
+      "translation": "Wayland idle-inhibit를 지원하는 세션에서만 사용할 수 있습니다."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "FluidSynth",
+      "translation": "FluidSynth"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "ALSA",
+      "translation": "ALSA"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(none)",
+      "translation": "(none)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(select)",
+      "translation": "(select)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Select SoundFont",
+      "translation": "SoundFont 선택"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "SoundFont (*.sf2);;All files (*)",
+      "translation": "SoundFont (*.sf2);;모든 파일 (*)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, memory, ports, and options to the profile.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory and CPU fidelity changes restart the emulator.",
+      "translation": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, memory, ports, and options to the profile.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory and CPU fidelity changes restart the emulator."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
+      "translation": "No disc profile for this CD yet. Use Create profile to save per-disc settings.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Enabled",
+      "translation": "Enabled"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "No CD mounted.",
+      "translation": "No CD mounted."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "No profile for this disc.",
+      "translation": "No profile for this disc."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Disc profile loaded.",
+      "translation": "Disc profile loaded."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(no CD)",
+      "translation": "(no CD)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Delete profile",
+      "translation": "Delete profile"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80386DX",
+      "translation": "80386DX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80386SX",
+      "translation": "80386SX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80486SX",
+      "translation": "80486SX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80486DX",
+      "translation": "80486DX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "Pentium",
+      "translation": "Pentium"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "Marty",
+      "translation": "Marty"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: not found",
+      "translation": "FMT_SYS.ROM: 미검출"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: unknown",
+      "translation": "FMT_SYS.ROM: unknown"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: %1",
+      "translation": "FMT_SYS.ROM: %1"
     }
   ]
 }

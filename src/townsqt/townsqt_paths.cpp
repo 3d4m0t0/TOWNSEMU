@@ -34,6 +34,16 @@ QString TownsQtPaths::configFilePath()
 	return configDir()+QStringLiteral("/townsqt.conf");
 }
 
+QString TownsQtPaths::profilesDir()
+{
+	return configDir()+QStringLiteral("/profiles");
+}
+
+QString TownsQtPaths::mousePresetsDir()
+{
+	return configDir()+QStringLiteral("/mouse_presets");
+}
+
 bool TownsQtPaths::ensureLayout()
 {
 	QDir dir;
@@ -50,6 +60,27 @@ bool TownsQtPaths::ensureLayout()
 		return false;
 	}
 	if(true!=dir.mkpath(hddDir()))
+	{
+		return false;
+	}
+	const QString profiles=profilesDir();
+	const QString legacy=configDir()+QStringLiteral("/mouse_coord_profiles");
+	if(true!=QDir(profiles).exists() && true==QDir(legacy).exists())
+	{
+		// One-time rename from the previous directory name.
+		if(true!=QDir().rename(legacy,profiles))
+		{
+			if(true!=dir.mkpath(profiles))
+			{
+				return false;
+			}
+		}
+	}
+	else if(true!=dir.mkpath(profiles))
+	{
+		return false;
+	}
+	if(true!=dir.mkpath(mousePresetsDir()))
 	{
 		return false;
 	}

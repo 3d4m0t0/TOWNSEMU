@@ -1,209 +1,39 @@
 {
   "translations": [
     {
-      "context": "MainWindow",
-      "source": "About Tsugaru %1",
-      "translation": "Tsugaru %1 について"
+      "context": "AudioMixerDialog",
+      "source": "Audio mixer",
+      "translation": "オーディオミキサー"
     },
     {
-      "context": "MainWindow",
-      "source": "Starting…",
-      "translation": "Starting…"
+      "context": "AudioMixerDialog",
+      "source": "FM",
+      "translation": "FM"
     },
     {
-      "context": "MainWindow",
-      "source": "Integrated",
-      "translation": "マウス統合"
+      "context": "AudioMixerDialog",
+      "source": "PCM",
+      "translation": "PCM"
     },
     {
-      "context": "MainWindow",
-      "source": "Mouse integrated: the host pointer controls the Towns pointer directly.",
-      "translation": "マウス統合：ホストのポインタがTownsのポインタを直接動かします。"
+      "context": "AudioMixerDialog",
+      "source": "CDDA",
+      "translation": "CDDA"
     },
     {
-      "context": "MainWindow",
-      "source": "Captured",
-      "translation": "捕捉中"
+      "context": "AudioMixerDialog",
+      "source": "MIDI",
+      "translation": "MIDI"
     },
     {
-      "context": "MainWindow",
-      "source": "Middle button to release",
-      "translation": "中ボタンで解除"
+      "context": "AudioMixerDialog",
+      "source": "Close",
+      "translation": "閉じる"
     },
     {
-      "context": "MainWindow",
-      "source": "Relative mouse is captured. Press the middle mouse button to release capture.",
-      "translation": "相対マウスをキャプチャ中。中ボタン（ボタン3）で解除します。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Released",
-      "translation": "解除中"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Click to capture",
-      "translation": "クリックで開始"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Relative mouse. Click the screen to start mouse capture; press the middle mouse button to release it.",
-      "translation": "相対マウス。画面クリックでキャプチャ開始、中ボタン（ボタン3）で解除します。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Restarting the emulator…",
-      "translation": "エミュレータを再起動しています…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Emulator restarted",
-      "translation": "エミュレータを再起動しました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Operation",
-      "translation": "操作(&O)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Reset",
-      "translation": "リセット(&R)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Fast mode",
-      "translation": "高速モード"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Custom…",
-      "translation": "任意…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CPU frequency",
-      "translation": "CPU 周波数"
-    },
-    {
-      "context": "MainWindow",
-      "source": "MHz:",
-      "translation": "MHz:"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Game pads…",
-      "translation": "ジョイパッド…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Normal",
-      "translation": "標準"
-    },
-    {
-      "context": "MainWindow",
-      "source": "2x",
-      "translation": "2倍"
-    },
-    {
-      "context": "MainWindow",
-      "source": "4x",
-      "translation": "4倍"
-    },
-    {
-      "context": "MainWindow",
-      "source": "8x",
-      "translation": "8倍"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Max",
-      "translation": "最大"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Double",
-      "translation": "倍速"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Toggle &fullscreen",
-      "translation": "全画面切替(&F)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Quit",
-      "translation": "終了(&Q)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Disk",
-      "translation": "ディスク(&D)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Open CD image…",
-      "translation": "CDイメージを開く(&O)…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Eject CD",
-      "translation": "CDを取り出す(&E)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open &recent files",
-      "translation": "最近のファイルを開く(&R)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open FD image (%1)…",
-      "translation": "FDイメージを開く(%1)…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Eject FD",
-      "translation": "FDを取り出す"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open recent files",
-      "translation": "最近のファイルを開く"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Write protect",
-      "translation": "書き込み禁止"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Create blank FD image",
-      "translation": "ブランクFDイメージ作成"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Tools",
-      "translation": "ツール(&T)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Settings…",
-      "translation": "設定(&S)…"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Drive access",
-      "translation": "ドライブアクセス"
-    },
-    {
-      "context": "MainWindow",
-      "source": "MIDI monitor",
-      "translation": "MIDI モニタ"
-    },
-    {
-      "context": "MainWindow",
+      "context": "CdromMonitorWindow",
       "source": "CD-ROM monitor",
-      "translation": "CD-ROM モニタ"
+      "translation": "CD-ROMモニター"
     },
     {
       "context": "CdromMonitorWindow",
@@ -221,914 +51,14 @@
       "translation": "CDDAキャッシュ"
     },
     {
-      "context": "CdromMonitorWindow",
-      "source": "PCM",
-      "translation": "PCM"
+      "context": "DebugTextWindow",
+      "source": "Clear",
+      "translation": "クリア"
     },
     {
-      "context": "CdromMonitorWindow",
-      "source": "VM / stall",
-      "translation": "VM / 停止疑い"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Log CD-ROM commands, CDDA play/stop, and data-sector access.",
-      "translation": "CD-ROM コマンド、CDDA 再生/停止、データセクタアクセスをログ出力します。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CPU / CS:EIP history",
-      "translation": "CPU / CS:EIP 履歴"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
-      "translation": "レジスタ・現在の命令・CS:EIP 履歴・コールスタックを表示します。開いている間はコアのデバッガを有効にします。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Debug overlay",
-      "translation": "デバッグ表示"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Mouse integration coords",
-      "translation": "マウス統合座標"
-    },
-    {
-      "context": "MainWindow",
-      "source": "&Help",
-      "translation": "ヘルプ(&H)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD-ROM speed  %1",
-      "translation": "CDROM速度  %1"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Sprite transfer  %1",
-      "translation": "スプライト転送  %1"
-    },
-    {
-      "context": "MainWindow",
-      "source": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty emulator<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>",
-      "translation": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty エミュレータ<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Original",
-      "translation": "オリジナル"
-    },
-    {
-      "context": "MainWindow",
-      "source": "The selected model did not match the SYS ROM, so it was reset to the default.",
-      "translation": "SYS ROM と合わないモデルが選ばれていたため、既定のモデルに戻しました。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open CD image",
-      "translation": "CDイメージを開く"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)",
-      "translation": "CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Open FD image (%1)",
-      "translation": "FDイメージを開く(%1)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)",
-      "translation": "Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Failed to create the FD image.",
-      "translation": "FDイメージの作成に失敗しました。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Unsupported floppy-image extension.",
-      "translation": "未対応のFDイメージ拡張子です。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "The file already exists. Overwrite it?",
-      "translation": "同名のファイルが既にあります。上書きしますか？"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Clear list",
-      "translation": "リストを消す"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD ejected",
-      "translation": "CDを取り出しました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD: %1",
-      "translation": "CD: %1"
-    },
-    {
-      "context": "MainWindow",
-      "source": "FD%1 ejected",
-      "translation": "FD%1を取り出しました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "FD%1: %2",
-      "translation": "FD%1: %2"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Host:%1,%2  Guest:%3  MOS:%4  TBIOS:%5  %6",
-      "translation": "ホスト:%1,%2  ゲスト:%3  MOS:%4  TBIOS:%5  %6"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5",
-      "translation": "Tsugaru_QT — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Tsugaru_QT",
-      "translation": "Tsugaru_QT"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Emulator stopped",
-      "translation": "エミュレータを停止しました"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Auto",
-      "translation": "自動"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Settings",
-      "translation": "設定"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Model",
-      "translation": "モデル"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Memory",
-      "translation": "メモリ"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " MB",
-      "translation": " MB"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "CPU fidelity",
-      "translation": "CPUの再現性"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MID",
-      "translation": "MID"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "HIGH",
-      "translation": "HIGH"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "pretend386DX",
-      "translation": "pretend386DX"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "80386FPU",
-      "translation": "80386FPU"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "FAST SCSI",
-      "translation": "FAST SCSI"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "FAST FD",
-      "translation": "FAST FD"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MIDI board",
-      "translation": "MIDI ボード"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "App-specific settings",
-      "translation": "アプリ別特殊設定"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Changes are saved with Apply or OK; the emulator restarts so settings take effect.",
-      "translation": "変更は［適用］または［OK］で保存され、設定を反映するためエミュレータが再起動されます。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Machine",
-      "translation": "マシン"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Game pad / mouse ports",
-      "translation": "ジョイパッド／マウス端子"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Max button hold time",
-      "translation": "最大ボタン押下時間"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " ms",
-      "translation": " ms"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Any",
-      "translation": "任意"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Button 0",
-      "translation": "ボタン0"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Button 1",
-      "translation": "ボタン1"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Mouse movement speed",
-      "translation": "マウス移動速度"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Mouse coordinate range",
-      "translation": "マウス座標範囲"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Consider VRAM offset",
-      "translation": "VRAM オフセット考慮"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Auto-switch to differential when Mouse BIOS stops",
-      "translation": "Mouse BIOS停止時に差分統合へ自動切替"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Absolute and instant integration are unavailable while Mouse BIOS is stopped.\nAutomatically switch to differential input to keep the mouse usable.",
-      "translation": "Mouse BIOS停止中は通常／即時統合を使用できません。\n差分入力へ自動的に切り替え、マウス操作を継続します。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MinX",
-      "translation": "MinX"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MinY",
-      "translation": "MinY"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MaxX",
-      "translation": "MaxX"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MaxY",
-      "translation": "MaxY"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Changes take effect immediately when you press Apply or OK.",
-      "translation": "変更は［適用］または［OK］ですべて即時に反映されます。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Mouse & Game Pad",
-      "translation": "マウスとパッド"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "x",
-      "translation": "x"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Window scale:",
-      "translation": "ウインドウ倍率:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Sprite transfer",
-      "translation": "スプライト転送"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Normal",
-      "translation": "標準"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Double",
-      "translation": "倍速"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Max",
-      "translation": "最大"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Fit scale to window",
-      "translation": "ウィンドウに合わせて倍率調整"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Maintain aspect ratio",
-      "translation": "縦横比維持"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "15 kHz scan-line effect",
-      "translation": "15kHz 走査線効果"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Damper-wire line",
-      "translation": "ダンパーワイヤー線"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "VSync in fullscreen",
-      "translation": "全画面時 Vsync同期"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Display",
-      "translation": "映像"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Volume",
-      "translation": "音量"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "FM",
-      "translation": "FM"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "PCM",
-      "translation": "PCM"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "CDDA",
-      "translation": "CDDA"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MIDI",
-      "translation": "MIDI"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Use sinc interpolation for PCM resampling",
-      "translation": "PCMリサンプルでsinc補間を使う"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "PCM LPF",
-      "translation": "PCM LPF"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " Hz",
-      "translation": " Hz"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Without sinc interpolation, linear interpolation is used.",
-      "translation": "sinc補間を使わない場合は線形補間を使用します。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Output device:",
-      "translation": "出力デバイス:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Backend:",
-      "translation": "バックエンド:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MIDI output:",
-      "translation": "MIDI出力:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "SoundFont:",
-      "translation": "サウンドフォント:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(not set)",
-      "translation": "（未指定）"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Browse…",
-      "translation": "参照…"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "SoundFont (.sf2) file for FluidSynth. If unset, environment variables and system defaults are searched.",
-      "translation": "FluidSynth で使用する SoundFont（.sf2）ファイルを指定します。未指定の場合は環境変数やシステム既定のパスを探します。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Send MIDI via the ALSA sequencer. Use a patch bay (e.g. aconnect) to connect Tsugaru_QT’s output port to a destination.",
-      "translation": "ALSA シーケンサで MIDI を出力します。外部シンセやソフトウェア音源へ接続するには、パッチベイ（aconnect 等）で Tsugaru_QT の出力ポートを宛先ポートに接続してください。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Audio",
-      "translation": "音声"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Inhibit display idle",
-      "translation": "ディスプレイのアイドルを抑制"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "Wayland セッションで画面の自動消灯や暗転を防ぎます。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Instant mouse integration (test)",
-      "translation": "マウス即時統合（テスト）"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Test feature that snaps the guest mouse coordinates to the host immediately.\nCompared with gradual integration, this reduces mouse input latency.\nAfter enabling, a warm-up period uses gradual integration before switching to instant snapping.",
-      "translation": "ゲストのマウス座標をホストに即座に合わせるテスト機能です。\n段階的な統合に比べ、マウス入力の遅延を緩和します。\n有効にした直後はウォームアップ期間、段階的統合を行ってから即時統合に切り替わります。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "CDDA cache:",
-      "translation": "CDDAキャッシュ:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " s",
-      "translation": " 秒"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "EMU feature: bulk-cache the audio track on play at host speed (not\nlimited by CD-ROM speed).  Data-sector reads keep music playing from\nthe cache while guest status/SubQ look like a normal stop.  Same-track\nplay reuses the cache; a different track or disc change discards it.\nThe value on the right is how long host cache mixing continues after\na data-read burst without an explicit PLAY/RESUME.",
-      "translation": "EMU独自機能: 再生時にオーディオトラックをホスト最速で一括先読みします（CD-ROM速度設定の影響なし）。データセクタ読み取り中もキャッシュから音楽を継続し、ゲストからは通常の停止に見えるステータス／SubQを返します。同一トラックはキャッシュを再利用し、別トラックやディスク交換では破棄して再先読みします。右の値は、データ読み取り後に PLAY/RESUME が無い場合、ホスト側キャッシュ演奏を継続する秒数です。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Instant integration warm-up:",
-      "translation": "即時統合ウォームアップ:"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": " frames",
-      "translation": " フレーム"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Set to 0 to skip warm-up and use instant integration from the start.",
-      "translation": "0 にするとウォームアップなしで、最初から即時統合します。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Features",
-      "translation": "機能"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Standard settings (&D)",
-      "translation": "標準設定(&D)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Default",
-      "translation": "既定"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "%1 (not found)",
-      "translation": "%1 (見つかりません)"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Available only on sessions that support Wayland idle-inhibit.",
-      "translation": "Wayland の idle-inhibit に対応したセッションでのみ利用できます。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "FluidSynth (built-in)",
-      "translation": "FluidSynth（内蔵）"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(select destination)",
-      "translation": "（接続先を選択）"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(no MIDI outputs available)",
-      "translation": "（利用可能な MIDI 出力なし）"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "(unsupported)",
-      "translation": "（非対応）"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Select SoundFont",
-      "translation": "SoundFont を選択"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "SoundFont (*.sf2);;All files (*)",
-      "translation": "SoundFont (*.sf2);;すべてのファイル (*)"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "Free compatible ROM",
-      "translation": "無料互換 ROM"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "Legacy · UX/UG unsupported",
-      "translation": "レガシー・UX/UG 非対応"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "For 386DX · UX/UG unsupported",
-      "translation": "386DX 向け・UX/UG 非対応"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "386SX/DX compatible",
-      "translation": "386SX/DX 両対応"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "Not found",
-      "translation": "未検出"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "FMT_SYS.ROM: not found",
-      "translation": "FMT_SYS.ROM: 未検出"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "FMT_SYS.ROM: unknown (%1)",
-      "translation": "FMT_SYS.ROM: 不明（%1）"
-    },
-    {
-      "context": "TownsQtRomAvailability",
-      "source": "FMT_SYS.ROM: %1 (%2)",
-      "translation": "FMT_SYS.ROM: %1（%2）"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "None",
-      "translation": "なし"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse",
-      "translation": "マウス"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard",
-      "translation": "キーボード"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "CyberStick",
-      "translation": "CyberStick"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via keyboard",
-      "translation": "キーボードでマウス"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via numeric keypad",
-      "translation": "テンキーでマウス"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (CAPCOM CPSF)",
-      "translation": "キーボード (CAPCOM CPSF)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (6-button pad)",
-      "translation": "キーボード (6ボタンパッド)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (Libble Rabble)",
-      "translation": "キーボード (Libble Rabble)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Keyboard (Marty Pad)",
-      "translation": "キーボード (Marty Pad)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (digital)",
-      "translation": "ゲームパッド #%1 (デジタル)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via gamepad #%1",
-      "translation": "ゲームパッド #%1 でマウス"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (CyberStick)",
-      "translation": "ゲームパッド #%1 (CyberStick)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (CAPCOM CPSF)",
-      "translation": "ゲームパッド #%1 (CAPCOM CPSF)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (6-button pad)",
-      "translation": "ゲームパッド #%1 (6ボタンパッド)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (Marty Pad)",
-      "translation": "ゲームパッド #%1 (Marty Pad)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (analog)",
-      "translation": "ゲームパッド #%1 (アナログ)"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Mouse via analog #%1",
-      "translation": "アナログ #%1 でマウス"
-    },
-    {
-      "context": "TownsQtGamePortOptions",
-      "source": "Gamepad #%1 (Libble Rabble)",
-      "translation": "ゲームパッド #%1 (Libble Rabble)"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "1st gen 386DX (MODEL2 / 2F / 20F)",
-      "translation": "初代 386DX（MODEL2 / 2F / 20F）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX (UX)",
-      "translation": "386SX（UX）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX (UG)",
-      "translation": "386SX（UG）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386DX (CX)",
-      "translation": "386DX（CX）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386DX (HG)",
-      "translation": "386DX（HG）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "486SX (HR)",
-      "translation": "486SX（HR）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "486DX (UR / MA)",
-      "translation": "486DX（UR / MA）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "486DX high-res (MX / ME / MF)",
-      "translation": "486DX 高解像度（MX / ME / MF）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Pentium (HC)",
-      "translation": "Pentium（HC）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Marty",
-      "translation": "Marty"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386DX (machine ID: MODEL2 / 2F / 20F)",
-      "translation": "80386DX（マシンID: MODEL2 / 2F / 20F）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Standard memory map (386DX)",
-      "translation": "標準メモリマップ（386DX）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "RAM up to 64 MB",
-      "translation": "RAM 最大 64 MB"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FAST MODE not supported",
-      "translation": "FAST MODE 非対応"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "High-resolution CRTC not supported",
-      "translation": "高解像度 CRTC 非対応"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386SX",
-      "translation": "80386SX"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX memory map (different ROM/VRAM layout)",
-      "translation": "386SX 用メモリマップ（ROM/VRAM の配置が異なる）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "RAM up to 10 MB",
-      "translation": "RAM 最大 10 MB"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386SX (UG generation)",
-      "translation": "80386SX（UG 世代）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "386SX memory map",
-      "translation": "386SX 用メモリマップ"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FAST MODE supported",
-      "translation": "FAST MODE 対応"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "UG and later SCSI / CPU peripheral I/O behavior",
-      "translation": "UG 以降の SCSI / CPU 周辺 I/O 挙動"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386DX (CX)",
-      "translation": "80386DX（CX）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "UG-generation SCSI extensions not supported",
-      "translation": "UG 世代 SCSI 拡張は非対応"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386DX (HG)",
-      "translation": "80386DX（HG）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80486SX",
-      "translation": "80486SX"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Standard memory map (386DX family)",
-      "translation": "標準メモリマップ（386DX 系）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FAST MODE / UG SCSI supported",
-      "translation": "FAST MODE / UG SCSI 対応"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "High-resolution CRTC not supported (pre-MX)",
-      "translation": "高解像度 CRTC 非対応（MX 未満）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80486DX (UR / MA)",
-      "translation": "80486DX（UR / MA）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Standard memory map",
-      "translation": "標準メモリマップ"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80486DX (MX / ME / MF)",
-      "translation": "80486DX（MX / ME / MF）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "High-resolution CRTC / display output registers",
-      "translation": "高解像度 CRTC / 画像出力レジスタ対応"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "CD-ROM 2x speed supported",
-      "translation": "CD-ROM 2 倍速対応"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Pentium (HC, machine ID report)",
-      "translation": "Pentium（HC、マシンID 報告）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "Same high-resolution and CD features as MX generation",
-      "translation": "MX 世代と同様の高解像度・CD 機能"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "FM Towns Marty",
-      "translation": "FM Towns Marty"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "80386SX + Marty-specific ROM mapping",
-      "translation": "80386SX + Marty 専用 ROM マッピング"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "No SCSI (I/O disabled)",
-      "translation": "SCSI 非搭載（I/O 無効）"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "EX-ROM image required",
-      "translation": "EX-ROM イメージが必要"
-    },
-    {
-      "context": "TownsQtModelProfile",
-      "source": "RAM limited up to before the OS ROM",
-      "translation": "RAM は OS ROM 手前まで"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Hard disk drive settings…",
-      "translation": "ハードディスクドライブ設定…"
+      "context": "DebugTextWindow",
+      "source": "Close",
+      "translation": "閉じる"
     },
     {
       "context": "HddSettingsDialog",
@@ -1199,6 +129,1296 @@
       "context": "HddSettingsDialog",
       "source": "Select hard disk image",
       "translation": "ハードディスクイメージの選択"
+    },
+    {
+      "context": "MainWindow",
+      "source": "About Tsugaru %1",
+      "translation": "Tsugaru %1 について"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Starting…",
+      "translation": "起動中…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Restarting the emulator…",
+      "translation": "エミュレーターを再起動しています…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator restarted",
+      "translation": "エミュレーターを再起動しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Operation",
+      "translation": "操作(&O)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Restart",
+      "translation": "再起動(&R)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Compatible",
+      "translation": "互換モード"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Game pads…",
+      "translation": "ジョイパッド…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Window scale",
+      "translation": "ウィンドウ倍率"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Decrease window scale",
+      "translation": "ウィンドウ倍率を下げる"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Increase window scale",
+      "translation": "ウィンドウ倍率を上げる"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Toggle &fullscreen",
+      "translation": "全画面切替(&F)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Quit",
+      "translation": "終了(&Q)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&CD-ROM",
+      "translation": "CD-ROM(&C)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Open CD image…",
+      "translation": "CDイメージを開く(&O)…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Eject CD",
+      "translation": "CDを取り出す(&E)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open &recent files",
+      "translation": "最近のファイルを開く(&R)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Disk",
+      "translation": "ディスク(&D)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Hard disk drive settings…",
+      "translation": "ハードディスク設定…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open FD image (%1)…",
+      "translation": "FDイメージを開く(%1)…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Eject FD",
+      "translation": "FDを取り出す"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open recent files",
+      "translation": "最近のファイルを開く"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Write protect",
+      "translation": "書き込み禁止"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Create blank FD image",
+      "translation": "ブランクFDイメージ作成"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Tools",
+      "translation": "ツール(&T)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Settings…",
+      "translation": "設定(&S)…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Audio mixer…",
+      "translation": "オーディオミキサー…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Drive access",
+      "translation": "ドライブアクセス"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FPS display",
+      "translation": "FPS表示"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Show FPS, emulation Hz, and present-queue stats in the window title.",
+      "translation": "ウィンドウタイトルに FPS・エミュレーション Hz・表示キュー統計を表示します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Debug overlay",
+      "translation": "デバッグ表示"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration coords",
+      "translation": "マウス統合座標"
+    },
+    {
+      "context": "MainWindow",
+      "source": "MIDI monitor",
+      "translation": "MIDI モニタ"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD-ROM monitor",
+      "translation": "CD-ROM モニタ"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Log CD-ROM commands, CDDA play/stop, and data-sector access.",
+      "translation": "CD-ROM コマンド、CDDA 再生/停止、データセクタアクセスをログ出力します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "APP monitor",
+      "translation": "APP モニタ"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Log guest EXE/EXP identity, MOS session, in-game phase, and mouse apply.",
+      "translation": "ゲスト EXE/EXP 識別、MOS セッション、インゲーム位相、マウス apply をログ出力します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / CS:EIP 履歴"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
+      "translation": "レジスタ・現在の命令・CS:EIP 履歴・コールスタックを表示します。開いている間はコアのデバッガを有効にします。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Help",
+      "translation": "ヘルプ(&H)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Disc profile clock updated.",
+      "translation": "ディスクプロファイルのクロックを更新しました。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD-ROM speed  %1",
+      "translation": "CDROM速度  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Sprite transfer  %1",
+      "translation": "スプライト転送  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not apply mouse profile (need a disc profile).",
+      "translation": "Could not apply mouse profile (need a disc profile)."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not create disc profile.",
+      "translation": "ディスクプロファイルを作成できませんでした。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not delete disc profile.",
+      "translation": "ディスクプロファイルを削除できませんでした。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Disc profile deleted.",
+      "translation": "ディスクプロファイルを削除しました。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Bound current EXP to disc profile.",
+      "translation": "現在のEXPをディスクプロファイルへ紐付けしました。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty emulator<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>",
+      "translation": "<div style=\"line-height:1.35\"><b>Tsugaru \"津軽\"</b><br>FM TOWNS / Marty エミュレータ<br>for Linux (Qt) %1<br><br><a href=\"https://github.com/3d4m0t0/TOWNSEMU\">https://github.com/3d4m0t0/TOWNSEMU</a><br><br>%2<br><a href=\"https://github.com/captainys/TOWNSEMU\">https://github.com/captainys/TOWNSEMU</a></div>"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Original",
+      "translation": "オリジナル"
+    },
+    {
+      "context": "MainWindow",
+      "source": "The selected CPU/model did not match the SYS ROM, so it was reset to an allowed value.",
+      "translation": "SYS ROM と合わない CPU／モデルが選ばれていたため、利用可能な組み合わせに戻しました。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Could not save disc profile.",
+      "translation": "ディスクプロファイルを保存できませんでした。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open CD image",
+      "translation": "CDイメージを開く"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)",
+      "translation": "CD images (*.cue *.iso *.bin *.mds *.chd);;All files (*)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Open FD image (%1)",
+      "translation": "FDイメージを開く(%1)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)",
+      "translation": "Floppy images (*.d77 *.xdf *.hdm *.fdd *.bin);;All files (*)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to create the FD image.",
+      "translation": "FDイメージの作成に失敗しました。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Unsupported floppy-image extension.",
+      "translation": "未対応のFDイメージ拡張子です。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "The file already exists. Overwrite it?",
+      "translation": "同名のファイルが既にあります。上書きしますか？"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Clear list",
+      "translation": "リストを消す"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD ejected",
+      "translation": "CDを取り出しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD: %1",
+      "translation": "CD: %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FD%1 ejected",
+      "translation": "FD%1を取り出しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "FD%1: %2",
+      "translation": "FD%1: %2"
+    },
+    {
+      "context": "MainWindow",
+      "source": " — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5",
+      "translation": " — %1 FPS | %2 Hz | P:%3 C:%4 lag:%5"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Profile enabled",
+      "translation": "プロファイル有効"
+    },
+    {
+      "context": "MainWindow",
+      "source": "A disc profile is loaded and “Use disc profiles” is on.",
+      "translation": "ディスクプロファイルが読み込まれ、「ディスクプロファイルを使用」がオンです。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration debug",
+      "translation": "マウス統合デバッグ"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture ON — list refresh / prune (profile paused).",
+      "translation": "マウスキャプチャON — 一覧の更新／整理（プロファイル一時停止）"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture OFF — profile mouse mode restored.",
+      "translation": "マウスキャプチャOFF — プロファイルのマウスモードを復元"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Scan on — adding candidates (mouse capture ON). ESC to stop.",
+      "translation": "スキャンON — 候補を追加中（マウスキャプチャON）。ESCで停止"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Scan off — capture may stay on for prune.",
+      "translation": "スキャンOFF — 整理のためキャプチャはONのままのことがあります"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Stopped (ESC) — profile mouse mode restored.",
+      "translation": "停止（ESC）— プロファイルのマウスモードを復元"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Check one X and one Y candidate, then Update.",
+      "translation": "X と Y の候補を1つずつ選んでから Update してください。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Updated Mouse integration setting from selected X/Y.",
+      "translation": "選択した X/Y をマウス統合設定に反映しました。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Tsugaru_QT",
+      "translation": "Tsugaru_QT"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator stopped",
+      "translation": "エミュレータを停止しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (app-specific settings)",
+      "translation": "マウス統合(アプリ別設定)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor.",
+      "translation": "マウス統合(アプリ別設定): 基本は規定と同じで、紐付けしたEXP起動後にアプリごとのPhys設定を適用します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (Mouse BIOS)",
+      "translation": "マウス統合(マウスBIOS)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.",
+      "translation": "マウス統合(マウスBIOS): マウスBIOSを使ったマウス統合を強制します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture",
+      "translation": "マウスキャプチャ"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Middle button to release",
+      "translation": "中ボタンで解除"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture is active. Press the middle mouse button to release capture.",
+      "translation": "マウスキャプチャ中です。マウス中ボタンで解除します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture (released)",
+      "translation": "マウスキャプチャ（解除）"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Click to capture",
+      "translation": "クリックでキャプチャ"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it.",
+      "translation": "マウスキャプチャ解除中。画面をクリックで開始、中ボタンで解除します。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "%1x",
+      "translation": "%1倍"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Window scale (%1x)",
+      "translation": "ウィンドウ倍率（%1倍）"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Default",
+      "translation": "規定"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse capture",
+      "translation": "マウスキャプチャ"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (Mouse BIOS)",
+      "translation": "マウス統合(マウスBIOS)"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (app-specific settings)",
+      "translation": "マウス統合(アプリ別設定)"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Clear",
+      "translation": "クリア"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Clear Game Phys / Phys 2 / range / scale / invert / Bind. You can Apply or OK with Phys unset.",
+      "translation": "Game Phys／Phys 2／オフセット／スケール／反転／紐付けを消します。Phys 未設定のまま適用／OK で保存できます。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse operation type",
+      "translation": "マウス操作の種類"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Current EXP:",
+      "translation": "現在のEXP："
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Linked EXP:",
+      "translation": "紐付け済みEXP："
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Bind",
+      "translation": "紐付け"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Bind app-specific mouse integration to the latest DOS Load/Exec (INT 21H AH=4BH). Under DOS extenders (RUN386), bind the .EXP payload when shown.",
+      "translation": "アプリ別マウス統合を、直近のDOS Load/Exec（INT 21H AH=4BH）に紐付けします。DOSエクステンダ(RUN386)時は表示中の.EXPを紐付けしてください。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Phys search",
+      "translation": "phys検索"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Open Memory scan to find guest RAM cursor coordinates.\nSettings closes while the scan window is open.",
+      "translation": "ゲスト RAM のカーソル座標を探すメモリスキャンを開きます。\nスキャンウインドウ表示中は設定を閉じます。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load preset",
+      "translation": "プリセット読込み"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile.",
+      "translation": "このCDフィンガープリント向けのマウス統合プリセットを読み込みます。\nmouse_XXXXXXXX.ini があるとき有効です。適用またはOKでディスクプロファイルへ保存します。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Save to file",
+      "translation": "ファイルへ保存"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Write the current app-specific mouse settings to\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini.\nEnabled when app-specific Phys is set.",
+      "translation": "現在のアプリ別マウス設定を\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini へ書き出します。\nアプリ別の Phys が設定されているとき有効です。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Axis",
+      "translation": "軸"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Phys",
+      "translation": "Phys"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Min",
+      "translation": "Min"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Max",
+      "translation": "最大"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Offset",
+      "translation": "オフセット"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Scale",
+      "translation": "Scale"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Invert",
+      "translation": "反転"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value.",
+      "translation": "任意の2組目 X/Y phys（下段）。メモリ書き込み時は各組の Scale をマップ後の値に乗算します。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Multiplies the mapped write value for this Phys pair (0 = no multiply).",
+      "translation": "この Phys 組のマップ後書き込み値に乗算します（0 で乗算なし）。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Invert X",
+      "translation": "X を反転"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Invert Y",
+      "translation": "Y を反転"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "X",
+      "translation": "X"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Y",
+      "translation": "Y"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Phys 2",
+      "translation": "Phys 2"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "X2",
+      "translation": "X2"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Y2",
+      "translation": "Y2"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Memory write",
+      "translation": "メモリ書込み"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "On: poke Game Phys in guest RAM (range clamp).\nOff: feed host−guest deltas through the gameport.",
+      "translation": "オン: Game Phys をゲスト RAM へ書き込み（範囲クランプ）。\nオフ: ホスト−ゲスト差分をゲームポート経由で入力。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Wait for gameport input to apply",
+      "translation": "ゲームポート入力の反映を待つ"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "When on, hold the next gameport packet until Phys updates or the port is idle. Turn off for continuous refill (may oscillate on delayed guest feedback). Only used for gameport mode (memory write off).",
+      "translation": "オン時は Phys 更新またはポート消費まで次のゲームポートパケットを保留します。オフにすると連続投入します（ゲスト反映が遅いと振動することがあります）。ゲームポート動作時のみ有効（メモリ書き込みオン時は無効）。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Stop writing to Mouse BIOS soft-cursor phys",
+      "translation": "マウスBIOSのソフトカーソルphysへの書込みを停止"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "When on, do not write Mouse BIOS soft coordinates while MOS is alive. Game Phys / gameport still follow app-specific settings.",
+      "translation": "オン時は MOS 生存中でも マウスBIOS soft 座標へ書き込みません。Game Phys／ゲームポートはアプリ別設定どおり動作します。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
+      "translation": "規定: マウスBIOSの動作に合わせ、マウス統合(マウスBIOS)とマウスキャプチャを自動で切り替えます。マウスBIOS非対応タイトルではマウス統合できません。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse capture: always uses mouse capture. Mouse integration is not performed.",
+      "translation": "マウスキャプチャ: 常にマウスキャプチャで動作します。マウス統合は行いません。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
+      "translation": "マウス統合(マウスBIOS): マウスBIOSを使ったマウス統合を強制します。マウスBIOS非対応タイトルではマウス統合できません。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved.",
+      "translation": "マウス統合(マウスBIOS): マウスBIOS softカーソルが解決できない間は使えません。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport.",
+      "translation": "マウス統合(アプリ別設定): 基本は規定と同じです。紐付けしたEXP起動後にアプリごとのPhys設定を適用します。phys検索でphysを特定・設定し、ゲーム内カーソル位置の取得と書き換えを行います。「メモリ書込み」オンでゲストRAMへ直接書き込み、オフではゲームポート経由の差分になります。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Could not write mouse preset:\n%1",
+      "translation": "マウスプリセットを書き込めませんでした：\n%1"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Memory scan",
+      "translation": "メモリスキャン"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Scan",
+      "translation": "スキャン"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Scan RAM for new coordinate candidates (also turns Mouse capture ON).\nMove the mouse in the emu view.  ESC stops Scan and capture.",
+      "translation": "RAMを走査して座標候補を追加します（マウスキャプチャもON）。\nエミュ画面上でマウスを動かしてください。ESCでスキャンとキャプチャを停止します。"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Mouse capture ON",
+      "translation": "マウスキャプチャON"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Uncheck or ESC restores the profile mouse mode.",
+      "translation": "単独：一覧の値を更新し、無関係な候補を落とします（新規スキャンなし）。\nスキャン中は強制ON。チェック解除またはESCでプロファイルのマウスモードに戻ります。"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Clear min max",
+      "translation": "min/maxクリア"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Reset observed min..max on all candidates.\nStarts again from the next sampled value.",
+      "translation": "全候補の観測 min..max をリセットします。\n次のサンプルから測り直します。"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Clear candidates",
+      "translation": "候補クリア"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Remove unselected",
+      "translation": "未選択を削除"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Delete rows with none of Watch / Chase / X / Y / X2 / Y2 checked.",
+      "translation": "監視 / 追跡 / X / Y / X2 / Y2 のいずれも付いていない行を削除します。"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Update",
+      "translation": "Update"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Copy the checked X/Y pair (and min..max) into Mouse integration.\nIf X2/Y2 are also checked, fill Phys 2 as well.\nCloses Memory scan and reopens Settings. Does not save — use Apply or OK there.",
+      "translation": "チェックした X/Y 組（と min..max）をマウス統合へコピーします。\nX2/Y2 もチェックしていれば Phys 2 も埋めます。\nメモリスキャンを閉じて設定を開きます。保存はしません — 設定で適用 / OK してください。"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Cancel",
+      "translation": "キャンセル"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Close Memory scan and return to Settings → Mouse integration.",
+      "translation": "メモリスキャンを閉じ、設定 → マウス統合へ戻ります。"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Watch",
+      "translation": "監視"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Chase",
+      "translation": "追跡"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "X",
+      "translation": "X"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Y",
+      "translation": "Y"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "X2",
+      "translation": "X2"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Y2",
+      "translation": "Y2"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "phys",
+      "translation": "phys"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "sz",
+      "translation": "sz"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "value",
+      "translation": "value"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "min..max",
+      "translation": "min..max"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "span",
+      "translation": "span"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "changes",
+      "translation": "changes"
+    },
+    {
+      "context": "MouseCoordScanWindow",
+      "source": "Scan = add candidates (turns Mouse capture ON).\nMouse capture ON alone = refresh values / prune noise (no new picks).\nWatch = keep in list after Scan stops.\nChase = follow guest-writer SOURCE; moves to the new SOURCE when found.\nAlso adds nearby phys (±32 bytes) whose value Δ matches host/IO mouse Δ.\nX/Y = primary Game Phys pair.  X2/Y2 = optional Phys 2 pair.\nGreen phys = MOS soft-cursor words (writable if set as Phys).\nBlue phys = disc-profile pair.  span = max−min; oversized rows are pruned.\nESC ends capture (+ Scan).",
+      "translation": "スキャン = 候補を追加（マウスキャプチャON）。\nマウスキャプチャONのみ = 値の更新／ノイズ整理（新規追加なし）。\n監視 = スキャン停止後も一覧に残す。\n追跡 = 書き込み元SOURCEを追従し、見つかると新しいSOURCEへ移る。\n周辺±32バイトでホスト／IOマウスΔに合わせて変化する phys も追加します。\nX/Y = 主の Game Phys。X2/Y2 = 任意の Phys 2。\n緑の phys = MOS soft-cursor（Phys に入れれば書き込み対象）。\n青の phys = ディスクプロファイルの組。span = max−min。極端に大きい行は整理。\nESCでキャプチャ（＋スキャン）終了。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Auto",
+      "translation": "自動"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Settings",
+      "translation": "設定"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Basics",
+      "translation": "基本構成"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Mouse integration",
+      "translation": "マウス統合"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Video / Audio",
+      "translation": "映像／音声"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Features",
+      "translation": "機能"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "BIOS",
+      "translation": "BIOS"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CPU",
+      "translation": "CPU"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Model",
+      "translation": "モデル"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "High-res / high-res PCM",
+      "translation": "高解像度 / 高解像度PCM"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "UG SCSI / peripheral I/O",
+      "translation": "UG SCSI / 周辺I/O"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Disabled",
+      "translation": "無効"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Create profile",
+      "translation": "プロファイルを作成"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(unnamed)",
+      "translation": "（無名）"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Delete disc profile",
+      "translation": "ディスクプロファイルの削除"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone.",
+      "translation": "ディスクプロファイル「%1」を削除しますか？\nディスクごとのマシン／マウス設定が失われます。\nこの操作は取り消せません。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Profile file",
+      "translation": "プロファイルファイル"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Compatible",
+      "translation": "互換モード"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " MHz",
+      "translation": " MHz"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Pretend 386DX",
+      "translation": "386DX として扱う"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "80386FPU",
+      "translation": "80386FPU"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Fast SCSI",
+      "translation": "高速SCSI"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Fast FD",
+      "translation": "高速FD"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MIDI board",
+      "translation": "MIDI ボード"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Memory",
+      "translation": "メモリ"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " MB",
+      "translation": " MB"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CPU fidelity",
+      "translation": "CPUの再現性"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MID",
+      "translation": "中"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "HIGH",
+      "translation": "高"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Game pad / mouse ports",
+      "translation": "ジョイパッド／マウス端子"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Max button hold time",
+      "translation": "最大ボタン押下時間"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " ms",
+      "translation": " ms"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Any",
+      "translation": "任意"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Button 0",
+      "translation": "ボタン0"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Button 1",
+      "translation": "ボタン1"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings.",
+      "translation": "基本構成の既定値（townsqt.conf）を編集中です。適用／OK でここに保存します。\nメモリとCPU忠実度の変更は再起動、ゲームポートは即時反映です。\nCDマウント中にディスクプロファイルを作成すると、ディスクごとの設定を保存できます。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Video",
+      "translation": "映像"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "x",
+      "translation": "x"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Normal",
+      "translation": "標準"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Double",
+      "translation": "倍速"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Max",
+      "translation": "最大"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Window scale:",
+      "translation": "ウインドウ倍率："
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Sprite transfer speed:",
+      "translation": "スプライト転送速度："
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "15 kHz scan-line effect",
+      "translation": "15kHz 走査線効果"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Damper-wire line",
+      "translation": "ダンパーワイヤー線"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "VSync in fullscreen",
+      "translation": "全画面時 Vsync同期"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Audio",
+      "translation": "音声"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Use sinc interpolation for PCM resampling",
+      "translation": "PCMリサンプルでsinc補間を使う"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "PCM LPF",
+      "translation": "PCM LPF"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " Hz",
+      "translation": " Hz"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Without sinc interpolation, linear interpolation is used.",
+      "translation": "sinc補間を使わない場合は線形補間を使用します。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Output device:",
+      "translation": "出力デバイス:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Backend:",
+      "translation": "バックエンド:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MIDI output",
+      "translation": "MIDI出力"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "SoundFont",
+      "translation": "SoundFont"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(not set)",
+      "translation": "（未指定）"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Browse…",
+      "translation": "参照…"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "port",
+      "translation": "ポート"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Changes take effect immediately when you press Apply or OK.",
+      "translation": "変更は［適用］または［OK］ですべて即時に反映されます。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Use disc profiles",
+      "translation": "ディスクプロファイルを使用"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Save settings per mounted CD as a disc profile under profiles/.\nWhen enabled, a matching profile automatically overrides Basics defaults\nat startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\nalso stored and restored when the profile is applied.",
+      "translation": "マウント中の CD ごとにディスクプロファイルとして profiles/ に設定を保存します。\n有効時、一致するプロファイルが起動時または CD マウント時に、基本構成の既定値を\n自動で上書きします。フロッピー（FD0/FD1）のマウント状況も保存され、\nプロファイル適用時に自動で再現されます。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Inhibit display idle",
+      "translation": "ディスプレイのアイドルを抑制"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
+      "translation": "Wayland セッションで画面の自動消灯や暗転を防ぎます。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Faster mouse integration",
+      "translation": "高速マウス統合"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Mouse BIOS integration that writes guest memory to reduce latency.",
+      "translation": "マウスBIOSを使った統合で、メモリ書込みを行い遅延を低減します。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CDDA cache:",
+      "translation": "CDDAキャッシュ:"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": " s",
+      "translation": " s"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Bulk-prefetch the CDDA audio track and keep playing through data reads\nwithout interrupting playback. The value is how many seconds until\nplayback is considered finished.",
+      "translation": "CDDA 音源トラックを一括プリフェッチし、データ読み出し中も再生を中断せず続けます。\n数値は、再生終了とみなすまでの秒数です。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MOS unused detection (test)",
+      "translation": "MOS未使用検出（試験）"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture.",
+      "translation": "Mouse BIOS 動作中でも未使用ならマウス統合を終了し、マウスキャプチャへ切り替えます。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Standard settings (&D)",
+      "translation": "標準設定(&D)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Default",
+      "translation": "既定"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "%1 (not found)",
+      "translation": "%1 (見つかりません)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Available only on sessions that support Wayland idle-inhibit.",
+      "translation": "Wayland の idle-inhibit に対応したセッションでのみ利用できます。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "FluidSynth",
+      "translation": "FluidSynth"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "ALSA",
+      "translation": "ALSA"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(none)",
+      "translation": "（なし）"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(select)",
+      "translation": "（選択）"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Select SoundFont",
+      "translation": "SoundFont を選択"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "SoundFont (*.sf2);;All files (*)",
+      "translation": "SoundFont (*.sf2);;すべてのファイル (*)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, memory, ports, and options to the profile.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory and CPU fidelity changes restart the emulator.",
+      "translation": "ディスクプロファイル（fp_XXXXXXXX.ini、琥珀色の枠）を編集中です。\n適用／OK でクロック・メモリ・ポート・オプションをプロファイルへ保存します。\nCPUとモデルはグローバル（townsqt.conf）のままで、プロファイルには保存しません。\nメモリとCPU忠実度の変更は再起動します。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
+      "translation": "このCDのディスクプロファイルはまだありません。「プロファイル作成」でディスクごとの設定を保存できます。\n作成までは適用／OK で基本構成の既定値を townsqt.conf に保存します。\nメモリとCPU忠実度の変更は再起動、ゲームポートは即時反映です。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Enabled",
+      "translation": "有効"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "No CD mounted.",
+      "translation": "CD未マウント。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "No profile for this disc.",
+      "translation": "このディスクのプロファイルはありません。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Disc profile loaded.",
+      "translation": "ディスクプロファイル読込済み。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "(no CD)",
+      "translation": "（CDなし）"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Delete profile",
+      "translation": "プロファイルを削除"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80386DX",
+      "translation": "80386DX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80386SX",
+      "translation": "80386SX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80486SX",
+      "translation": "80486SX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "80486DX",
+      "translation": "80486DX"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "Pentium",
+      "translation": "Pentium"
+    },
+    {
+      "context": "TownsQtCpuProfile",
+      "source": "Marty",
+      "translation": "Marty"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: not found",
+      "translation": "FMT_SYS.ROM: 未検出"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: unknown",
+      "translation": "FMT_SYS.ROM: 不明"
+    },
+    {
+      "context": "TownsQtRomAvailability",
+      "source": "FMT_SYS.ROM: %1",
+      "translation": "FMT_SYS.ROM: %1"
     }
   ]
 }

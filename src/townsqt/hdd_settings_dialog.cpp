@@ -47,8 +47,7 @@ HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotC
 		row.path=new QLineEdit(this);
 		row.path->setReadOnly(true);
 		row.path->setPlaceholderText(tr("No image"));
-		row.path->setText(slots[slot].path);
-		row.path->setToolTip(slots[slot].path);
+		setSlotPath(slot,slots[slot].path);
 		row.create=new QPushButton(tr("Create"),this);
 		row.browse=new QPushButton(tr("Browse…"),this);
 		row.remove=new QPushButton(tr("Remove"),this);
@@ -84,7 +83,23 @@ HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotC
 	connect(buttons,&QDialogButtonBox::rejected,this,&QDialog::reject);
 	layout->addWidget(buttons);
 
-	resize(720,sizeHint().height());
+	resize(480,sizeHint().height());
+}
+
+void HddSettingsDialog::setSlotPath(int slot,const QString &fullPath)
+{
+	slot=std::clamp(slot,0,TownsQtSettings::kHddSlotCount-1);
+	auto &row=rows_[slot];
+	row.fullPath=fullPath;
+	if(fullPath.isEmpty())
+	{
+		row.path->clear();
+		row.path->setToolTip(QString());
+		return;
+	}
+	const QFileInfo info(fullPath);
+	row.path->setText(info.fileName());
+	row.path->setToolTip(fullPath);
 }
 
 void HddSettingsDialog::copySlotsTo(Slot out[TownsQtSettings::kHddSlotCount]) const
@@ -92,7 +107,7 @@ void HddSettingsDialog::copySlotsTo(Slot out[TownsQtSettings::kHddSlotCount]) co
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
 		out[slot].enabled=rows_[slot].enabled->isChecked();
-		out[slot].path=rows_[slot].path->text();
+		out[slot].path=rows_[slot].fullPath;
 	}
 }
 
@@ -199,8 +214,7 @@ void HddSettingsDialog::onCreateClicked(int slot)
 		return;
 	}
 
-	rows_[slot].path->setText(path);
-	rows_[slot].path->setToolTip(path);
+	setSlotPath(slot,path);
 	rows_[slot].enabled->setChecked(true);
 	updateRowEnabled(slot);
 }
@@ -208,7 +222,7 @@ void HddSettingsDialog::onCreateClicked(int slot)
 void HddSettingsDialog::onBrowseClicked(int slot)
 {
 	slot=std::clamp(slot,0,TownsQtSettings::kHddSlotCount-1);
-	QString start=rows_[slot].path->text();
+	QString start=rows_[slot].fullPath;
 	if(start.isEmpty())
 	{
 		start=TownsQtPaths::hddDir();
@@ -227,8 +241,7 @@ void HddSettingsDialog::onBrowseClicked(int slot)
 	{
 		return;
 	}
-	rows_[slot].path->setText(path);
-	rows_[slot].path->setToolTip(path);
+	setSlotPath(slot,path);
 	rows_[slot].enabled->setChecked(true);
 	updateRowEnabled(slot);
 }
@@ -236,8 +249,7 @@ void HddSettingsDialog::onBrowseClicked(int slot)
 void HddSettingsDialog::onRemoveClicked(int slot)
 {
 	slot=std::clamp(slot,0,TownsQtSettings::kHddSlotCount-1);
-	rows_[slot].path->clear();
-	rows_[slot].path->setToolTip(QString());
+	setSlotPath(slot,QString());
 	rows_[slot].enabled->setChecked(false);
 	updateRowEnabled(slot);
 }

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Sync TownsQt translation JSON files to the en/ja key set and ordering (m88-qt style)."""
+"""Sync non-en/ja TownsQt locale JSON to the current en/ja key set and order.
+
+Prefer `extract_i18n.py` after UI string changes: it re-extracts from sources,
+rebuilds en/ja, then updates the other locales the same way as this script.
+"""
 
 from __future__ import annotations
 

@@ -1,7 +1,10 @@
 #pragma once
 
+#include <QSize>
 #include <QString>
 #include <QStringList>
+
+#include "townsqt_cpu_profile.h"
 
 namespace TownsQtSettings
 {
@@ -16,11 +19,13 @@ QString fileDialogStartDirectory(const QString &fallback=QString());
 /*! Remember the directory of a CD/FD path chosen in a file dialog (blank_fd excluded). */
 void rememberFileDialogPath(const QString &path);
 
-constexpr int kRecentFileHistoryMax=8;
+constexpr int kRecentCdImageHistoryMax=20;
+constexpr int kRecentFdImageHistoryMax=8;
 QStringList recentCdImagePaths();
 void addRecentCdImagePath(const QString &path);
 void clearRecentCdImagePaths();
 
+/*! Last mounted FD image path per drive (stored in townsqt.conf [media] fd0_image / fd1_image). */
 QString lastFdImagePath(int drive);
 void setLastFdImagePath(int drive,const QString &path);
 void clearLastFdImagePath(int drive);
@@ -39,6 +44,8 @@ void setScanLineEffectIn15KHz(bool enabled);
 
 int displayScale();
 void setDisplayScale(int scale);
+/*! Largest integer scale whose 640×480 window (+ chrome) fits in available_size (DIP / DE-scaled). */
+int maxDisplayScaleForAvailableSize(QSize available_size,int chrome_w=0,int chrome_h=0);
 
 bool autoScaling();
 void setAutoScaling(bool enabled);
@@ -55,6 +62,10 @@ void setSpriteTransferMode(int mode);
 
 int cpuFrequencyMhz();
 void setCpuFrequencyMhz(int mhz);
+
+/*! Independent custom FAST-mode frequency (33–60 MHz). Always selectable in the Operations menu. */
+int cpuCustomFrequencyMhz();
+void setCpuCustomFrequencyMhz(int mhz);
 
 bool cpuFastModeEnabled();
 void setCpuFastModeEnabled(bool enabled);
@@ -84,6 +95,12 @@ void setFastFd(bool enabled);
 bool midiBoard();
 void setMidiBoard(bool enabled);
 
+bool highResCrtc();
+void setHighResCrtc(bool enabled);
+
+bool highResPcm();
+void setHighResPcm(bool enabled);
+
 QString midiSoundFont();
 void setMidiSoundFont(const QString &path);
 
@@ -92,9 +109,15 @@ void setMidiVolumePercent(int percent);
 
 QString midiOutput();
 void setMidiOutput(const QString &output);
+/*! ALSA sequencer destination "client:port" when midiOutput is "alsa". */
+QString midiAlsaPort();
+void setMidiAlsaPort(const QString &port);
 
 int modelGroupIndex();
 void setModelGroupIndex(int index);
+
+TownsQtCpuKind cpuKind();
+void setCpuKind(TownsQtCpuKind kind);
 
 unsigned int townsType();
 void setTownsType(unsigned int towns_type);
@@ -140,9 +163,10 @@ void setConsiderVRAMOffsetInMouseIntegration(bool enabled);
 bool differentialMouseIntegration();
 void setDifferentialMouseIntegration(bool enabled);
 
-/*! When Mouse BIOS stops, automatically use differential mouse integration. */
-bool autoDifferentialOnMouseBIOSStop();
-void setAutoDifferentialOnMouseBIOSStop(bool enabled);
+/*! When MOS is active but unused, automatically switch to differential.
+    (Mouse-BIOS-stop → differential is always on and not a setting.) */
+bool autoDifferentialOnMosUnused();
+void setAutoDifferentialOnMosUnused(bool enabled);
 
 int mouseMinX();
 void setMouseMinX(int value);
@@ -159,11 +183,18 @@ void setAppSpecificSetting(unsigned int app_value);
 bool showMouseIntegrationDebug();
 void setShowMouseIntegrationDebug(bool enabled);
 
+bool showMouseCoordWriteScan();
+void setShowMouseCoordWriteScan(bool enabled);
+
 bool showCpuDebug();
 void setShowCpuDebug(bool enabled);
 
 bool showDriveAccessOverlay();
 void setShowDriveAccessOverlay(bool enabled);
+
+/*! Window-title FPS / queue / lag line (Tools → FPS display). Default on. */
+bool showFpsDisplay();
+void setShowFpsDisplay(bool enabled);
 
 bool midiMonitor();
 void setMidiMonitor(bool enabled);
@@ -171,18 +202,26 @@ void setMidiMonitor(bool enabled);
 bool cdromMonitor();
 void setCdromMonitor(bool enabled);
 
+bool appMonitor();
+void setAppMonitor(bool enabled);
+
 bool snapMouseIntegration();
 void setSnapMouseIntegration(bool enabled);
 
+/*! Frames of gradual integration before snap mode (ini: function/snap_mouse_warmup_frames). */
 int snapMouseWarmupFrames();
 void setSnapMouseWarmupFrames(int frames);
 
-/*! Bulk-cache CDDA at host speed; keep playing through data reads (guest looks stopped). */
+/*! Bulk-prefetch CDDA and keep playing through data reads. */
 bool cddaCacheDuringDataRead();
 void setCddaCacheDuringDataRead(bool enabled);
-/*! Seconds to keep host cache mixing after a data-read burst without PLAY/RESUME. */
+/*! Seconds until playback is considered finished after a data-read burst. */
 int cddaCachePostReadGraceSec();
 void setCddaCachePostReadGraceSec(int sec);
+
+/*! Apply per-disc fp_*.ini machine/mouse overrides when a matching profile exists. */
+bool useDiscProfiles();
+void setUseDiscProfiles(bool enabled);
 
 /*! Hard-disk images for SCSI IDs 0..6 (TownsStartParameters::MAX_NUM_SCSI_DEVICES). */
 constexpr int kHddSlotCount=7;

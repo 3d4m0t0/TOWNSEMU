@@ -174,16 +174,13 @@ QPoint EmuView::hostCursorInView() const
 
 QPoint EmuView::hostMouseEmuCoords() const
 {
-	QPoint view_pos;
-	if(has_view_mouse_pos_)
+	// Only the last position over the emu picture — never sample the global cursor
+	// while it sits on a debug / other window.
+	if(true!=has_view_mouse_pos_)
 	{
-		view_pos=last_view_mouse_pos_;
+		return QPoint(0,0);
 	}
-	else
-	{
-		view_pos=hostCursorInView();
-	}
-	return mapToEmu(view_pos);
+	return mapToEmu(last_view_mouse_pos_);
 }
 
 void EmuView::setDriveAccessOverlayEnabled(bool enabled)
@@ -282,22 +279,42 @@ void EmuView::pollMousePosition()
 	}
 	inputQueue_->SetViewSize(width(),height());
 	syncInputDisplayLayout();
+
+	// Host emu coords come only from the main view's drawn picture rect.
+	// Do not project QCursor through this widget while the pointer is on a
+	// debug window (or any other non-EmuView surface).
 	QPoint view_pos;
-	if(underMouse() && has_view_mouse_pos_)
+	if(true==underMouse())
+	{
+		view_pos=hostCursorInView();
+		if(true==isPointOnEmuPicture(view_pos))
+		{
+			noteViewMousePosition(view_pos);
+		}
+		else if(true==has_view_mouse_pos_)
+		{
+			view_pos=last_view_mouse_pos_;
+		}
+		else
+		{
+			return;
+		}
+	}
+	else if(true==has_view_mouse_pos_)
 	{
 		view_pos=last_view_mouse_pos_;
 	}
 	else
 	{
-		view_pos=hostCursorInView();
-		noteViewMousePosition(view_pos);
+		return;
 	}
-	const Qt::MouseButtons buttons=QApplication::mouseButtons();
+
 	const auto emu_pos=mapToEmu(view_pos);
 	if(true==mouse_debug_crosshair_ && nullptr!=gl_view_)
 	{
 		gl_view_->setMouseDebugCrosshairEmuPos(emu_pos.x(),emu_pos.y());
 	}
+	const Qt::MouseButtons buttons=QApplication::mouseButtons();
 	bool lb=(buttons & Qt::LeftButton)!=0;
 	bool mb=(buttons & Qt::MiddleButton)!=0;
 	bool rb=(buttons & Qt::RightButton)!=0;
@@ -305,6 +322,50 @@ void EmuView::pollMousePosition()
 	// while capture is released no button reaches the guest (the host cursor drives the UI), and a
 	// button whose press only resumed capture stays masked until it is physically released — so
 	// the click that starts capture never registers as an in-game click.
+	if(true==mouse_capture_released_)
+	{
+		lb=false;
+		mb=false;
+		rb=false;
+	}
+	else
+	{
+		if(0!=(suppressed_guest_buttons_&QtInputQueue::MOUSE_BTN_LEFT))   { lb=false; }
+		if(0!=(suppressed_guest_buttons_&QtInputQueue::MOUSE_BTN_RIGHT))  { rb=false; }
+		if(0!=(suppressed_guest_buttons_&QtInputQueue::MOUSE_BTN_MIDDLE)) { mb=false; }
+	}
+	inputQueue_->PollMouseState(
+	    lb,
+	    mb,
+	    rb,
+	    view_pos.x(),
+	    view_pos.y(),
+	    emu_pos.x(),
+	    emu_pos.y());
+}
+
+void EmuView::pollMousePositionForScan()
+{
+	if(nullptr==inputQueue_ || !isVisible())
+	{
+		return;
+	}
+	inputQueue_->SetViewSize(width(),height());
+	syncInputDisplayLayout();
+
+	// Follow the global cursor so scan keeps working while the scan window has focus.
+	const QPoint view_pos=mapFromGlobal(QCursor::pos());
+	noteViewMousePosition(view_pos);
+
+	const auto emu_pos=mapToEmu(view_pos);
+	if(true==mouse_debug_crosshair_ && nullptr!=gl_view_)
+	{
+		gl_view_->setMouseDebugCrosshairEmuPos(emu_pos.x(),emu_pos.y());
+	}
+	const Qt::MouseButtons buttons=QApplication::mouseButtons();
+	bool lb=(buttons & Qt::LeftButton)!=0;
+	bool mb=(buttons & Qt::MiddleButton)!=0;
+	bool rb=(buttons & Qt::RightButton)!=0;
 	if(true==mouse_capture_released_)
 	{
 		lb=false;
@@ -758,11 +819,14 @@ void EmuView::setMouseCaptureReleased(bool released)
 void EmuView::mouseMoveEvent(QMouseEvent *event)
 {
 	const QPoint view_pos=event->pos();
-	noteViewMousePosition(view_pos);
-	if(nullptr!=inputQueue_)
+	if(true==isPointOnEmuPicture(view_pos))
 	{
-		const auto emu_pos=mapToEmu(view_pos);
-		inputQueue_->MouseMove(view_pos.x(),view_pos.y(),emu_pos.x(),emu_pos.y());
+		noteViewMousePosition(view_pos);
+		if(nullptr!=inputQueue_)
+		{
+			const auto emu_pos=mapToEmu(view_pos);
+			inputQueue_->MouseMove(view_pos.x(),view_pos.y(),emu_pos.x(),emu_pos.y());
+		}
 	}
 	event->accept();
 }

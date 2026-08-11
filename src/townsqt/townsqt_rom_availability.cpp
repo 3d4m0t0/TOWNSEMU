@@ -235,9 +235,13 @@ QString ExtractSysRomVersionLabel(const QByteArray &sys_rom)
 
 	static const char *kKnownMarkers[]={
 	    "V2.1L51",
+	    "V2.1L50",
+	    "V2.1L40",
+	    "V2.1L31",
+	    "V2.1L30",
 	    "V2.1L20",
-	    "V2.1L10",
 	    "V2.1L10B",
+	    "V2.1L10",
 	    "2MXBOOT",
 	};
 	for(const char *marker : kKnownMarkers)
@@ -265,21 +269,72 @@ QString ExtractSysRomVersionLabel(const QByteArray &sys_rom)
 	return {};
 }
 
-QString SysRomCompatNote(TownsQtSysRomProfile profile)
+/*! TownsOS / SYS-ROM "Lxx" level, or -1 if unknown.
+    Correspondence (system software packaging):
+      V2.1 L10  → CX / UX (pre-UG peripheral I/O)
+      V2.1 L20+ → UG / HR / HG / UR and later */
+int ParseSysRomLevelNumber(const QString &label)
 {
-	switch(profile)
+	if(label.isEmpty() || label==QStringLiteral("EXT-BOOT"))
 	{
-	case TownsQtSysRomProfile::FreeDx:
-		return QCoreApplication::translate("TownsQtRomAvailability","Free compatible ROM");
-	case TownsQtSysRomProfile::PreV2Legacy:
-		return QCoreApplication::translate("TownsQtRomAvailability","Legacy · UX/UG unsupported");
-	case TownsQtSysRomProfile::ModernDxOnly:
-		return QCoreApplication::translate("TownsQtRomAvailability","For 386DX · UX/UG unsupported");
-	case TownsQtSysRomProfile::ModernUnified:
-		return QCoreApplication::translate("TownsQtRomAvailability","386SX/DX compatible");
-	default:
-		return QCoreApplication::translate("TownsQtRomAvailability","Not found");
+		return -1;
 	}
+	if(label.contains(QStringLiteral("2MXBOOT"),Qt::CaseInsensitive))
+	{
+		return 30; // MX-era boot marker → treat as post-UG
+	}
+	const int lpos=label.lastIndexOf(QLatin1Char('L'));
+	if(0>lpos || lpos+1>=label.size())
+	{
+		return -1;
+	}
+	int level=0;
+	int digits=0;
+	for(int i=lpos+1; i<label.size(); ++i)
+	{
+		const QChar c=label.at(i);
+		if(true!=c.isDigit())
+		{
+			break;
+		}
+		level=level*10+c.digitValue();
+		++digits;
+	}
+	return (0<digits) ? level : -1;
+}
+
+bool SysRomImpliesUgGenerationIOFromImage(const QByteArray &sys_rom)
+{
+	if(kSysRomSize!=sys_rom.size())
+	{
+		return false;
+	}
+	// Free compatible ROMs are used as MX-class substitutes in TownsQt.
+	if(true==IsFreeCompatibleDxSysRom(sys_rom))
+	{
+		return true;
+	}
+
+	const QString label=ExtractSysRomVersionLabel(sys_rom);
+	const int level=ParseSysRomLevelNumber(label);
+	if(0<=level)
+	{
+		// L20 = UG/HR/HG/UR packaging era; L10 = CX/UX.
+		return 20<=level;
+	}
+
+	// Fallback markers (ordered so L10 is not matched via shorter probes alone).
+	static const char *kPostUgMarkers[]={
+	    "2MXBOOT","V2.1L51","V2.1L50","V2.1L40","V2.1L31","V2.1L30","V2.1L20",
+	};
+	for(const char *marker : kPostUgMarkers)
+	{
+		if(sys_rom.contains(marker))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 TownsQtSysRomProfile ClassifySysRomImage(const QByteArray &sys_rom)
@@ -364,6 +419,33 @@ bool TownsQtRomAvailability::SxSystemRomPresent(const QString &rom_dir)
 	return IsSxBootCapableSysRom(sys_rom);
 }
 
+bool TownsQtRomAvailability::SysRomSupportsHighResCrtc(TownsQtSysRomProfile profile)
+{
+	return TownsQtSysRomProfile::ModernUnified==profile ||
+	       TownsQtSysRomProfile::ModernDxOnly==profile;
+}
+
+bool TownsQtRomAvailability::SysRomSupportsHighResCrtc(const QString &rom_dir)
+{
+	return SysRomSupportsHighResCrtc(ClassifySysRom(rom_dir));
+}
+
+bool TownsQtRomAvailability::SysRomImpliesUgGenerationIO(const QString &rom_dir)
+{
+	const QByteArray sys_rom=LoadRomImageFromDir(rom_dir,"FMT_SYS.ROM","FMT_SYS",kSysRomSize);
+	return SysRomImpliesUgGenerationIOFromImage(sys_rom);
+}
+
+int TownsQtRomAvailability::SysRomTownsOsLevel(const QString &rom_dir)
+{
+	const QByteArray sys_rom=LoadRomImageFromDir(rom_dir,"FMT_SYS.ROM","FMT_SYS",kSysRomSize);
+	if(kSysRomSize!=sys_rom.size())
+	{
+		return -1;
+	}
+	return ParseSysRomLevelNumber(ExtractSysRomVersionLabel(sys_rom));
+}
+
 TownsQtSysRomProfile TownsQtRomAvailability::ClassifySysRom(const QString &rom_dir)
 {
 	const QByteArray sys_rom=LoadRomImageFromDir(rom_dir,"FMT_SYS.ROM","FMT_SYS",kSysRomSize);
@@ -408,8 +490,6 @@ int TownsQtRomAvailability::PreferredModelGroupForSysRom(TownsQtSysRomProfile pr
 QString TownsQtRomAvailability::SysRomSummary(const QString &rom_dir)
 {
 	const QByteArray sys_rom=LoadRomImageFromDir(rom_dir,"FMT_SYS.ROM","FMT_SYS",kSysRomSize);
-	const TownsQtSysRomProfile profile=ClassifySysRomImage(sys_rom);
-	const QString compat=SysRomCompatNote(profile);
 	if(kSysRomSize!=sys_rom.size())
 	{
 		return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: not found");
@@ -417,8 +497,8 @@ QString TownsQtRomAvailability::SysRomSummary(const QString &rom_dir)
 	const QString version=ExtractSysRomVersionLabel(sys_rom);
 	if(version.isEmpty())
 	{
-		return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: unknown (%1)").arg(compat);
+		return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: unknown");
 	}
-	return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: %1 (%2)")
-	    .arg(version,compat);
+	return QCoreApplication::translate("TownsQtRomAvailability","FMT_SYS.ROM: %1")
+	    .arg(version);
 }

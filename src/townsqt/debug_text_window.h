@@ -17,6 +17,8 @@ public:
 	void setLiveText(const QString &text);
 	void appendLine(const QString &line);
 	void clearText();
+	void setCloseButtonVisible(bool visible);
+	void setClearButtonVisible(bool visible);
 
 Q_SIGNALS:
 	void windowClosed();
@@ -27,5 +29,6 @@ protected:
 private:
 	QPlainTextEdit *text_=nullptr;
 	QPushButton *clear_button_=nullptr;
+	QPushButton *close_button_=nullptr;
 	static constexpr int kMaxAppendBlocks=4000;
 };

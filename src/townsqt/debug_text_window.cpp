@@ -36,10 +36,26 @@ DebugTextWindow::DebugTextWindow(const QString &title,QWidget *parent)
 	clear_button_=new QPushButton(tr("Clear"),this);
 	connect(clear_button_,&QPushButton::clicked,this,&DebugTextWindow::clearText);
 	buttons->addWidget(clear_button_);
-	auto *close_button=new QPushButton(tr("Close"),this);
-	connect(close_button,&QPushButton::clicked,this,&QDialog::close);
-	buttons->addWidget(close_button);
+	close_button_=new QPushButton(tr("Close"),this);
+	connect(close_button_,&QPushButton::clicked,this,&QDialog::close);
+	buttons->addWidget(close_button_);
 	layout->addLayout(buttons);
+}
+
+void DebugTextWindow::setCloseButtonVisible(bool visible)
+{
+	if(nullptr!=close_button_)
+	{
+		close_button_->setVisible(visible);
+	}
+}
+
+void DebugTextWindow::setClearButtonVisible(bool visible)
+{
+	if(nullptr!=clear_button_)
+	{
+		clear_button_->setVisible(visible);
+	}
 }
 
 void DebugTextWindow::setLiveText(const QString &text)

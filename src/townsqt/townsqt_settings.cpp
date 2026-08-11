@@ -3,8 +3,10 @@
 #include "townsdef.h"
 #include "townsparam.h"
 #include "townsqt_app_profile.h"
+#include "townsqt_cpu_profile.h"
 #include "townsqt_model_profile.h"
 #include "townsqt_paths.h"
+#include "townsqt_rom_availability.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -17,7 +19,9 @@ namespace
 constexpr char kLastCdImageKey[]="media/last_cd_image";
 constexpr char kWorkingDirectoryKey[]="media/working_directory";
 constexpr char kRecentCdImagesKey[]="media/recent_cd_images";
-constexpr char kLastFdImageKey[]="media/last_fd_image";
+constexpr char kFd0ImageKey[]="media/fd0_image";
+constexpr char kFd1ImageKey[]="media/fd1_image";
+constexpr char kLegacyLastFdImageKey[]="media/last_fd_image";
 constexpr char kRecentFdImagesKey[]="media/recent_fd_images";
 constexpr char kFdWriteProtectKey[]="media/fd_write_protect";
 constexpr char kDamperWireLineKey[]="display/damper_wire_line";
@@ -25,6 +29,7 @@ constexpr char kScanLine15KKey[]="display/scanline_15k";
 constexpr char kDisplayScaleKey[]="display/scale";
 constexpr char kSpriteTransferModeKey[]="sprite/transfer_mode";
 constexpr char kCpuFrequencyMhzKey[]="cpu/frequency_mhz";
+constexpr char kCpuCustomFrequencyMhzKey[]="cpu/custom_frequency_mhz";
 constexpr char kCpuFastModeKey[]="cpu/fast_mode";
 constexpr char kCdSpeedKey[]="media/cd_speed";
 constexpr char kMemSizeMbKey[]="machine/mem_size_mb";
@@ -34,10 +39,14 @@ constexpr char kUseFpuKey[]="machine/use_fpu";
 constexpr char kFastScsiKey[]="machine/fast_scsi";
 constexpr char kFastFdKey[]="machine/fast_fd";
 constexpr char kMidiBoardKey[]="machine/midi_board";
+constexpr char kHighResCrtcKey[]="machine/high_res_crtc";
+constexpr char kHighResPcmKey[]="machine/high_res_pcm";
 constexpr char kMidiSoundFontKey[]="midi/soundfont";
 constexpr char kMidiVolumePercentKey[]="midi/volume_percent";
 constexpr char kMidiOutputKey[]="midi/output";
+constexpr char kMidiAlsaPortKey[]="midi/alsa_port";
 constexpr char kModelGroupKey[]="machine/model_group";
+constexpr char kCpuKindKey[]="machine/cpu";
 constexpr char kAutoScalingKey[]="display/auto_scaling";
 constexpr char kMaintainAspectKey[]="display/maintain_aspect";
 constexpr char kFullscreenVsyncKey[]="display/fullscreen_vsync";
@@ -56,17 +65,22 @@ constexpr char kMaxButtonHoldMsKey[]="peripheral/max_button_hold_ms";
 constexpr char kMouseIntegrationSpeedKey[]="peripheral/mouse_integration_speed";
 constexpr char kMouseIntegrVramOffsetKey[]="peripheral/mouse_integr_vram_offset";
 constexpr char kDifferentialMouseKey[]="peripheral/differential_mouse";
-constexpr char kAutoDiffOnMouseBiosStopKey[]="peripheral/auto_diff_on_mouse_bios_stop";
+constexpr char kAutoDiffOnMosUnusedKey[]="peripheral/auto_diff_on_mos_unused";
+constexpr char kUseDiscProfilesKey[]="function/use_disc_profiles";
+constexpr char kAutoDiffOnMosUnusedLegacyKey[]="peripheral/auto_diff_on_mouse_bios_stop";
 constexpr char kMouseMinXKey[]="peripheral/mouse_min_x";
 constexpr char kMouseMinYKey[]="peripheral/mouse_min_y";
 constexpr char kMouseMaxXKey[]="peripheral/mouse_max_x";
 constexpr char kMouseMaxYKey[]="peripheral/mouse_max_y";
 constexpr char kAppSpecificKey[]="app/specific_setting";
 constexpr char kMouseIntegrationDebugKey[]="debug/mouse_integration_coords";
+constexpr char kMouseCoordWriteScanKey[]="debug/mouse_coord_write_scan";
 constexpr char kCpuDebugKey[]="debug/cpu_cseip";
 constexpr char kDriveAccessOverlayKey[]="display/drive_access_overlay";
+constexpr char kFpsDisplayKey[]="display/fps_display";
 constexpr char kMidiMonitorKey[]="debug/midi_monitor";
 constexpr char kCdromMonitorKey[]="debug/cdrom_monitor";
+constexpr char kAppMonitorKey[]="debug/app_monitor";
 constexpr char kSnapMouseIntegrationKey[]="function/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesKey[]="function/snap_mouse_warmup_frames";
 constexpr char kCddaCacheDuringDataReadKey[]="function/cdda_cache_during_data_read";
@@ -76,9 +90,12 @@ constexpr char kHddPathKeySuffix[]="/path";
 constexpr char kHddEnabledKeySuffix[]="/enabled";
 constexpr char kSnapMouseIntegrationLegacyKey[]="debug/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesLegacyKey[]="debug/snap_mouse_warmup_frames";
-constexpr int kSnapMouseWarmupFramesDefault=30;
+constexpr int kSnapMouseWarmupFramesDefault=10;
 constexpr int kCddaCachePostReadGraceSecDefault=3;
 constexpr int kCpuFreqDefaultMhz=33;
+constexpr int kCpuCustomFreqMinMhz=33;
+constexpr int kCpuCustomFreqMaxMhz=60;
+constexpr int kCpuCustomFreqDefaultMhz=33;
 constexpr int kMemSizeDefaultMb=4;
 constexpr int kChipVolumeMax=8192;
 constexpr int kFmVolumePercentDefault=50;
@@ -97,9 +114,23 @@ int ChipVolumeFromPercent(int percent)
 	return percent*kChipVolumeMax/100;
 }
 
+bool IsCpuFrequencyPresetMhz(int mhz)
+{
+	return 16==mhz || 20==mhz || 25==mhz;
+}
+
+int ClampCpuCustomFrequencyMhz(int mhz)
+{
+	return std::clamp(mhz,kCpuCustomFreqMinMhz,kCpuCustomFreqMaxMhz);
+}
+
 int ClampCpuFrequencyMhz(int mhz)
 {
-	return std::clamp(mhz,1,100);
+	if(true==IsCpuFrequencyPresetMhz(mhz))
+	{
+		return mhz;
+	}
+	return ClampCpuCustomFrequencyMhz(mhz);
 }
 
 int ClampMemSizeMb(int mb)
@@ -164,6 +195,17 @@ bool IsBlankFdDirectory(const QString &directory)
 	}
 	return QDir(directory).absolutePath()==QDir(blank).absolutePath();
 }
+
+QString FdImageIniKey(int drive)
+{
+	drive=std::clamp(drive,0,1);
+	return QString::fromLatin1(0==drive ? kFd0ImageKey : kFd1ImageKey);
+}
+
+QString LegacyFdImageIniKey(int drive)
+{
+	return QString::fromLatin1(kLegacyLastFdImageKey)+QString::number(drive);
+}
 }
 
 int TownsQtSettings::spriteTransferMode()
@@ -215,6 +257,31 @@ void TownsQtSettings::setCpuFrequencyMhz(int mhz)
 	settings.sync();
 }
 
+int TownsQtSettings::cpuCustomFrequencyMhz()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	const QString key=QString::fromLatin1(kCpuCustomFrequencyMhzKey);
+	if(!settings.contains(key))
+	{
+		const int active=settings.value(
+		    QString::fromLatin1(kCpuFrequencyMhzKey),
+		    kCpuCustomFreqDefaultMhz).toInt();
+		const int seeded=
+		    IsCpuFrequencyPresetMhz(active) ? kCpuCustomFreqDefaultMhz : ClampCpuCustomFrequencyMhz(active);
+		setCpuCustomFrequencyMhz(seeded);
+		return seeded;
+	}
+	return ClampCpuCustomFrequencyMhz(settings.value(key,kCpuCustomFreqDefaultMhz).toInt());
+}
+
+void TownsQtSettings::setCpuCustomFrequencyMhz(int mhz)
+{
+	mhz=ClampCpuCustomFrequencyMhz(mhz);
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kCpuCustomFrequencyMhzKey),mhz);
+	settings.sync();
+}
+
 bool TownsQtSettings::cpuFastModeEnabled()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -234,7 +301,7 @@ int TownsQtSettings::cdSpeed()
 	const QString key=QString::fromLatin1(kCdSpeedKey);
 	if(!settings.contains(key))
 	{
-		const int speed=TownsQtModelGroupDefaultCdSpeed(modelGroupIndex());
+		const int speed=TownsQtCpuKindDefaultCdSpeed(cpuKind());
 		setCdSpeed(speed);
 		return speed;
 	}
@@ -377,6 +444,43 @@ void TownsQtSettings::setMidiBoard(bool enabled)
 	settings.sync();
 }
 
+bool TownsQtSettings::highResCrtc()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(!settings.contains(QString::fromLatin1(kHighResCrtcKey)))
+	{
+		const bool def=TownsQtRomAvailability::SysRomSupportsHighResCrtc(TownsQtPaths::romsDir());
+		setHighResCrtc(def);
+		return def;
+	}
+	return settings.value(QString::fromLatin1(kHighResCrtcKey),true).toBool();
+}
+
+void TownsQtSettings::setHighResCrtc(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kHighResCrtcKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::highResPcm()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(!settings.contains(QString::fromLatin1(kHighResPcmKey)))
+	{
+		setHighResPcm(true);
+		return true;
+	}
+	return settings.value(QString::fromLatin1(kHighResPcmKey),true).toBool();
+}
+
+void TownsQtSettings::setHighResPcm(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kHighResPcmKey),enabled);
+	settings.sync();
+}
+
 QString TownsQtSettings::midiSoundFont()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -406,33 +510,125 @@ void TownsQtSettings::setMidiVolumePercent(int percent)
 QString TownsQtSettings::midiOutput()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	return settings.value(QString::fromLatin1(kMidiOutputKey)).toString();
+	const QString raw=settings.value(QString::fromLatin1(kMidiOutputKey)).toString().trimmed();
+	if(raw.isEmpty() || raw==QStringLiteral("fluidsynth") || raw==QStringLiteral("alsa"))
+	{
+		return raw;
+	}
+	// Legacy: destination stored directly in midi/output.
+	return QStringLiteral("alsa");
 }
 
 void TownsQtSettings::setMidiOutput(const QString &output)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	settings.setValue(QString::fromLatin1(kMidiOutputKey),output);
+	QString normalized=output.trimmed();
+	if(normalized!=QStringLiteral("fluidsynth") && normalized!=QStringLiteral("alsa"))
+	{
+		if(normalized.contains(QLatin1Char(':')))
+		{
+			settings.setValue(QString::fromLatin1(kMidiAlsaPortKey),normalized);
+			normalized=QStringLiteral("alsa");
+		}
+		else
+		{
+			normalized.clear();
+		}
+	}
+	settings.setValue(QString::fromLatin1(kMidiOutputKey),normalized);
+	settings.sync();
+}
+
+QString TownsQtSettings::midiAlsaPort()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(settings.contains(QString::fromLatin1(kMidiAlsaPortKey)))
+	{
+		return settings.value(QString::fromLatin1(kMidiAlsaPortKey)).toString();
+	}
+	const QString raw=settings.value(QString::fromLatin1(kMidiOutputKey)).toString().trimmed();
+	if(raw.contains(QLatin1Char(':')) &&
+	   raw!=QStringLiteral("fluidsynth") &&
+	   raw!=QStringLiteral("alsa"))
+	{
+		return raw;
+	}
+	return QString();
+}
+
+void TownsQtSettings::setMidiAlsaPort(const QString &port)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kMidiAlsaPortKey),port.trimmed());
 	settings.sync();
 }
 
 int TownsQtSettings::modelGroupIndex()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	if(!settings.contains(QString::fromLatin1(kModelGroupKey)))
+	if(settings.contains(QString::fromLatin1(kModelGroupKey)))
 	{
-		setModelGroupIndex(TownsQtModelGroupDefaultIndex());
-		return TownsQtModelGroupDefaultIndex();
+		return TownsQtModelGroupIndexForId(
+		    settings.value(QString::fromLatin1(kModelGroupKey)).toString());
 	}
-	const QString id=settings.value(QString::fromLatin1(kModelGroupKey)).toString();
-	return TownsQtModelGroupIndexForId(id);
+	// Derive from CPU + SYS-ROM when model_group is absent.
+	const QString rom_dir=TownsQtPaths::romsDir();
+	return TownsQtModelGroupPreferredForCpuAndSysRom(
+	    cpuKind(),
+	    TownsQtRomAvailability::ClassifySysRom(rom_dir),
+	    TownsQtRomAvailability::SysRomTownsOsLevel(rom_dir),
+	    TownsQtRomAvailability::MartyExRomPresent(rom_dir));
 }
 
 void TownsQtSettings::setModelGroupIndex(int index)
 {
-	index=std::clamp(index,0,TownsQtModelGroupCount()-1);
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	settings.setValue(QString::fromLatin1(kModelGroupKey),TownsQtModelGroupId(index));
+	settings.setValue(
+	    QString::fromLatin1(kModelGroupKey),
+	    TownsQtModelGroupId(index));
+	settings.sync();
+	const TownsQtCpuKind kind=TownsQtCpuKindFromTownsType(TownsQtModelGroupTownsType(index));
+	settings.setValue(QString::fromLatin1(kCpuKindKey),QString::fromLatin1(TownsQtCpuKindId(kind)));
+	settings.sync();
+}
+
+TownsQtCpuKind TownsQtSettings::cpuKind()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(settings.contains(QString::fromLatin1(kCpuKindKey)))
+	{
+		return TownsQtCpuKindFromId(settings.value(QString::fromLatin1(kCpuKindKey)).toString());
+	}
+	// Migrate legacy model_group → cpu.
+	if(settings.contains(QString::fromLatin1(kModelGroupKey)))
+	{
+		const QString id=settings.value(QString::fromLatin1(kModelGroupKey)).toString();
+		const TownsQtCpuKind kind=TownsQtCpuKindFromTownsType(
+		    TownsQtModelGroupTownsType(TownsQtModelGroupIndexForId(id)));
+		settings.setValue(QString::fromLatin1(kCpuKindKey),QString::fromLatin1(TownsQtCpuKindId(kind)));
+		settings.sync();
+		return kind;
+	}
+	settings.setValue(
+	    QString::fromLatin1(kCpuKindKey),
+	    QString::fromLatin1(TownsQtCpuKindId(TownsQtCpuKindDefault())));
+	settings.sync();
+	return TownsQtCpuKindDefault();
+}
+
+void TownsQtSettings::setCpuKind(TownsQtCpuKind kind)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kCpuKindKey),QString::fromLatin1(TownsQtCpuKindId(kind)));
+	settings.sync();
+	const QString rom_dir=TownsQtPaths::romsDir();
+	const int model=TownsQtModelGroupClampToAllowed(
+	    modelGroupIndex(),
+	    kind,
+	    TownsQtRomAvailability::ClassifySysRom(rom_dir),
+	    TownsQtRomAvailability::SysRomTownsOsLevel(rom_dir),
+	    TownsQtRomAvailability::MartyExRomPresent(rom_dir));
+	settings.setValue(QString::fromLatin1(kModelGroupKey),TownsQtModelGroupId(model));
 	settings.sync();
 }
 
@@ -675,6 +871,29 @@ void TownsQtSettings::setDisplayScale(int scale)
 	settings.sync();
 }
 
+int TownsQtSettings::maxDisplayScaleForAvailableSize(QSize available_size,int chrome_w,int chrome_h)
+{
+	chrome_w=std::max(0,chrome_w);
+	chrome_h=std::max(0,chrome_h);
+	const int avail_w=std::max(0,available_size.width());
+	const int avail_h=std::max(0,available_size.height());
+	int max_scale=1;
+	for(int scale=1; scale<=8; ++scale)
+	{
+		const int need_w=640*scale+chrome_w;
+		const int need_h=480*scale+chrome_h;
+		if(need_w<=avail_w && need_h<=avail_h)
+		{
+			max_scale=scale;
+		}
+		else
+		{
+			break;
+		}
+	}
+	return max_scale;
+}
+
 bool TownsQtSettings::damperWireLine()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -825,7 +1044,7 @@ QStringList TownsQtSettings::recentCdImagePaths()
 		{
 			filtered.push_back(path);
 		}
-		if(kRecentFileHistoryMax<=filtered.size())
+		if(kRecentCdImageHistoryMax<=filtered.size())
 		{
 			break;
 		}
@@ -844,7 +1063,7 @@ void TownsQtSettings::addRecentCdImagePath(const QString &path)
 	QStringList list=recentCdImagePaths();
 	list.removeAll(usePath);
 	list.prepend(usePath);
-	while(kRecentFileHistoryMax<list.size())
+	while(kRecentCdImageHistoryMax<list.size())
 	{
 		list.removeLast();
 	}
@@ -865,24 +1084,37 @@ QString TownsQtSettings::lastFdImagePath(int drive)
 {
 	drive=std::clamp(drive,0,1);
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	const QString key=QString::fromLatin1(kLastFdImageKey)+QString::number(drive);
-	return settings.value(key).toString();
+	const QString key=FdImageIniKey(drive);
+	QString path=settings.value(key).toString();
+	if(path.isEmpty())
+	{
+		path=settings.value(LegacyFdImageIniKey(drive)).toString();
+		if(true!=path.isEmpty())
+		{
+			settings.setValue(key,path);
+			settings.remove(LegacyFdImageIniKey(drive));
+			settings.sync();
+		}
+	}
+	return path;
 }
 
 void TownsQtSettings::setLastFdImagePath(int drive,const QString &path)
 {
 	drive=std::clamp(drive,0,1);
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	const QString key=QString::fromLatin1(kLastFdImageKey)+QString::number(drive);
+	const QString key=FdImageIniKey(drive);
 	if(path.isEmpty())
 	{
 		settings.remove(key);
+		settings.remove(LegacyFdImageIniKey(drive));
 	}
 	else
 	{
 		const QString canonical=QFileInfo(path).canonicalFilePath();
 		const QString use_path=canonical.isEmpty() ? path : canonical;
 		settings.setValue(key,use_path);
+		settings.remove(LegacyFdImageIniKey(drive));
 		setWorkingDirectory(QFileInfo(use_path).absolutePath());
 	}
 	settings.sync();
@@ -916,7 +1148,7 @@ QStringList TownsQtSettings::recentFdImagePaths()
 		}
 		if(!list.isEmpty())
 		{
-			while(kRecentFileHistoryMax<list.size())
+			while(kRecentFdImageHistoryMax<list.size())
 			{
 				list.removeLast();
 			}
@@ -934,7 +1166,7 @@ QStringList TownsQtSettings::recentFdImagePaths()
 		{
 			filtered.push_back(path);
 		}
-		if(kRecentFileHistoryMax<=filtered.size())
+		if(kRecentFdImageHistoryMax<=filtered.size())
 		{
 			break;
 		}
@@ -954,7 +1186,7 @@ void TownsQtSettings::addRecentFdImagePath(int drive,const QString &path)
 	QStringList list=recentFdImagePaths();
 	list.removeAll(usePath);
 	list.prepend(usePath);
-	while(kRecentFileHistoryMax<list.size())
+	while(kRecentFdImageHistoryMax<list.size())
 	{
 		list.removeLast();
 	}
@@ -1097,21 +1329,28 @@ void TownsQtSettings::setDifferentialMouseIntegration(bool enabled)
 	settings.sync();
 }
 
-bool TownsQtSettings::autoDifferentialOnMouseBIOSStop()
+bool TownsQtSettings::autoDifferentialOnMosUnused()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	if(!settings.contains(QString::fromLatin1(kAutoDiffOnMouseBiosStopKey)))
+	if(settings.contains(QString::fromLatin1(kAutoDiffOnMosUnusedKey)))
 	{
-		setAutoDifferentialOnMouseBIOSStop(true);
-		return true;
+		return settings.value(QString::fromLatin1(kAutoDiffOnMosUnusedKey),true).toBool();
 	}
-	return settings.value(QString::fromLatin1(kAutoDiffOnMouseBiosStopKey),true).toBool();
+	// Legacy key (was mislabeled as Mouse-BIOS-stop; same checkbox).
+	if(settings.contains(QString::fromLatin1(kAutoDiffOnMosUnusedLegacyKey)))
+	{
+		const bool v=settings.value(QString::fromLatin1(kAutoDiffOnMosUnusedLegacyKey),true).toBool();
+		setAutoDifferentialOnMosUnused(v);
+		return v;
+	}
+	setAutoDifferentialOnMosUnused(true);
+	return true;
 }
 
-void TownsQtSettings::setAutoDifferentialOnMouseBIOSStop(bool enabled)
+void TownsQtSettings::setAutoDifferentialOnMosUnused(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	settings.setValue(QString::fromLatin1(kAutoDiffOnMouseBiosStopKey),enabled);
+	settings.setValue(QString::fromLatin1(kAutoDiffOnMosUnusedKey),enabled);
 	settings.sync();
 }
 
@@ -1220,6 +1459,19 @@ void TownsQtSettings::setShowMouseIntegrationDebug(bool enabled)
 	settings.sync();
 }
 
+bool TownsQtSettings::showMouseCoordWriteScan()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kMouseCoordWriteScanKey),false).toBool();
+}
+
+void TownsQtSettings::setShowMouseCoordWriteScan(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kMouseCoordWriteScanKey),enabled);
+	settings.sync();
+}
+
 bool TownsQtSettings::showCpuDebug()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -1250,6 +1502,23 @@ void TownsQtSettings::setShowDriveAccessOverlay(bool enabled)
 	settings.sync();
 }
 
+bool TownsQtSettings::showFpsDisplay()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(!settings.contains(QString::fromLatin1(kFpsDisplayKey)))
+	{
+		return true;
+	}
+	return settings.value(QString::fromLatin1(kFpsDisplayKey),true).toBool();
+}
+
+void TownsQtSettings::setShowFpsDisplay(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kFpsDisplayKey),enabled);
+	settings.sync();
+}
+
 bool TownsQtSettings::midiMonitor()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -1273,6 +1542,19 @@ void TownsQtSettings::setCdromMonitor(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kCdromMonitorKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::appMonitor()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kAppMonitorKey),false).toBool();
+}
+
+void TownsQtSettings::setAppMonitor(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kAppMonitorKey),enabled);
 	settings.sync();
 }
 
@@ -1308,10 +1590,13 @@ int TownsQtSettings::snapMouseWarmupFrames()
 	}
 	if(settings.contains(QString::fromLatin1(kSnapMouseWarmupFramesLegacyKey)))
 	{
-		return std::clamp(
+		const int frames=std::clamp(
 		    settings.value(QString::fromLatin1(kSnapMouseWarmupFramesLegacyKey),kSnapMouseWarmupFramesDefault).toInt(),
 		    0,600);
+		setSnapMouseWarmupFrames(frames);
+		return frames;
 	}
+	setSnapMouseWarmupFrames(kSnapMouseWarmupFramesDefault);
 	return kSnapMouseWarmupFramesDefault;
 }
 
@@ -1347,6 +1632,19 @@ void TownsQtSettings::setCddaCachePostReadGraceSec(int sec)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kCddaCachePostReadGraceSecKey),std::clamp(sec,1,60));
+	settings.sync();
+}
+
+bool TownsQtSettings::useDiscProfiles()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kUseDiscProfilesKey),true).toBool();
+}
+
+void TownsQtSettings::setUseDiscProfiles(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kUseDiscProfilesKey),enabled);
 	settings.sync();
 }
 

@@ -39,6 +39,8 @@ public:
 
 	/*! Poll host cursor over the view (GUI thread, each input interval). */
 	void pollMousePosition();
+	/*! Track global cursor for coord scan even when the scan window has focus. */
+	void pollMousePositionForScan();
 
 	/*! Map the host cursor into this view's coordinate system. */
 	QPoint hostCursorInView() const;

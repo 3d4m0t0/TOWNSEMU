@@ -2,7 +2,9 @@
 
 #include "townsargv.h"
 #include "townsparam.h"
+#include "townsqt_model_profile.h"
 #include "townsqt_paths.h"
+#include "townsqt_rom_availability.h"
 #include "townsqt_settings.h"
 #include "i486.h"
 
@@ -34,6 +36,18 @@ void ApplyMachineFromSettings(TownsARGV &argv)
 	argv.fastSCSI=TownsQtSettings::fastScsi();
 	argv.fastFD=TownsQtSettings::fastFd();
 	argv.nMidiCards=TownsQtSettings::midiBoard() ? 1 : 0;
+	{
+		const QString rom_dir=argv.ROMPath.empty() ?
+		    TownsQtPaths::romsDir() :
+		    QString::fromStdString(argv.ROMPath);
+		const int model_index=TownsQtSettings::modelGroupIndex();
+		const bool hi=TownsQtModelGroupEffectiveHighRes(model_index,rom_dir);
+		argv.highResAvailable=hi;
+		argv.highResPCM=hi;
+		argv.ugGenerationIO=TownsQtModelGroupEffectiveUgGenerationIO(model_index,rom_dir);
+		TownsQtSettings::setHighResCrtc(hi);
+		TownsQtSettings::setHighResPcm(hi);
+	}
 	argv.fmVol=TownsQtSettings::fmChipVolume();
 	argv.pcmVol=TownsQtSettings::pcmChipVolume();
 	argv.alwaysBootToFASTMode=TownsQtSettings::cpuFastModeEnabled();
@@ -47,8 +61,8 @@ void ApplySessionSettings(TownsARGV &argv)
 	argv.noWait=false;
 	argv.noWaitStandby=false;
 	argv.catchUpRealTime=false;
-	argv.autoScaling=TownsQtSettings::autoScaling();
-	argv.maintainAspect=TownsQtSettings::maintainAspect();
+	argv.autoScaling=false;
+	argv.maintainAspect=true;
 	argv.gamePort[0]=TownsQtSettings::gamePort(0);
 	argv.gamePort[1]=TownsQtSettings::gamePort(1);
 	for(int port=0; port<TownsStartParameters::NUM_GAMEPORTS; ++port)
