@@ -34,6 +34,7 @@ Referral registration link: [cursor.com/referral?code=TI3UQLE9PFH3](https://curs
 * **Qt メニューバー UI** — フロントエンドに Qt 6 を使い、一般的なメニューバー形式の操作画面にしています。ゲームポート機器の切り替え、全画面表示、スプライト転送速度などはメニューから設定できます。
 * **タイミング** — エミュレータの進行を実時間に合わせる処理を見直しました。音声のテンポがぶれにくく、画面の同期（VSYNC）も安定します。既定は実時間待ち（CUI の `-YESWAIT` 相当）で、遅れた分を一気に取り戻す動作はしません。
 * **ディスクプロファイル** — マウントした CD ごとに設定を保存します。同じディスクをマウントして再起動すると、保存した内容が読み込まれます。フロッピー（FD0 / FD1）のマウント状況も保存され、次回起動時に再現されます。マウス統合の設定も、このプロファイルに含まれます。
+* **HDD イメージ** — 作成時はスパース形式です。論理サイズは指定どおりで、未書き込み領域の実ディスク使用量は小さく、書き込みに応じて増えます。旧形式の密なイメージは HDD 設定の **Compact** で変換できます。
 * **マウス統合** — ゲストメモリへ座標を書き込むことで、ポインタ操作の遅延を抑えています。マウス BIOS を使わないアプリでは、ゲーム内カーソルの phys を検索して設定し、座標の読み取りと書き換えでマウス統合できます。いくつかのタイトル向けプリセットを同梱しています。phys の位置や書き込み方法はタイトルごとに異なるため、統合できないソフトもあります。
 * **CDDA キャッシュ** — CD 音源（CDDA）を先読みキャッシュし、データトラックの読み込み中も演奏を止めない仕組みです。
 * **CD イメージ** — Tsugaru が扱える CD-ROM イメージに加え、`.chd` 形式にも対応しています。
@@ -48,6 +49,7 @@ Main differences from `Tsugaru_CUI`:
 * **Qt menu-bar UI** — The frontend uses Qt 6 with a conventional menu-bar layout. Game-port devices, fullscreen, sprite transfer speed, and similar options are available from the menu.
 * **Timing** — Real-time pacing was reworked so audio tempo stays steady and emulated VSYNC does not wobble. By default the emulator waits for real time (same idea as CUI `-YESWAIT`) and does not catch up a time deficit in one burst.
 * **Disc profiles** — Settings are saved per mounted CD. Mount the same disc and restart to load them. Floppy (FD0 / FD1) mount state is stored and restored on the next launch. Mouse-integration settings are part of the profile.
+* **HDD images** — New images are created sparse: logical size matches your choice, on-disk usage starts small and grows on write. Use **Compact** in HDD settings to convert older dense images.
 * **Mouse integration** — Writing coordinates into guest memory reduces pointer latency. For titles that do not use Mouse BIOS, you can search for the in-game cursor phys, then read and write coordinates to integrate the mouse. A few presets are bundled. Some titles still cannot be integrated, because phys location and write method vary.
 * **CDDA cache** — CD audio (CDDA) is prefetched so data-track reads do not interrupt playback.
 * **CD images** — In addition to the CD-ROM image formats Tsugaru already supports, `.chd` is accepted.
@@ -201,7 +203,7 @@ Select FluidSynth as the MIDI output in Settings, and pick a SoundFont there if 
 | `~/.config/townsqt/townsqt.conf` | UI settings (QSettings INI) |
 | `~/.config/townsqt/cmos.bin` | CMOS RAM |
 | `~/.config/townsqt/roms/` | ROM images |
-| `~/.config/townsqt/hdd/` | SCSI hard-disk images |
+| `~/.config/townsqt/hdd/` | SCSI hard-disk images (sparse raw `.hd`; use **Compact** in HDD settings to shrink older dense images) |
 | `~/.config/townsqt/blank_fd/` | blank floppy images |
 
 UI language: `TOWNSQT_LANG` (e.g. `ja`, `en`, `de`, `fr`, `es`, `ko`,

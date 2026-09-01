@@ -265,7 +265,7 @@ void TownsARGV::PrintHelp(void) const
 	std::cout << "-GENFD filename.bin size_in_KB" << std::endl;
 	std::cout << "  Create a new floppy image.  size_in_KB must be 1232, 1440, 640, or 720." << std::endl;
 	std::cout << "-GENHD filename.bin size_in_MB" << std::endl;
-	std::cout << "  Create a new harddisk image." << std::endl;
+	std::cout << "  Create a new sparse harddisk image (logical size only)." << std::endl;
 	std::cout << "-FMVOL volume" << std::endl;
 	std::cout << "-PCMVOL volume" << std::endl;
 	std::cout << "  Specify FM/PCM volume.  Volume will be rounded to 0 to 8192." << std::endl;
@@ -959,28 +959,13 @@ bool TownsARGV::AnalyzeCommandParameter(int argc,char *argv[])
 		{
 			std::string fName=argv[i+1];
 			unsigned int MB=cpputil::Atoi(argv[i+2]);
-			std::vector <unsigned char> zero;
-			zero.resize(1024*1024);
-			for(auto &z : zero)
-			{
-				z=0;
-			}
-			std::ofstream fp(fName,std::ofstream::binary);
-			if(true==fp.is_open())
-			{
-				while(0!=MB)
-				{
-					fp.write((char *)zero.data(),zero.size());
-					--MB;
-				}
-				fp.close();
-				std::cout << "Created HD Image: " << fName << std::endl;
-		}
-			else
+			const unsigned long long bytes=static_cast<unsigned long long>(MB)*1024ULL*1024ULL;
+			if(true!=cpputil::CreateSparseBinaryFile(fName,bytes))
 			{
 				std::cout << "Failed to write file: " << fName << std::endl;
 				return false;
 			}
+			std::cout << "Created HD Image: " << fName << std::endl;
 			i+=2;
 		}
 		else if("-WINDOWSHIFT"==ARG)

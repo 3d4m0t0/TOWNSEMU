@@ -82,6 +82,21 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "Create a sparse image.\nLogical size is as entered; disk usage starts small and grows on write.",
+      "translation": "Create a sparse image.\nLogical size is as entered; disk usage starts small and grows on write."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Compact",
+      "translation": "Compact"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Make an existing image sparse by punching holes in zero regions.\nLogical size is unchanged; only on-disk usage shrinks.",
+      "translation": "Make an existing image sparse by punching holes in zero regions.\nLogical size is unchanged; only on-disk usage shrinks."
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "Browse…",
       "translation": "Browse…"
     },
@@ -92,8 +107,18 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written.",
+      "translation": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written."
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "Images are stored under %1 by default.",
       "translation": "Images are stored under %1 by default."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Path: %1\nLogical size: %2\nDisk usage: %3",
+      "translation": "Path: %1\nLogical size: %2\nDisk usage: %3"
     },
     {
       "context": "HddSettingsDialog",
@@ -102,8 +127,8 @@
     },
     {
       "context": "HddSettingsDialog",
-      "source": "Size in MB (%1–%2):",
-      "translation": "Size in MB (%1–%2):"
+      "source": "Logical size in MB (%1–%2).\nCreated as a sparse image:",
+      "translation": "Logical size in MB (%1–%2).\nCreated as a sparse image:"
     },
     {
       "context": "HddSettingsDialog",
@@ -124,6 +149,31 @@
       "context": "HddSettingsDialog",
       "source": "Failed to create the hard disk image.",
       "translation": "Failed to create the hard disk image."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
+      "translation": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Compact hard disk image",
+      "translation": "Compact hard disk image"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "The selected file does not exist.",
+      "translation": "The selected file does not exist."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Failed to compact the hard disk image.\nSparse compaction is supported on Linux with ext4, XFS, or Btrfs.",
+      "translation": "Failed to compact the hard disk image.\nSparse compaction is supported on Linux with ext4, XFS, or Btrfs."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Compacted the hard disk image.\nLogical size is unchanged; unused zero regions now use less disk space.",
+      "translation": "Compacted the hard disk image.\nLogical size is unchanged; unused zero regions now use less disk space."
     },
     {
       "context": "HddSettingsDialog",

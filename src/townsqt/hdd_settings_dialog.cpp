@@ -2,6 +2,8 @@
 
 #include "townsqt_paths.h"
 
+#include "cpputil.h"
+
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFile>
@@ -14,17 +16,32 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QSaveFile>
 #include <QVBoxLayout>
 
 #include <algorithm>
-#include <vector>
 
 namespace
 {
 constexpr int kDefaultHddSizeMb=100;
 constexpr int kMinHddSizeMb=1;
 constexpr int kMaxHddSizeMb=1024;
+
+QString FormatByteSize(qint64 bytes)
+{
+	if(bytes>=1024LL*1024LL*1024LL)
+	{
+		return QString::number(bytes/(1024.0*1024.0*1024.0),'f',2)+QStringLiteral(" GB");
+	}
+	if(bytes>=1024LL*1024LL)
+	{
+		return QString::number(bytes/(1024.0*1024.0),'f',1)+QStringLiteral(" MB");
+	}
+	if(bytes>=1024LL)
+	{
+		return QString::number(bytes/1024.0,'f',1)+QStringLiteral(" KB");
+	}
+	return QString::number(bytes)+QStringLiteral(" B");
+}
 }
 
 HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotCount],QWidget *parent)
@@ -49,20 +66,31 @@ HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotC
 		row.path->setPlaceholderText(tr("No image"));
 		setSlotPath(slot,slots[slot].path);
 		row.create=new QPushButton(tr("Create"),this);
+		row.create->setToolTip(
+		    tr("Create a sparse image.\n"
+		       "Logical size is as entered; disk usage starts small and grows on write."));
+		row.compact=new QPushButton(tr("Compact"),this);
+		row.compact->setToolTip(
+		    tr("Make an existing image sparse by punching holes in zero regions.\n"
+		       "Logical size is unchanged; only on-disk usage shrinks."));
 		row.browse=new QPushButton(tr("Browse…"),this);
 		row.remove=new QPushButton(tr("Remove"),this);
 
 		grid->addWidget(row.enabled,slot,0);
 		grid->addWidget(row.path,slot,1);
 		grid->addWidget(row.create,slot,2);
-		grid->addWidget(row.browse,slot,3);
-		grid->addWidget(row.remove,slot,4);
+		grid->addWidget(row.compact,slot,3);
+		grid->addWidget(row.browse,slot,4);
+		grid->addWidget(row.remove,slot,5);
 
 		connect(row.enabled,&QCheckBox::toggled,this,[this,slot](bool){
 			updateRowEnabled(slot);
 		});
 		connect(row.create,&QPushButton::clicked,this,[this,slot]{
 			onCreateClicked(slot);
+		});
+		connect(row.compact,&QPushButton::clicked,this,[this,slot]{
+			onCompactClicked(slot);
 		});
 		connect(row.browse,&QPushButton::clicked,this,[this,slot]{
 			onBrowseClicked(slot);
@@ -75,6 +103,9 @@ HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotC
 
 	layout->addLayout(grid);
 	layout->addWidget(new QLabel(
+	    tr("New images are created sparse. File managers show logical size; actual disk usage stays small until data is written."),
+	    this));
+	layout->addWidget(new QLabel(
 	    tr("Images are stored under %1 by default.").arg(TownsQtPaths::hddDir()),
 	    this));
 
@@ -83,7 +114,7 @@ HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotC
 	connect(buttons,&QDialogButtonBox::rejected,this,&QDialog::reject);
 	layout->addWidget(buttons);
 
-	resize(480,sizeHint().height());
+	resize(560,sizeHint().height());
 }
 
 void HddSettingsDialog::setSlotPath(int slot,const QString &fullPath)
@@ -99,7 +130,11 @@ void HddSettingsDialog::setSlotPath(int slot,const QString &fullPath)
 	}
 	const QFileInfo info(fullPath);
 	row.path->setText(info.fileName());
-	row.path->setToolTip(fullPath);
+	const qint64 logical=info.size();
+	const qint64 disk=cpputil::AllocatedFileBytes(fullPath.toStdString());
+	row.path->setToolTip(
+	    tr("Path: %1\nLogical size: %2\nDisk usage: %3")
+	        .arg(fullPath,FormatByteSize(logical),FormatByteSize(disk)));
 }
 
 void HddSettingsDialog::copySlotsTo(Slot out[TownsQtSettings::kHddSlotCount]) const
@@ -115,8 +150,10 @@ void HddSettingsDialog::updateRowEnabled(int slot)
 {
 	slot=std::clamp(slot,0,TownsQtSettings::kHddSlotCount-1);
 	const bool on=rows_[slot].enabled->isChecked();
+	const bool hasImage=!rows_[slot].fullPath.isEmpty();
 	rows_[slot].path->setEnabled(on);
 	rows_[slot].create->setEnabled(on);
+	rows_[slot].compact->setEnabled(on && hasImage);
 	rows_[slot].browse->setEnabled(on);
 	rows_[slot].remove->setEnabled(on);
 }
@@ -132,22 +169,8 @@ bool HddSettingsDialog::createBlankHddImage(const QString &path,int size_mb)
 		return false;
 	}
 
-	QSaveFile file(path);
-	if(!file.open(QIODevice::WriteOnly))
-	{
-		return false;
-	}
-
-	std::vector<char> zero(1024*1024,0);
-	for(int i=0; i<size_mb; ++i)
-	{
-		if(static_cast<qint64>(zero.size())!=file.write(zero.data(),static_cast<qint64>(zero.size())))
-		{
-			file.cancelWriting();
-			return false;
-		}
-	}
-	return file.commit();
+	const unsigned long long bytes=static_cast<unsigned long long>(size_mb)*1024ULL*1024ULL;
+	return cpputil::CreateSparseBinaryFile(path.toStdString(),bytes);
 }
 
 void HddSettingsDialog::onCreateClicked(int slot)
@@ -157,7 +180,7 @@ void HddSettingsDialog::onCreateClicked(int slot)
 	const int size_mb=QInputDialog::getInt(
 	    this,
 	    tr("Create hard disk image"),
-	    tr("Size in MB (%1–%2):").arg(kMinHddSizeMb).arg(kMaxHddSizeMb),
+	    tr("Logical size in MB (%1–%2).\nCreated as a sparse image:").arg(kMinHddSizeMb).arg(kMaxHddSizeMb),
 	    kDefaultHddSizeMb,
 	    kMinHddSizeMb,
 	    kMaxHddSizeMb,
@@ -214,9 +237,54 @@ void HddSettingsDialog::onCreateClicked(int slot)
 		return;
 	}
 
+	const qint64 logical=QFileInfo(path).size();
+	const qint64 disk=cpputil::AllocatedFileBytes(path.toStdString());
+	QMessageBox::information(
+	    this,
+	    tr("Create hard disk image"),
+	    tr("Created a sparse hard disk image.\n\n"
+	       "Logical size (for FM TOWNS): %1\n"
+	       "Disk usage on this computer: %2\n\n"
+	       "File managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.")
+	        .arg(FormatByteSize(logical),FormatByteSize(disk)));
+
 	setSlotPath(slot,path);
 	rows_[slot].enabled->setChecked(true);
 	updateRowEnabled(slot);
+}
+
+void HddSettingsDialog::onCompactClicked(int slot)
+{
+	slot=std::clamp(slot,0,TownsQtSettings::kHddSlotCount-1);
+	const QString path=rows_[slot].fullPath;
+	if(path.isEmpty())
+	{
+		return;
+	}
+	if(!QFileInfo::exists(path))
+	{
+		QMessageBox::warning(
+		    this,
+		    tr("Compact hard disk image"),
+		    tr("The selected file does not exist."));
+		return;
+	}
+
+	if(!cpputil::CompactBinaryFileToSparse(path.toStdString()))
+	{
+		QMessageBox::warning(
+		    this,
+		    tr("Compact hard disk image"),
+		    tr("Failed to compact the hard disk image.\n"
+		       "Sparse compaction is supported on Linux with ext4, XFS, or Btrfs."));
+		return;
+	}
+
+	QMessageBox::information(
+	    this,
+	    tr("Compact hard disk image"),
+	    tr("Compacted the hard disk image.\n"
+	       "Logical size is unchanged; unused zero regions now use less disk space."));
 }
 
 void HddSettingsDialog::onBrowseClicked(int slot)

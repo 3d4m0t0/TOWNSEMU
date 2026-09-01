@@ -14,12 +14,20 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 << LICENSE */
 #include <fstream>
 #include <stdlib.h>
+#include <algorithm>
+#include <vector>
+#include <climits>
 
 #ifdef _WIN32
 	#include <direct.h>
 	#define getcwd _getcwd
 #else
 	#include <unistd.h>
+	#include <fcntl.h>
+	#include <sys/stat.h>
+#if defined(__linux__)
+	#include <linux/falloc.h>
+#endif
 #endif
 
 #include "cpputil.h"
@@ -127,15 +135,132 @@ bool cpputil::WriteBinaryFile(const std::string &fName,unsigned long long length
 
 bool cpputil::WriteBinaryFile(const std::string &fName,unsigned long long int start,unsigned long long length,const unsigned char dat[])
 {
-	std::fstream fp(fName,std::ios::binary|std::ios::in|std::ios::out);
-	if(true==fp.is_open())
+	if(0==length)
 	{
-		fp.seekg(start,fp.beg);
-		fp.write((char *)dat,length);
-		fp.close();
 		return true;
 	}
+#ifndef _WIN32
+	const int fd=open(fName.c_str(),O_RDWR);
+	if(fd<0)
+	{
+		return false;
+	}
+	const unsigned char *cursor=dat;
+	unsigned long long remaining=length;
+	unsigned long long pos=start;
+	while(0<remaining)
+	{
+		const size_t chunk=remaining>static_cast<unsigned long long>(SSIZE_MAX) ?
+		    static_cast<size_t>(SSIZE_MAX) :
+		    static_cast<size_t>(remaining);
+		const ssize_t written=pwrite(fd,cursor,chunk,static_cast<off_t>(pos));
+		if(written<=0)
+		{
+			close(fd);
+			return false;
+		}
+		cursor+=written;
+		pos+=static_cast<unsigned long long>(written);
+		remaining-=static_cast<unsigned long long>(written);
+	}
+	close(fd);
+	return true;
+#else
+	std::fstream fp(fName,std::ios::binary|std::ios::in|std::ios::out);
+	if(true!=fp.is_open())
+	{
+		return false;
+	}
+	fp.seekp(static_cast<std::streamoff>(start),fp.beg);
+	fp.write(reinterpret_cast<const char *>(dat),static_cast<std::streamsize>(length));
+	return true==fp.good();
+#endif
+}
+
+bool cpputil::CreateSparseBinaryFile(const std::string &fName,unsigned long long size)
+{
+	if(0==size)
+	{
+		return false;
+	}
+#ifndef _WIN32
+	const int fd=open(fName.c_str(),O_RDWR|O_CREAT|O_TRUNC,(mode_t)0644);
+	if(fd<0)
+	{
+		return false;
+	}
+	const bool ok=(0==ftruncate(fd,static_cast<off_t>(size)));
+	close(fd);
+	return ok;
+#else
+	std::fstream fp(fName,std::ios::binary|std::ios::out|std::ios::trunc);
+	if(true!=fp.is_open())
+	{
+		return false;
+	}
+	if(1<size)
+	{
+		fp.seekp(static_cast<std::streamoff>(size-1),fp.beg);
+		fp.put('\0');
+	}
+	else
+	{
+		fp.put('\0');
+	}
+	return true==fp.good();
+#endif
+}
+
+bool cpputil::CompactBinaryFileToSparse(const std::string &fName)
+{
+#if defined(__linux__)
+	const long long fileSize=FileSize(fName);
+	if(fileSize<=0)
+	{
+		return false;
+	}
+
+	constexpr unsigned long long kHoleAlign=4096;
+	const int fd=open(fName.c_str(),O_RDWR);
+	if(fd<0)
+	{
+		return false;
+	}
+
+	std::vector<unsigned char> buf(kHoleAlign);
+	unsigned long long offset=0;
+	const unsigned long long end=static_cast<unsigned long long>(fileSize);
+	while(offset+kHoleAlign<=end)
+	{
+		const ssize_t n=pread(fd,buf.data(),kHoleAlign,static_cast<off_t>(offset));
+		if(n!=static_cast<ssize_t>(kHoleAlign))
+		{
+			close(fd);
+			return false;
+		}
+		bool allZero=true;
+		for(unsigned long long i=0; i<kHoleAlign; ++i)
+		{
+			if(0!=buf[static_cast<size_t>(i)])
+			{
+				allZero=false;
+				break;
+			}
+		}
+		if(true==allZero)
+		{
+			fallocate(fd,FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE,
+			          static_cast<off_t>(offset),static_cast<off_t>(kHoleAlign));
+		}
+		offset+=kHoleAlign;
+	}
+
+	close(fd);
+	return true;
+#else
+	(void)fName;
 	return false;
+#endif
 }
 
 std::vector <std::string> cpputil::ReadTextFile(std::string fName)
@@ -875,6 +1000,18 @@ long long int cpputil::FileSize(const std::string &fName)
 		return length;
 	}
 	return 0;
+}
+
+long long int cpputil::AllocatedFileBytes(const std::string &fName)
+{
+#ifndef _WIN32
+	struct stat st{};
+	if(0==stat(fName.c_str(),&st))
+	{
+		return static_cast<long long int>(st.st_blocks)*512LL;
+	}
+#endif
+	return FileSize(fName);
 }
 
 std::string cpputil::U64tox(uint64_t i)

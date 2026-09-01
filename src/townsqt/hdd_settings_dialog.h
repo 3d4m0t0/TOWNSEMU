@@ -28,6 +28,7 @@ public:
 
 private Q_SLOTS:
 	void onCreateClicked(int slot);
+	void onCompactClicked(int slot);
 	void onBrowseClicked(int slot);
 	void onRemoveClicked(int slot);
 
@@ -38,6 +39,7 @@ private:
 		QLineEdit *path=nullptr;
 		QString fullPath;
 		QPushButton *create=nullptr;
+		QPushButton *compact=nullptr;
 		QPushButton *browse=nullptr;
 		QPushButton *remove=nullptr;
 	};

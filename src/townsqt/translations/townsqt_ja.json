@@ -82,6 +82,21 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "Create a sparse image.\nLogical size is as entered; disk usage starts small and grows on write.",
+      "translation": "スパースイメージを作成します。\n論理サイズは指定どおりで、実ディスク使用量は小さく始まり、書き込みで増えます。"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Compact",
+      "translation": "圧縮"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Make an existing image sparse by punching holes in zero regions.\nLogical size is unchanged; only on-disk usage shrinks.",
+      "translation": "未使用のゼロ領域に穴を開けてスパース化します。\n論理サイズは変わらず、実ディスク使用量だけ減ります。"
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "Browse…",
       "translation": "参照…"
     },
@@ -92,8 +107,18 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written.",
+      "translation": "新規作成はスパースです。ファイルマネージャのサイズは論理サイズ表示で、実ディスク使用量は書き込むまで小さいままです。"
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "Images are stored under %1 by default.",
       "translation": "イメージの既定保存先は %1 です。"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Path: %1\nLogical size: %2\nDisk usage: %3",
+      "translation": "パス: %1\n論理サイズ: %2\n実ディスク使用量: %3"
     },
     {
       "context": "HddSettingsDialog",
@@ -102,8 +127,8 @@
     },
     {
       "context": "HddSettingsDialog",
-      "source": "Size in MB (%1–%2):",
-      "translation": "サイズ（MB、%1–%2）:"
+      "source": "Logical size in MB (%1–%2).\nCreated as a sparse image:",
+      "translation": "論理サイズ（MB、%1–%2）\nスパースイメージとして作成:"
     },
     {
       "context": "HddSettingsDialog",
@@ -124,6 +149,31 @@
       "context": "HddSettingsDialog",
       "source": "Failed to create the hard disk image.",
       "translation": "ハードディスクイメージを作成できませんでした。"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
+      "translation": "スパースのハードディスクイメージを作成しました。\n\n論理サイズ（FM TOWNS 向け）: %1\n実ディスク使用量: %2\n\nファイルマネージャは論理サイズを表示します。パス欄のツールチップまたは `du -h` で実使用量を確認できます。"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Compact hard disk image",
+      "translation": "ハードディスクイメージの圧縮"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "The selected file does not exist.",
+      "translation": "選択したファイルが存在しません。"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Failed to compact the hard disk image.\nSparse compaction is supported on Linux with ext4, XFS, or Btrfs.",
+      "translation": "ハードディスクイメージを圧縮できませんでした。\nスパース化は Linux の ext4 / XFS / Btrfs で利用できます。"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Compacted the hard disk image.\nLogical size is unchanged; unused zero regions now use less disk space.",
+      "translation": "ハードディスクイメージを圧縮しました。\n論理サイズはそのままで、未使用のゼロ領域の実ディスク使用量が減ります。"
     },
     {
       "context": "HddSettingsDialog",
