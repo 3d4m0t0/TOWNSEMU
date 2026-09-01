@@ -1800,6 +1800,16 @@ void Outside_World::ResumeMouseCapture(class FMTownsCommon &towns)
 	UpdateEffectiveDifferentialMouseIntegration(towns);
 }
 
+void Outside_World::ReleaseMouseCapture(class FMTownsCommon &towns)
+{
+	if(true==mouseCaptureReleased_)
+	{
+		return;
+	}
+	mouseCaptureReleased_=true;
+	UpdateEffectiveDifferentialMouseIntegration(towns);
+}
+
 void Outside_World::SetDifferentialMouseIntegrationPreference(bool enabled,class FMTownsCommon *towns)
 {
 	differentialMouseIntegration=enabled;

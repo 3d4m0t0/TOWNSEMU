@@ -169,6 +169,9 @@ private:
 	bool isMouseInsideWindow(const QPoint &global_pos) const;
 	bool shouldCaptureHostMouse() const;
 	bool mouseCoordScanActive() const;
+	void raiseMainWindowForMouseCoordSession();
+	void stopMouseCoordScanByEsc();
+	void releaseDifferentialMouseCaptureByEsc();
 	/*! Focus check for keeping an already-active differential Wayland capture. */
 	bool shouldKeepDifferentialWaylandCapture() const;
 	bool isCursorOverUiChrome() const;

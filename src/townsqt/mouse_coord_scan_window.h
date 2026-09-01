@@ -29,7 +29,6 @@ struct MouseCoordGameCursor2Selection
 	bool valid(void) const{return 0!=physX && 0!=physY;}
 };
 
-class QCheckBox;
 class QPushButton;
 class QTableWidget;
 
@@ -94,7 +93,7 @@ private:
 	class QTableWidgetItem *MakeTextItem(const QString &text,bool numericSort,qulonglong sortKey) const;
 
 	QPushButton *scan_btn_=nullptr;
-	QCheckBox *capture_chk_=nullptr;
+	QPushButton *capture_btn_=nullptr;
 	QTableWidget *cand_table_=nullptr;
 	QVector<unsigned int> checked_watch_;
 	QVector<unsigned int> checked_chase_;

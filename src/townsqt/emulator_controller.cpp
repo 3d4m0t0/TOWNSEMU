@@ -1077,6 +1077,15 @@ void EmulatorController::resumeMouseCapture()
 	impl_->outside_world->ResumeMouseCapture(*towns_);
 }
 
+void EmulatorController::releaseMouseCapture()
+{
+	if(nullptr==impl_->outside_world || nullptr==towns_)
+	{
+		return;
+	}
+	impl_->outside_world->ReleaseMouseCapture(*towns_);
+}
+
 void EmulatorController::setMouseFailsafeShowHostCursor(bool show)
 {
 	if(nullptr==impl_->outside_world)

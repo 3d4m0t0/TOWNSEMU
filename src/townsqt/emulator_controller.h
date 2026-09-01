@@ -118,6 +118,7 @@ public Q_SLOTS:
 	/*! Runtime mouse UI flags: diff, mos, capture_released, feeding, failsafe. */
 	Q_INVOKABLE QVariantMap mouseUiState() const;
 	Q_INVOKABLE void resumeMouseCapture();
+	Q_INVOKABLE void releaseMouseCapture();
 	Q_INVOKABLE void setMouseFailsafeShowHostCursor(bool show);
 	Q_INVOKABLE void setSnapMouseIntegration(bool enabled);
 	Q_INVOKABLE void applySnapMouseSettings(bool enabled,int warmup_frames);

@@ -48,6 +48,7 @@
 #include <QFile>
 #include <QSaveFile>
 #include <QGuiApplication>
+#include <QWindow>
 #include <QHBoxLayout>
 #include <iostream>
 #include <QCursor>
@@ -703,6 +704,8 @@ MainWindow::~MainWindow()
 	{
 		app->removeEventFilter(this);
 	}
+	delete mouse_coord_scan_window_;
+	mouse_coord_scan_window_=nullptr;
 	stopEmulator();
 }
 
@@ -3139,7 +3142,7 @@ void MainWindow::ensureMouseCoordScanWindow()
 	{
 		return;
 	}
-	mouse_coord_scan_window_=new MouseCoordScanWindow(this);
+	mouse_coord_scan_window_=new MouseCoordScanWindow(nullptr);
 	connect(mouse_coord_scan_window_,&DebugTextWindow::windowClosed,this,[this](){
 		cancelMouseCoordScan();
 	});
@@ -3154,10 +3157,17 @@ void MainWindow::ensureMouseCoordScanWindow()
 		    Qt::BlockingQueuedConnection,
 		    Q_ARG(bool,on));
 		refreshMouseUiState();
+		if(on)
+		{
+			raiseMainWindowForMouseCoordSession();
+			QTimer::singleShot(0,this,[this](){
+				raiseMainWindowForMouseCoordSession();
+			});
+		}
 		if(nullptr!=statusBar())
 		{
 			statusBar()->showMessage(
-			    on ? tr("Mouse capture ON — list refresh / prune (profile paused).")
+			    on ? tr("Mouse capture ON — list refresh / prune (profile paused). ESC to stop.")
 			       : tr("Mouse capture OFF — profile mouse mode restored."),
 			    4000);
 		}
@@ -3174,20 +3184,9 @@ void MainWindow::ensureMouseCoordScanWindow()
 		    Q_ARG(bool,on));
 		if(on)
 		{
-			// After Scan click, take focus so host Δ reaches the emu view.
-			raise();
-			activateWindow();
-			if(nullptr!=view_)
-			{
-				view_->setFocus(Qt::OtherFocusReason);
-			}
+			raiseMainWindowForMouseCoordSession();
 			QTimer::singleShot(0,this,[this](){
-				raise();
-				activateWindow();
-				if(nullptr!=view_)
-				{
-					view_->setFocus(Qt::OtherFocusReason);
-				}
+				raiseMainWindowForMouseCoordSession();
 			});
 		}
 		refreshMouseUiState();
@@ -3200,34 +3199,7 @@ void MainWindow::ensureMouseCoordScanWindow()
 		}
 	});
 	connect(mouse_coord_scan_window_,&MouseCoordScanWindow::scanStopRequested,this,[this](){
-		if(nullptr==controller_)
-		{
-			return;
-		}
-		QMetaObject::invokeMethod(
-		    controller_,
-		    "setMouseCoordWriteScanEnabled",
-		    Qt::BlockingQueuedConnection,
-		    Q_ARG(bool,false));
-		QMetaObject::invokeMethod(
-		    controller_,
-		    "setMouseCoordForceCapture",
-		    Qt::BlockingQueuedConnection,
-		    Q_ARG(bool,false));
-		if(nullptr!=mouse_coord_scan_window_)
-		{
-			mouse_coord_scan_window_->setScanChecked(false);
-			mouse_coord_scan_window_->setCaptureChecked(false);
-			mouse_coord_scan_window_->raise();
-			mouse_coord_scan_window_->activateWindow();
-			mouse_coord_scan_window_->setFocus(Qt::OtherFocusReason);
-		}
-		refreshMouseUiState();
-		if(nullptr!=statusBar())
-		{
-			statusBar()->showMessage(
-			    tr("Stopped (ESC) — profile mouse mode restored."),4000);
-		}
+		stopMouseCoordScanByEsc();
 	});
 	connect(mouse_coord_scan_window_,&MouseCoordScanWindow::watchPhysChanged,this,
 	        [this](const QVariantList &physList){
@@ -3391,6 +3363,13 @@ void MainWindow::applyMouseCoordScanVisibility()
 		if(nullptr!=mouse_coord_scan_window_)
 		{
 			mouse_coord_scan_window_->show();
+			if(QWindow *main_win=windowHandle())
+			{
+				if(QWindow *scan_win=mouse_coord_scan_window_->windowHandle())
+				{
+					scan_win->setTransientParent(main_win);
+				}
+			}
 			mouse_coord_scan_window_->raise();
 		}
 	}
@@ -4137,41 +4116,19 @@ bool MainWindow::eventFilter(QObject *watched,QEvent *event)
 	{
 		const auto *key_event=static_cast<const QKeyEvent *>(event);
 		if(nullptr!=key_event && Qt::Key_Escape==key_event->key() &&
-		   true!=key_event->isAutoRepeat() &&
-		   nullptr!=mouse_coord_scan_window_ &&
-		   nullptr!=controller_)
+		   true!=key_event->isAutoRepeat())
 		{
-			QVariantMap state;
-			QMetaObject::invokeMethod(
-			    controller_,
-			    "mouseCoordWriteScanState",
-			    Qt::BlockingQueuedConnection,
-			    Q_RETURN_ARG(QVariantMap,state));
-			const bool scanning=state.value(QStringLiteral("enabled")).toBool();
-			const bool capture=state.value(QStringLiteral("force_capture")).toBool();
-			if(true==scanning || true==capture)
+			if(true==mouseCoordScanActive())
 			{
-				QMetaObject::invokeMethod(
-				    controller_,
-				    "setMouseCoordWriteScanEnabled",
-				    Qt::BlockingQueuedConnection,
-				    Q_ARG(bool,false));
-				QMetaObject::invokeMethod(
-				    controller_,
-				    "setMouseCoordForceCapture",
-				    Qt::BlockingQueuedConnection,
-				    Q_ARG(bool,false));
-				mouse_coord_scan_window_->setScanChecked(false);
-				mouse_coord_scan_window_->setCaptureChecked(false);
-				refreshMouseUiState();
-				mouse_coord_scan_window_->raise();
-				mouse_coord_scan_window_->activateWindow();
-				mouse_coord_scan_window_->setFocus(Qt::OtherFocusReason);
-				if(nullptr!=statusBar())
-				{
-					statusBar()->showMessage(
-					    tr("Stopped (ESC) — profile mouse mode restored."),4000);
-				}
+				stopMouseCoordScanByEsc();
+				return true;
+			}
+			if(nullptr!=controller_ &&
+			   nullptr!=emu_thread_ && true==emu_thread_->isRunning() &&
+			   true==cached_differential_integration_ &&
+			   true!=cached_mouse_capture_released_)
+			{
+				releaseDifferentialMouseCaptureByEsc();
 				return true;
 			}
 		}
@@ -4460,6 +4417,68 @@ bool MainWindow::mouseCoordScanActive() const
 	        mouse_coord_scan_window_->captureChecked());
 }
 
+void MainWindow::raiseMainWindowForMouseCoordSession()
+{
+	if(true==isMinimized())
+	{
+		showNormal();
+	}
+	raise();
+	activateWindow();
+}
+
+void MainWindow::stopMouseCoordScanByEsc()
+{
+	if(nullptr==controller_ || nullptr==mouse_coord_scan_window_)
+	{
+		return;
+	}
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "setMouseCoordWriteScanEnabled",
+	    Qt::BlockingQueuedConnection,
+	    Q_ARG(bool,false));
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "setMouseCoordForceCapture",
+	    Qt::BlockingQueuedConnection,
+	    Q_ARG(bool,false));
+	mouse_coord_scan_window_->setScanChecked(false);
+	mouse_coord_scan_window_->setCaptureChecked(false);
+	refreshMouseUiState();
+	mouse_coord_scan_window_->raise();
+	mouse_coord_scan_window_->activateWindow();
+	mouse_coord_scan_window_->setFocus(Qt::OtherFocusReason);
+	if(nullptr!=statusBar())
+	{
+		statusBar()->showMessage(
+		    tr("Stopped (ESC) — profile mouse mode restored."),4000);
+	}
+}
+
+void MainWindow::releaseDifferentialMouseCaptureByEsc()
+{
+	if(nullptr==controller_ ||
+	   nullptr==emu_thread_ ||
+	   true!=emu_thread_->isRunning() ||
+	   true!=cached_differential_integration_ ||
+	   true==cached_mouse_capture_released_)
+	{
+		return;
+	}
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "releaseMouseCapture",
+	    Qt::BlockingQueuedConnection);
+	refreshMouseUiState();
+	syncWaylandRelativePointer();
+	updateBlankCursor();
+	if(nullptr!=statusBar())
+	{
+		statusBar()->showMessage(tr("Mouse capture released (ESC)."),4000);
+	}
+}
+
 bool MainWindow::shouldCaptureHostMouse() const
 {
 	if(!isVisible())
@@ -4603,6 +4622,22 @@ void MainWindow::updateMouseModeIndicator()
 		mouse_mode_label_->clear();
 		mouse_mode_label_->setToolTip(QString());
 		mouse_mode_category_=-1;
+		return;
+	}
+
+	if(true==mouseCoordScanActive())
+	{
+		const QString escHint=tr("Exit ESC");
+		const QString text=(0==mouse_mode_phase_) ? tr("Mouse capture") : escHint;
+		mouse_mode_label_->setText(text);
+		mouse_mode_label_->setToolTip(
+		    tr("Memory scan mouse capture is active. Press ESC to stop Scan and capture."));
+		if(-1==mouse_mode_category_ || 3!=mouse_mode_category_)
+		{
+			inputQueue_.ClearMouseButtons();
+			mouse_mode_category_=3;
+			mouse_mode_phase_=0;
+		}
 		return;
 	}
 

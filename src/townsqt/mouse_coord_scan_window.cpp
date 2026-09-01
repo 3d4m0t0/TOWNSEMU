@@ -4,7 +4,6 @@
 
 #include <QCloseEvent>
 #include <QHBoxLayout>
-#include <QCheckBox>
 #include <QColor>
 #include <QFontDatabase>
 #include <QHeaderView>
@@ -107,7 +106,7 @@ MouseCoordScanWindow::MouseCoordScanWindow(QWidget *parent)
 	:DebugTextWindow(tr("Memory scan"),parent)
 {
 	// Exclusive with Settings: title only (no close/min/max). Use Cancel or Update.
-	setWindowFlags(Qt::Tool|Qt::CustomizeWindowHint|Qt::WindowTitleHint);
+	setWindowFlags(Qt::Window|Qt::CustomizeWindowHint|Qt::WindowTitleHint);
 	setCloseButtonVisible(false);
 
 	auto *bar=new QWidget(this);
@@ -119,10 +118,11 @@ MouseCoordScanWindow::MouseCoordScanWindow(QWidget *parent)
 	scan_btn_->setToolTip(
 	    tr("Scan RAM for new coordinate candidates (also turns Mouse capture ON).\n"
 	       "Move the mouse in the emu view.  ESC stops Scan and capture."));
-	capture_chk_=new QCheckBox(tr("Mouse capture ON"),bar);
-	capture_chk_->setToolTip(
+	capture_btn_=new QPushButton(tr("Mouse capture"),bar);
+	capture_btn_->setCheckable(true);
+	capture_btn_->setToolTip(
 	    tr("Alone: refresh list values and drop unrelated candidates (no new Scan picks).\n"
-	       "Forced while Scan is on.  Uncheck or ESC restores the profile mouse mode."));
+	       "Forced while Scan is on.  Press again or ESC restores the profile mouse mode."));
 	auto *clear_range_btn=new QPushButton(tr("Clear min max"),bar);
 	clear_range_btn->setToolTip(
 	    tr("Reset observed min..max on all candidates.\n"
@@ -140,7 +140,7 @@ MouseCoordScanWindow::MouseCoordScanWindow(QWidget *parent)
 	    tr("Close Memory scan and return to Settings → Mouse integration."));
 
 	row->addWidget(scan_btn_);
-	row->addWidget(capture_chk_);
+	row->addWidget(capture_btn_);
 	row->addWidget(clear_range_btn);
 	row->addWidget(clear_scan_btn);
 	row->addWidget(keep_only_btn);
@@ -197,7 +197,7 @@ MouseCoordScanWindow::MouseCoordScanWindow(QWidget *parent)
 		}
 		Q_EMIT scanToggled(on);
 	});
-	connect(capture_chk_,&QCheckBox::toggled,this,[this](bool on){
+	connect(capture_btn_,&QPushButton::toggled,this,[this](bool on){
 		if(true!=on && true==scanChecked())
 		{
 			// Capture alone can stay without Scan; Scan cannot stay without capture.
@@ -289,13 +289,13 @@ void MouseCoordScanWindow::closeEvent(QCloseEvent *event)
 
 void MouseCoordScanWindow::syncCaptureChecked(bool on)
 {
-	if(nullptr==capture_chk_ || capture_chk_->isChecked()==on)
+	if(nullptr==capture_btn_ || capture_btn_->isChecked()==on)
 	{
 		return;
 	}
-	capture_chk_->blockSignals(true);
-	capture_chk_->setChecked(on);
-	capture_chk_->blockSignals(false);
+	capture_btn_->blockSignals(true);
+	capture_btn_->setChecked(on);
+	capture_btn_->blockSignals(false);
 }
 
 void MouseCoordScanWindow::setScanChecked(bool on)
@@ -328,7 +328,7 @@ bool MouseCoordScanWindow::scanChecked(void) const
 
 bool MouseCoordScanWindow::captureChecked(void) const
 {
-	return nullptr!=capture_chk_ && capture_chk_->isChecked();
+	return nullptr!=capture_btn_ && capture_btn_->isChecked();
 }
 
 void MouseCoordScanWindow::keyPressEvent(QKeyEvent *event)

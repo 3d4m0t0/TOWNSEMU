@@ -522,8 +522,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "Mouse capture ON — list refresh / prune (profile paused).",
-      "translation": "Mouse capture ON — list refresh / prune (profile paused)."
+      "source": "Mouse capture ON — list refresh / prune (profile paused). ESC to stop.",
+      "translation": "Mouse capture ON — list refresh / prune (profile paused). ESC to stop."
     },
     {
       "context": "MainWindow",
@@ -539,11 +539,6 @@
       "context": "MainWindow",
       "source": "Scan off — capture may stay on for prune.",
       "translation": "Scan off — capture may stay on for prune."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Stopped (ESC) — profile mouse mode restored.",
-      "translation": "Stopped (ESC) — profile mouse mode restored."
     },
     {
       "context": "MainWindow",
@@ -567,6 +562,31 @@
     },
     {
       "context": "MainWindow",
+      "source": "Stopped (ESC) — profile mouse mode restored.",
+      "translation": "Stopped (ESC) — profile mouse mode restored."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture released (ESC).",
+      "translation": "Mouse capture released (ESC)."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Exit ESC",
+      "translation": "结束ESC"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture",
+      "translation": "Mouse capture"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Memory scan mouse capture is active. Press ESC to stop Scan and capture.",
+      "translation": "Memory scan mouse capture is active. Press ESC to stop Scan and capture."
+    },
+    {
+      "context": "MainWindow",
       "source": "Mouse integration (app-specific settings)",
       "translation": "Mouse integration (app-specific settings)"
     },
@@ -584,11 +604,6 @@
       "context": "MainWindow",
       "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.",
       "translation": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS."
-    },
-    {
-      "context": "MainWindow",
-      "source": "Mouse capture",
-      "translation": "Mouse capture"
     },
     {
       "context": "MainWindow",
@@ -867,13 +882,13 @@
     },
     {
       "context": "MouseCoordScanWindow",
-      "source": "Mouse capture ON",
-      "translation": "Mouse capture ON"
+      "source": "Mouse capture",
+      "translation": "Mouse capture"
     },
     {
       "context": "MouseCoordScanWindow",
-      "source": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Uncheck or ESC restores the profile mouse mode.",
-      "translation": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Uncheck or ESC restores the profile mouse mode."
+      "source": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Press again or ESC restores the profile mouse mode.",
+      "translation": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Press again or ESC restores the profile mouse mode."
     },
     {
       "context": "MouseCoordScanWindow",

@@ -522,8 +522,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "Mouse capture ON — list refresh / prune (profile paused).",
-      "translation": "マウスキャプチャON — 一覧の更新／整理（プロファイル一時停止）"
+      "source": "Mouse capture ON — list refresh / prune (profile paused). ESC to stop.",
+      "translation": "マウスキャプチャON — 一覧更新／整理（プロファイル一時停止）。ESCで停止"
     },
     {
       "context": "MainWindow",
@@ -539,11 +539,6 @@
       "context": "MainWindow",
       "source": "Scan off — capture may stay on for prune.",
       "translation": "スキャンOFF — 整理のためキャプチャはONのままのことがあります"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Stopped (ESC) — profile mouse mode restored.",
-      "translation": "停止（ESC）— プロファイルのマウスモードを復元"
     },
     {
       "context": "MainWindow",
@@ -567,6 +562,31 @@
     },
     {
       "context": "MainWindow",
+      "source": "Stopped (ESC) — profile mouse mode restored.",
+      "translation": "停止（ESC）— プロファイルのマウスモードを復元"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture released (ESC).",
+      "translation": "マウスキャプチャを解除しました（ESC）。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Exit ESC",
+      "translation": "終了ESC"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Mouse capture",
+      "translation": "マウスキャプチャ"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Memory scan mouse capture is active. Press ESC to stop Scan and capture.",
+      "translation": "メモリスキャンでマウスキャプチャ中です。ESCでスキャンとキャプチャを停止します。"
+    },
+    {
+      "context": "MainWindow",
       "source": "Mouse integration (app-specific settings)",
       "translation": "マウス統合(アプリ別設定)"
     },
@@ -584,11 +604,6 @@
       "context": "MainWindow",
       "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.",
       "translation": "マウス統合(マウスBIOS): マウスBIOSを使ったマウス統合を強制します。"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Mouse capture",
-      "translation": "マウスキャプチャ"
     },
     {
       "context": "MainWindow",
@@ -867,13 +882,13 @@
     },
     {
       "context": "MouseCoordScanWindow",
-      "source": "Mouse capture ON",
-      "translation": "マウスキャプチャON"
+      "source": "Mouse capture",
+      "translation": "マウスキャプチャ"
     },
     {
       "context": "MouseCoordScanWindow",
-      "source": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Uncheck or ESC restores the profile mouse mode.",
-      "translation": "単独：一覧の値を更新し、無関係な候補を落とします（新規スキャンなし）。\nスキャン中は強制ON。チェック解除またはESCでプロファイルのマウスモードに戻ります。"
+      "source": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Press again or ESC restores the profile mouse mode.",
+      "translation": "単独：一覧の値を更新し、無関係な候補を落とします（新規スキャンなし）。\nスキャン中は強制ON。もう一度押すかESCでプロファイルのマウスモードに戻ります。"
     },
     {
       "context": "MouseCoordScanWindow",

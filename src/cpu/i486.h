@@ -4530,6 +4530,7 @@ inline void i486DXCommon::SetRegisterValue8(unsigned int reg,unsigned char value
 
 
 #include "i486loadsegreg.h"
+#include "i486debugfetch.h"
 #include "i486instfetch.h"
 #include "i486templatefunctions.h"
 #include "i486runinstruction.h"

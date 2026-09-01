@@ -340,6 +340,8 @@ public:
 	void HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns);
 	/*! Picture click: resume feeding after middle-button release (MOS inactive). */
 	void ResumeMouseCapture(class FMTownsCommon &towns);
+	/*! Release differential capture (show host cursor). Same as middle-button release. */
+	void ReleaseMouseCapture(class FMTownsCommon &towns);
 	/*! Set differential preference (settings / ENA/DIS DIFFMOUSE). */
 	void SetDifferentialMouseIntegrationPreference(bool enabled,class FMTownsCommon *towns);
 	void SetMouseFailsafeShowHostCursor(bool show);
