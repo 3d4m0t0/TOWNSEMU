@@ -1232,6 +1232,11 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "VSync in windowed mode",
+      "translation": "VSync in windowed mode"
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Audio",
       "translation": "Audio"
     },

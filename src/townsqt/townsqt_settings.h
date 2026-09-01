@@ -56,6 +56,9 @@ void setMaintainAspect(bool enabled);
 bool fullscreenVsync();
 void setFullscreenVsync(bool enabled);
 
+bool windowedVsync();
+void setWindowedVsync(bool enabled);
+
 /*! Returns SPRITE_TRANSFER_* (see townsparam.h). */
 int spriteTransferMode();
 void setSpriteTransferMode(int mode);

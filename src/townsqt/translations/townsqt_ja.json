@@ -1232,6 +1232,11 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "VSync in windowed mode",
+      "translation": "ウィンドウ時 VSync同期"
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Audio",
       "translation": "音声"
     },

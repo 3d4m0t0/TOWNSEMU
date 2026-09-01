@@ -330,6 +330,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.damperWireLine=false;
 	v.scanLineEffectIn15KHz=false;
 	v.fullscreenVsync=true;
+	v.windowedVsync=false;
 	v.spriteTransferMode=0;
 	v.pcmResampleHighQuality=false;
 	v.fmVolumePercent=50;
@@ -1021,9 +1022,11 @@ void SettingsDialog::buildUi()
 		scanline_15k_=new QCheckBox(tr("15 kHz scan-line effect"),page);
 		damper_wire_=new QCheckBox(tr("Damper-wire line"),page);
 		fullscreen_vsync_=new QCheckBox(tr("VSync in fullscreen"),page);
+		windowed_vsync_=new QCheckBox(tr("VSync in windowed mode"),page);
 		video_grid->addWidget(scanline_15k_,0,0);
 		video_grid->addWidget(damper_wire_,0,1);
 		video_grid->addWidget(fullscreen_vsync_,1,0);
+		video_grid->addWidget(windowed_vsync_,1,1);
 		video_grid->setColumnStretch(0,1);
 		video_grid->setColumnStretch(1,1);
 		v->addLayout(video_grid);
@@ -2205,6 +2208,7 @@ void SettingsDialog::loadFromValues(const Values &values)
 	damper_wire_->setChecked(values.damperWireLine);
 	scanline_15k_->setChecked(values.scanLineEffectIn15KHz);
 	fullscreen_vsync_->setChecked(values.fullscreenVsync);
+	windowed_vsync_->setChecked(values.windowedVsync);
 	if(nullptr!=pcm_resample_sinc_)
 	{
 		pcm_resample_sinc_->setChecked(values.pcmResampleHighQuality);
@@ -2329,6 +2333,7 @@ void SettingsDialog::applyToValues(Values &out) const
 	out.damperWireLine=damper_wire_->isChecked();
 	out.scanLineEffectIn15KHz=scanline_15k_->isChecked();
 	out.fullscreenVsync=fullscreen_vsync_->isChecked();
+	out.windowedVsync=windowed_vsync_->isChecked();
 	out.pcmResampleHighQuality=(nullptr!=pcm_resample_sinc_ && pcm_resample_sinc_->isChecked());
 	if(nullptr!=sound_backend_)
 	{
@@ -2498,6 +2503,7 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		damper_wire_->setChecked(default_values_.damperWireLine);
 		scanline_15k_->setChecked(default_values_.scanLineEffectIn15KHz);
 		fullscreen_vsync_->setChecked(default_values_.fullscreenVsync);
+		windowed_vsync_->setChecked(default_values_.windowedVsync);
 		if(QAbstractButton *btn=sprite_group_->button(default_values_.spriteTransferMode))
 		{
 			btn->setChecked(true);

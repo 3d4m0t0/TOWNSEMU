@@ -78,9 +78,9 @@ void EmuView::setVideoOptions(int base_scale,bool auto_scale,bool maintain_aspec
 	recomputeDisplayLayout();
 }
 
-void EmuView::setFullscreenVsync(bool enabled)
+void EmuView::setDisplayVsync(bool enabled)
 {
-	fullscreen_vsync_=enabled;
+	display_vsync_=enabled;
 	if(nullptr!=gl_view_)
 	{
 		gl_view_->setSwapIntervalPreference(enabled ? 1 : 0);

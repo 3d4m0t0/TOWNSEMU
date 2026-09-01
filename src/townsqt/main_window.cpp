@@ -1578,6 +1578,7 @@ void MainWindow::openSettingsDialog()
 		initial.damperWireLine=TownsQtSettings::damperWireLine();
 		initial.scanLineEffectIn15KHz=TownsQtSettings::scanLineEffectIn15KHz();
 		initial.fullscreenVsync=TownsQtSettings::fullscreenVsync();
+		initial.windowedVsync=TownsQtSettings::windowedVsync();
 		initial.spriteTransferMode=TownsQtSettings::spriteTransferMode();
 		initial.pcmResampleHighQuality=TownsQtSettings::pcmResampleHighQuality();
 		initial.audioBackend=TownsQtSettings::audioBackend();
@@ -1982,6 +1983,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setAutoScaling(false);
 	TownsQtSettings::setMaintainAspect(true);
 	TownsQtSettings::setFullscreenVsync(effective.fullscreenVsync);
+	TownsQtSettings::setWindowedVsync(effective.windowedVsync);
 	TownsQtSettings::setPcmResampleHighQuality(effective.pcmResampleHighQuality);
 	TownsQtSettings::setAudioBackend(effective.audioBackend);
 	TownsQtSettings::setAudioDevice(effective.audioDevice);
@@ -2123,8 +2125,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 		}
 	}
 	applyWindowScale(std::clamp(effective.displayScale,1,maxDisplayScale()));
-	view_->setFullscreenVsync(effective.fullscreenVsync && isFullScreen());
-	applyFullscreenVsync();
+	applyDisplayVsync();
 	syncDisplayScaleMenu();
 	syncWaylandIdleInhibit();
 	syncMenuChecks();
@@ -4064,6 +4065,7 @@ void MainWindow::showEvent(QShowEvent *event)
 	{
 		emu_started_=true;
 		startEmulator();
+		applyDisplayVsync();
 	}
 	if(!fullscreen_)
 	{
@@ -4096,7 +4098,7 @@ void MainWindow::changeEvent(QEvent *event)
 				applyWindowedLayout();
 			}
 		}
-		applyFullscreenVsync();
+		applyDisplayVsync();
 		syncWaylandIdleInhibit();
 	}
 	else if(QEvent::ActivationChange==event->type())
@@ -4191,7 +4193,7 @@ void MainWindow::toggleFullScreen()
 	{
 		fullscreen_action_->setChecked(fullscreen_);
 	}
-	applyFullscreenVsync();
+	applyDisplayVsync();
 	syncWaylandIdleInhibit();
 }
 
@@ -5204,14 +5206,16 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 	allow_window_resize_=false;
 }
 
-void MainWindow::applyFullscreenVsync()
+void MainWindow::applyDisplayVsync()
 {
 	if(nullptr==view_)
 	{
 		return;
 	}
-	const bool enable=TownsQtSettings::fullscreenVsync() && isFullScreen();
-	view_->setFullscreenVsync(enable);
+	const bool enable=isFullScreen() ?
+	    TownsQtSettings::fullscreenVsync() :
+	    TownsQtSettings::windowedVsync();
+	view_->setDisplayVsync(enable);
 }
 
 void MainWindow::syncWaylandIdleInhibit()

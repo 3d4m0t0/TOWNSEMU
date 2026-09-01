@@ -28,7 +28,7 @@ public:
 	void attachInputQueue(QtInputQueue *inputQueue);
 	void setScale(int scale);
 	void setVideoOptions(int base_scale,bool auto_scale,bool maintain_aspect);
-	void setFullscreenVsync(bool enabled);
+	void setDisplayVsync(bool enabled);
 	void setHostCursorBlank(bool blank);
 	void setMouseDebugCrosshair(bool enabled);
 
@@ -98,7 +98,7 @@ private:
 	int scale_=1;
 	bool auto_scale_=false;
 	bool maintain_aspect_=true;
-	bool fullscreen_vsync_=true;
+	bool display_vsync_=false;
 	uint64_t last_serial_=0;
 	uint64_t scaled_pixmap_serial_=0;
 	int emu_wid_=640;

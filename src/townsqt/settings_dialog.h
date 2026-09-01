@@ -56,6 +56,7 @@ public:
 		bool damperWireLine=false;
 		bool scanLineEffectIn15KHz=false;
 		bool fullscreenVsync=true;
+		bool windowedVsync=false;
 		int spriteTransferMode=0;
 		bool pcmResampleHighQuality=false;
 		QString audioBackend;
@@ -243,6 +244,7 @@ private:
 	QCheckBox *scanline_15k_=nullptr;
 	QCheckBox *damper_wire_=nullptr;
 	QCheckBox *fullscreen_vsync_=nullptr;
+	QCheckBox *windowed_vsync_=nullptr;
 	QButtonGroup *sprite_group_=nullptr;
 
 	QCheckBox *pcm_resample_sinc_=nullptr;

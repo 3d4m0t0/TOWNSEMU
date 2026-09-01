@@ -99,7 +99,7 @@ private:
 	void cleanupStoppedEmulator(EmulatorController *stopping);
 	void completeEmulatorStop();
 	void scheduleRestartEmulator();
-	void applyFullscreenVsync();
+	void applyDisplayVsync();
 	void applyWindowScale(int scale);
 	QSize computeWindowedSizeForScale(int scale) const;
 	int maxDisplayScale() const;

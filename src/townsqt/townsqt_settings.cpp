@@ -50,6 +50,7 @@ constexpr char kCpuKindKey[]="machine/cpu";
 constexpr char kAutoScalingKey[]="display/auto_scaling";
 constexpr char kMaintainAspectKey[]="display/maintain_aspect";
 constexpr char kFullscreenVsyncKey[]="display/fullscreen_vsync";
+constexpr char kWindowedVsyncKey[]="display/windowed_vsync";
 constexpr char kPcmResampleHighQualityKey[]="audio/pcm_resample_hq";
 constexpr char kAudioBackendKey[]="audio/backend";
 constexpr char kAudioDeviceKey[]="audio/device";
@@ -693,6 +694,19 @@ void TownsQtSettings::setFullscreenVsync(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kFullscreenVsyncKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::windowedVsync()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kWindowedVsyncKey),false).toBool();
+}
+
+void TownsQtSettings::setWindowedVsync(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kWindowedVsyncKey),enabled);
 	settings.sync();
 }
 
