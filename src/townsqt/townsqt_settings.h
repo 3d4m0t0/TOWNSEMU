@@ -222,9 +222,13 @@ void setCddaCacheDuringDataRead(bool enabled);
 int cddaCachePostReadGraceSec();
 void setCddaCachePostReadGraceSec(int sec);
 
-/*! Apply per-disc fp_*.ini machine/mouse overrides when a matching profile exists. */
+/*! Per-disc fp_*.ini machine/mouse overrides (always on). */
 bool useDiscProfiles();
 void setUseDiscProfiles(bool enabled);
+
+/*! Load state0_XXXXXXXX.TState at boot when a disc profile exists (Features). */
+bool autoResumeEnabled();
+void setAutoResumeEnabled(bool enabled);
 
 /*! Hard-disk images for SCSI IDs 0..6 (TownsStartParameters::MAX_NUM_SCSI_DEVICES). */
 constexpr int kHddSlotCount=7;

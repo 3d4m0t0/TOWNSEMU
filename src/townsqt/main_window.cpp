@@ -13,6 +13,7 @@
 #include "townsqt_cpu_profile.h"
 #include "townsqt_model_profile.h"
 #include "townsqt_paths.h"
+#include "townsqt_disc_statesave.h"
 #include "townsqt_rom_availability.h"
 #include "townsqt_app_profile.h"
 #include "townsqt_settings.h"
@@ -288,7 +289,7 @@ bool MachineSettingsNeedRestart(const SettingsDialog::Values &values,const Towns
 	const bool runningFpu=argv.useFPU;
 	const bool runningFastScsi=argv.fastSCSI;
 	const bool runningFastFd=argv.fastFD;
-	if(true==values.discProfileAvailable && true==values.useDiscProfiles)
+	if(true==values.discProfileAvailable)
 	{
 		if(values.profileMemSizeInMB!=runningMem)
 		{
@@ -448,7 +449,6 @@ void MainWindow::setupEmulatorConnections()
 	connect(controller_,&EmulatorController::fdPathChanged,this,&MainWindow::onFdPathChanged);
 	connect(controller_,&EmulatorController::fdWriteProtectChanged,this,&MainWindow::onFdWriteProtectChanged);
 	connect(controller_,&EmulatorController::fastModeLampChanged,this,&MainWindow::onGuestFastModeLampChanged);
-	connect(this,&MainWindow::cdLoadRequested,controller_,&EmulatorController::loadCdImage,Qt::QueuedConnection);
 	connect(this,&MainWindow::fdLoadRequested,controller_,&EmulatorController::loadFdImage,Qt::QueuedConnection);
 	connect(&poll_timer_,&QTimer::timeout,this,&MainWindow::onPollTimer);
 }
@@ -523,6 +523,7 @@ void MainWindow::startEmulator()
 void MainWindow::clearDiscProfileOverride(void)
 {
 	cached_disc_profile_loaded_=false;
+	cached_disc_fingerprint_hash32_=0;
 	disc_profile_override_active_=false;
 	disc_profile_machine_override_.clear();
 }
@@ -530,7 +531,7 @@ void MainWindow::clearDiscProfileOverride(void)
 bool MainWindow::loadDiscProfileOverrideForPath(const QString &cdPath)
 {
 	clearDiscProfileOverride();
-	if(cdPath.isEmpty() || true!=TownsQtSettings::useDiscProfiles())
+	if(cdPath.isEmpty())
 	{
 		return false;
 	}
@@ -541,6 +542,7 @@ bool MainWindow::loadDiscProfileOverrideForPath(const QString &cdPath)
 		return false;
 	}
 	cached_disc_profile_loaded_=scan.DiscProfileLoaded();
+	cached_disc_fingerprint_hash32_=scan.GetActiveProfile().discFingerprintHash32;
 	const QVariantMap machine=DiscMachineMapFromScanProfile(scan.GetActiveProfile());
 	disc_profile_override_active_=cached_disc_profile_loaded_ && !machine.isEmpty();
 	disc_profile_machine_override_=disc_profile_override_active_ ? machine : QVariantMap();
@@ -561,13 +563,17 @@ void MainWindow::prepareArgvForNextBoot(void)
 
 	QString cdPath=pending_boot_cd_path_;
 	pending_boot_cd_path_.clear();
-	if(cdPath.isEmpty() && !argv_.cdImgFName.empty())
-	{
-		cdPath=QString::fromStdString(argv_.cdImgFName);
-	}
 	if(cdPath.isEmpty())
 	{
 		cdPath=TownsQtSettings::lastCdImagePath();
+	}
+	if(cdPath.isEmpty() && !cd_path_.isEmpty())
+	{
+		cdPath=cd_path_;
+	}
+	if(cdPath.isEmpty() && !argv_.cdImgFName.empty())
+	{
+		cdPath=QString::fromStdString(argv_.cdImgFName);
 	}
 	if(!cdPath.isEmpty())
 	{
@@ -579,6 +585,7 @@ void MainWindow::prepareArgvForNextBoot(void)
 	}
 	if(!cdPath.isEmpty() && QFile::exists(cdPath))
 	{
+		// A/C: mount CD → profile → state-save path for this boot only (not cached in argv after apply).
 		argv_.cdImgFName=cdPath.toStdString();
 		cd_path_=cdPath;
 		TownsQtSettings::setLastCdImagePath(cdPath);
@@ -588,6 +595,36 @@ void MainWindow::prepareArgvForNextBoot(void)
 	{
 		argv_.cdImgFName.clear();
 		clearDiscProfileOverride();
+	}
+	argv_.startUpStateFName.clear();
+	if(!cdPath.isEmpty() && true==TownsQtSettings::autoResumeEnabled())
+	{
+		bool apply_startup_state_save=true;
+		// Manual restart with the same CD: cold boot from saved state, not state save.
+		if(true==refreshedFromSettings && !cd_path_at_last_boot_.isEmpty())
+		{
+			apply_startup_state_save=(cd_path_at_last_boot_!=cdPath);
+		}
+		else if(true==refreshedFromSettings)
+		{
+			apply_startup_state_save=false;
+		}
+		if(true==apply_startup_state_save)
+		{
+			const QString statePath=TownsQtDiscStateSave::StartupStateSavePathForDisc(cdPath);
+			if(!statePath.isEmpty())
+			{
+				argv_.startUpStateFName=statePath.toStdString();
+			}
+		}
+	}
+	if(!cdPath.isEmpty())
+	{
+		cd_path_at_last_boot_=cdPath;
+	}
+	else
+	{
+		cd_path_at_last_boot_.clear();
 	}
 	applyDiscProfileOverridesToArgv();
 
@@ -639,20 +676,38 @@ void MainWindow::requestCdImageChange(const QString &path)
 	}
 	TownsQtSettings::rememberFileDialogPath(usePath);
 	TownsQtSettings::addRecentCdImagePath(usePath);
+	rebuildRecentCdMenu();
+
+	// Live CD swap: state save → eject → mount.  Do not restart the emulator.
+	if(nullptr!=emu_thread_ && emu_thread_->isRunning() && nullptr!=controller_)
+	{
+		pending_boot_cd_path_.clear();
+		bool swapped=false;
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "swapCdImage",
+		    Qt::BlockingQueuedConnection,
+		    Q_RETURN_ARG(bool,swapped),
+		    Q_ARG(QString,usePath));
+		if(true!=swapped)
+		{
+			statusBar()->showMessage(tr("Failed to load CD image"),5000);
+			return;
+		}
+		cd_path_=usePath;
+		argv_.cdImgFName=usePath.toStdString();
+		TownsQtSettings::setLastCdImagePath(usePath);
+		updateOpenCdMenuLabel();
+		syncEjectMenus();
+		applyRuntimeDiscProfileOverrides();
+		statusBar()->showMessage(tr("CD: %1").arg(QFileInfo(usePath).fileName()),5000);
+		return;
+	}
 	TownsQtSettings::setLastCdImagePath(usePath);
 	cd_path_=usePath;
 	argv_.cdImgFName=usePath.toStdString();
 	updateOpenCdMenuLabel();
 	syncEjectMenus();
-	rebuildRecentCdMenu();
-
-	// Live CD swap: CDLOAD + disc-profile reload.  Do not restart the emulator.
-	if(nullptr!=emu_thread_ && emu_thread_->isRunning() && nullptr!=controller_)
-	{
-		pending_boot_cd_path_.clear();
-		Q_EMIT cdLoadRequested(usePath);
-		return;
-	}
 	pending_boot_cd_path_=usePath;
 	if(true==emu_restarting_)
 	{
@@ -869,7 +924,7 @@ void MainWindow::setupMenuBar()
 	connect(eject_cd_action_,&QAction::triggered,this,[this]{
 		if(nullptr!=controller_)
 		{
-			QMetaObject::invokeMethod(controller_,"ejectCd",Qt::QueuedConnection);
+			QMetaObject::invokeMethod(controller_,"ejectCd",Qt::BlockingQueuedConnection);
 		}
 	});
 	cd_recent_menu_=cdromMenu->addMenu(tr("Open &recent files"));
@@ -936,6 +991,24 @@ void MainWindow::setupMenuBar()
 	auto *toolsMenu=menuBar()->addMenu(tr("&Tools"));
 	auto *settingsAction=toolsMenu->addAction(tr("&Settings…"));
 	connect(settingsAction,&QAction::triggered,this,&MainWindow::openSettingsDialog);
+	toolsMenu->addSeparator();
+	auto *stateMenu=toolsMenu->addMenu(tr("&State"));
+	auto *stateLoadMenu=stateMenu->addMenu(tr("&Load"));
+	for(int slot=0; slot<=9; ++slot)
+	{
+		auto *loadSlotAction=stateLoadMenu->addAction(tr("Slot %1").arg(slot));
+		connect(loadSlotAction,&QAction::triggered,this,[this,slot]{
+			loadStateSlotFromMenu(slot);
+		});
+	}
+	auto *stateSaveMenu=stateMenu->addMenu(tr("&Save"));
+	for(int slot=1; slot<=9; ++slot)
+	{
+		auto *saveSlotAction=stateSaveMenu->addAction(tr("Slot %1").arg(slot));
+		connect(saveSlotAction,&QAction::triggered,this,[this,slot]{
+			saveStateSlotFromMenu(slot);
+		});
+	}
 	toolsMenu->addSeparator();
 	auto *audioMixerAction=toolsMenu->addAction(tr("Audio mixer…"));
 	connect(audioMixerAction,&QAction::triggered,this,&MainWindow::openAudioMixerDialog);
@@ -1609,7 +1682,8 @@ void MainWindow::openSettingsDialog()
 		initial.mouseMaxX=TownsQtSettings::mouseMaxX();
 		initial.mouseMaxY=TownsQtSettings::mouseMaxY();
 		initial.appSpecificSetting=TownsQtSettings::appSpecificSetting();
-		initial.useDiscProfiles=TownsQtSettings::useDiscProfiles();
+		initial.useDiscProfiles=true;
+		initial.autoResumeEnabled=TownsQtSettings::autoResumeEnabled();
 		for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 		{
 			initial.hdd[slot].enabled=TownsQtSettings::hddEnabled(slot);
@@ -1971,10 +2045,10 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	const bool model_changed=(effective.modelGroupIndex!=prev_model);
 	const QString prev_audio_backend=TownsQtSettings::audioBackend();
 	const QString prev_audio_device=TownsQtSettings::audioDevice();
-	const bool prev_use_disc_profiles=TownsQtSettings::useDiscProfiles();
+	const bool prev_auto_resume=TownsQtSettings::autoResumeEnabled();
 	const bool needs_emu_restart=
 	    (prev_app_specific!=effective.appSpecificSetting) ||
-	    (prev_use_disc_profiles!=effective.useDiscProfiles) ||
+	    (prev_auto_resume!=effective.autoResumeEnabled) ||
 	    MachineSettingsNeedRestart(effective,argv_);
 	effective.displayScale=std::clamp(effective.displayScale,1,maxDisplayScale());
 	effective.autoScaling=false;
@@ -2095,15 +2169,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setMouseMaxX(effective.mouseMaxX);
 	TownsQtSettings::setMouseMaxY(effective.mouseMaxY);
 	TownsQtSettings::setAppSpecificSetting(effective.appSpecificSetting);
-	TownsQtSettings::setUseDiscProfiles(effective.useDiscProfiles);
-	if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
-	{
-		QMetaObject::invokeMethod(
-		    controller_,
-		    "setUseDiscProfiles",
-		    Qt::QueuedConnection,
-		    Q_ARG(bool,effective.useDiscProfiles));
-	}
+	TownsQtSettings::setAutoResumeEnabled(effective.autoResumeEnabled);
 	updateWindowTitle();
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
@@ -2326,7 +2392,7 @@ void MainWindow::fillDiscProfileSettings(SettingsDialog::Values &values) const
 
 bool MainWindow::runtimeUseDiscProfile() const
 {
-	return TownsQtSettings::useDiscProfiles() && true==cached_disc_profile_loaded_;
+	return true==cached_disc_profile_loaded_;
 }
 
 void MainWindow::applyDiscProfileOverridesToArgv()
@@ -2451,9 +2517,13 @@ void MainWindow::applyRuntimeDiscProfileOverrides()
 	    Qt::BlockingQueuedConnection,
 	    Q_RETURN_ARG(QVariantMap,state));
 	cached_disc_profile_loaded_=state.value(QStringLiteral("disc_profile_loaded")).toBool();
-	const bool useProfiles=TownsQtSettings::useDiscProfiles();
-	const bool wantOverride=
-	    true==useProfiles && true==cached_disc_profile_loaded_;
+	cached_disc_fingerprint_hash32_=state.value(QStringLiteral("disc_fingerprint_hash32")).toUInt();
+	if(0==cached_disc_fingerprint_hash32_)
+	{
+		cached_disc_fingerprint_hash32_=
+		    state.value(QStringLiteral("prof_disc_fingerprint_hash32")).toUInt();
+	}
+	const bool wantOverride=true==cached_disc_profile_loaded_;
 
 	QVariantMap machine;
 	auto copyKey=[&](const char *from,const char *to){
@@ -2920,6 +2990,15 @@ void MainWindow::updateOpenFdMenuLabel(int drive)
 void MainWindow::onCdPathChanged(const QString &path)
 {
 	cd_path_=path;
+	if(path.isEmpty())
+	{
+		argv_.cdImgFName.clear();
+	}
+	else
+	{
+		argv_.cdImgFName=path.toStdString();
+		TownsQtSettings::setLastCdImagePath(path);
+	}
 	updateOpenCdMenuLabel();
 	syncEjectMenus();
 	if(path.isEmpty())
@@ -3082,14 +3161,11 @@ void MainWindow::updateProfileEnabledIndicator()
 	{
 		return;
 	}
-	const bool profileActive=
-	    true==TownsQtSettings::useDiscProfiles() &&
-	    true==cached_disc_profile_loaded_;
+	const bool profileActive=true==cached_disc_profile_loaded_;
 	if(true==profileActive)
 	{
 		profile_enabled_label_->setText(tr("Profile enabled"));
-		profile_enabled_label_->setToolTip(
-		    tr("A disc profile is loaded and “Use disc profiles” is on."));
+		profile_enabled_label_->setToolTip(tr("A disc profile is loaded for the mounted CD."));
 	}
 	else
 	{
@@ -4596,6 +4672,12 @@ void MainWindow::refreshMouseUiState()
 	    QStringLiteral("integration_mode"),
 	    MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL).toInt();
 	cached_disc_profile_loaded_=state.value(QStringLiteral("disc_profile_loaded")).toBool();
+	cached_disc_fingerprint_hash32_=state.value(QStringLiteral("disc_fingerprint_hash32")).toUInt();
+	if(0==cached_disc_fingerprint_hash32_)
+	{
+		cached_disc_fingerprint_hash32_=
+		    state.value(QStringLiteral("prof_disc_fingerprint_hash32")).toUInt();
+	}
 	if(nullptr!=active_settings_dialog_)
 	{
 		active_settings_dialog_->setMouseBiosActive(cached_mouse_bios_active_);
@@ -5317,6 +5399,85 @@ void MainWindow::completeEmulatorStop()
 	}
 }
 
+void MainWindow::loadStateSlotFromMenu(int slot)
+{
+	if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
+	{
+		statusBar()->showMessage(tr("Emulator is not running"),5000);
+		return;
+	}
+	bool ok=false;
+	const bool invoked=QMetaObject::invokeMethod(
+	    controller_,
+	    "loadStateSlot",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(bool,ok),
+	    Q_ARG(int,slot));
+	if(true!=invoked)
+	{
+		statusBar()->showMessage(tr("Failed to load state slot %1").arg(slot),5000);
+		return;
+	}
+	if(true==ok)
+	{
+		statusBar()->showMessage(tr("State slot %1 loaded").arg(slot),5000);
+	}
+	else if(0==slot)
+	{
+		statusBar()->showMessage(tr("No resume state for the mounted CD (slot 0)"),5000);
+	}
+	else
+	{
+		statusBar()->showMessage(tr("Failed to load state slot %1").arg(slot),5000);
+	}
+}
+
+void MainWindow::saveStateSlotFromMenu(int slot)
+{
+	if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
+	{
+		statusBar()->showMessage(tr("Emulator is not running"),5000);
+		return;
+	}
+	bool ok=false;
+	const bool invoked=QMetaObject::invokeMethod(
+	    controller_,
+	    "saveStateSlot",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(bool,ok),
+	    Q_ARG(int,slot));
+	if(true!=invoked || true!=ok)
+	{
+		statusBar()->showMessage(tr("Failed to save state slot %1").arg(slot),5000);
+		return;
+	}
+	statusBar()->showMessage(tr("State slot %1 saved").arg(slot),5000);
+}
+
+void MainWindow::maybeSaveDiscStateSaveBeforeStop(EmulatorController *controller)
+{
+	if(nullptr==controller)
+	{
+		return;
+	}
+	bool saved=false;
+	const bool invoked=QMetaObject::invokeMethod(
+	    controller,
+	    "saveDiscStateSaveIfProfiled",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(bool,saved),
+	    Q_ARG(bool,false));
+	if(true!=invoked)
+	{
+		std::cerr << "Tsugaru_QT: saveDiscStateSaveIfProfiled invoke failed" << std::endl;
+		return;
+	}
+	if(true!=saved)
+	{
+		std::cerr << "Tsugaru_QT: disc state save failed (no profile or write failed)" << std::endl;
+	}
+}
+
 void MainWindow::stopEmulatorAsync(const std::function<void()> &on_stopped)
 {
 	if(emu_stop_in_progress_)
@@ -5339,6 +5500,10 @@ void MainWindow::stopEmulatorAsync(const std::function<void()> &on_stopped)
 
 	poll_timer_.stop();
 	EmulatorController *const stopping=controller_;
+	if(nullptr!=stopping && true!=emu_restarting_)
+	{
+		maybeSaveDiscStateSaveBeforeStop(stopping);
+	}
 	controller_=nullptr;
 	teardownEmulatorConnections();
 

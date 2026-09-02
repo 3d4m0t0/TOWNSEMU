@@ -312,6 +312,56 @@
     },
     {
       "context": "MainWindow",
+      "source": "&State",
+      "translation": "&State"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Load",
+      "translation": "&Load"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Save",
+      "translation": "&Save"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Slot %1",
+      "translation": "Slot %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator is not running",
+      "translation": "Emulator is not running"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 loaded",
+      "translation": "State slot %1 loaded"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to load state slot %1",
+      "translation": "Failed to load state slot %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "No resume state for the mounted CD (slot 0)",
+      "translation": "No resume state for the mounted CD (slot 0)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 saved",
+      "translation": "State slot %1 saved"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to save state slot %1",
+      "translation": "Failed to save state slot %1"
+    },
+    {
+      "context": "MainWindow",
       "source": "Audio mixer…",
       "translation": "Audio mixer…"
     },
@@ -512,8 +562,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "A disc profile is loaded and “Use disc profiles” is on.",
-      "translation": "A disc profile is loaded and “Use disc profiles” is on."
+      "source": "A disc profile is loaded for the mounted CD.",
+      "translation": "A disc profile is loaded for the mounted CD."
     },
     {
       "context": "MainWindow",
@@ -1302,13 +1352,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Use disc profiles",
-      "translation": "Use disc profiles"
+      "source": "Enable auto-resume",
+      "translation": "Enable auto-resume"
     },
     {
       "context": "SettingsDialog",
-      "source": "Save settings per mounted CD as a disc profile under profiles/.\nWhen enabled, a matching profile automatically overrides Basics defaults\nat startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\nalso stored and restored when the profile is applied.",
-      "translation": "Save settings per mounted CD as a disc profile under profiles/.\nWhen enabled, a matching profile automatically overrides Basics defaults\nat startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\nalso stored and restored when the profile is applied."
+      "source": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded.",
+      "translation": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded."
     },
     {
       "context": "SettingsDialog",
@@ -1347,8 +1397,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "MOS unused detection (test)",
-      "translation": "MOS unused detection (test)"
+      "source": "MOS unused",
+      "translation": "MOS unused"
     },
     {
       "context": "SettingsDialog",

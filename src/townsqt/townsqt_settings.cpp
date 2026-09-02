@@ -68,6 +68,7 @@ constexpr char kMouseIntegrVramOffsetKey[]="peripheral/mouse_integr_vram_offset"
 constexpr char kDifferentialMouseKey[]="peripheral/differential_mouse";
 constexpr char kAutoDiffOnMosUnusedKey[]="peripheral/auto_diff_on_mos_unused";
 constexpr char kUseDiscProfilesKey[]="function/use_disc_profiles";
+constexpr char kAutoResumeKey[]="function/auto_resume";
 constexpr char kAutoDiffOnMosUnusedLegacyKey[]="peripheral/auto_diff_on_mouse_bios_stop";
 constexpr char kMouseMinXKey[]="peripheral/mouse_min_x";
 constexpr char kMouseMinYKey[]="peripheral/mouse_min_y";
@@ -1651,14 +1652,26 @@ void TownsQtSettings::setCddaCachePostReadGraceSec(int sec)
 
 bool TownsQtSettings::useDiscProfiles()
 {
-	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	return settings.value(QString::fromLatin1(kUseDiscProfilesKey),true).toBool();
+	return true;
 }
 
-void TownsQtSettings::setUseDiscProfiles(bool enabled)
+void TownsQtSettings::setUseDiscProfiles(bool /*enabled*/)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	settings.setValue(QString::fromLatin1(kUseDiscProfilesKey),enabled);
+	settings.setValue(QString::fromLatin1(kUseDiscProfilesKey),true);
+	settings.sync();
+}
+
+bool TownsQtSettings::autoResumeEnabled()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kAutoResumeKey),true).toBool();
+}
+
+void TownsQtSettings::setAutoResumeEnabled(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kAutoResumeKey),enabled);
 	settings.sync();
 }
 

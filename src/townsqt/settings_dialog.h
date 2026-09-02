@@ -88,8 +88,9 @@ public:
 		int mouseMaxY=767;
 		unsigned int appSpecificSetting=TOWNS_APPSPECIFIC_NONE;
 		HddSlot hdd[TownsQtSettings::kHddSlotCount];
-		/*! Global: apply per-disc profiles when present (Features). */
+		/*! Always true (disc profiles are always enabled). */
 		bool useDiscProfiles=true;
+		bool autoResumeEnabled=true;
 		/*! Live disc profile state (not stored in townsqt.conf). */
 		bool discMounted=false;
 		bool discProfileAvailable=false;
@@ -238,7 +239,7 @@ private:
 	QWidget *profile_fields_box_=nullptr;
 	QLabel *basics_footer_label_=nullptr;
 
-	QCheckBox *use_disc_profiles_=nullptr;
+	QCheckBox *auto_resume_enabled_=nullptr;
 
 	QSpinBox *display_scale_=nullptr;
 	QCheckBox *scanline_15k_=nullptr;

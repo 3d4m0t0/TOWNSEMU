@@ -21,6 +21,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <atomic>
+#include <functional>
 
 #include "towns.h"
 #include "outside_world.h"
@@ -32,6 +34,8 @@ private:
 	FMTownsCommon *townsPtr;
 	int runMode=RUNMODE_PAUSE;
 	bool returnOnPause=false;
+	std::atomic<bool> hostPauseAcknowledged_{false};
+	std::function<void(FMTownsCommon &)> onPauseTick_;
 
 	// This will be used for virtually slwoing down CPU when VM is lagging.
 	long long int timeDeficit=0;
@@ -91,6 +95,15 @@ public:
 	/*! If true, VMMainLoop will return when VM is paused.
 	*/
 	void SetReturnOnPause(bool flag);
+
+	/*! Host-side state save: called from RUNMODE_PAUSE on the VM thread. */
+	void SetOnPauseTick(std::function<void(FMTownsCommon &)> fn);
+
+	/*! Wait until the VM loop is executing its RUNMODE_PAUSE body (safe host state-save window). */
+	bool WaitForHostPauseAcknowledged(int timeoutMs=2000) const;
+
+	/*! Clear a stale pause-ack so the next RUNMODE_PAUSE entry can be observed. */
+	void ClearHostPauseAcknowledged(void);
 
 	void PrintStatus(const FMTownsCommon &towns) const;
 };

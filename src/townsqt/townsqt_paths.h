@@ -15,7 +15,9 @@ QString configFilePath();
 QString profilesDir();
 /*! User mouse-integration presets: <configDir>/mouse_presets/mouse_XXXXXXXX.ini */
 QString mousePresetsDir();
+/*! Per-disc VM state saves: <configDir>/statesave/state0_XXXXXXXX.TState */
+QString stateSaveDir();
 
-/*! Create configDir, romsDir, blankFdDir, hddDir, profilesDir, and mousePresetsDir if missing. */
+/*! Create configDir, romsDir, blankFdDir, hddDir, profilesDir, mousePresetsDir, and stateSaveDir if missing. */
 bool ensureLayout();
 }

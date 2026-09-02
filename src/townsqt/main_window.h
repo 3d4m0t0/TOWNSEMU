@@ -72,9 +72,10 @@ private Q_SLOTS:
 	void onDiscProfileStateChanged();
 	void toggleFullScreen();
 	void showAboutDialog();
+	void loadStateSlotFromMenu(int slot);
+	void saveStateSlotFromMenu(int slot);
 
 Q_SIGNALS:
-	void cdLoadRequested(const QString &path);
 	void fdLoadRequested(int drive,const QString &path);
 
 private:
@@ -87,7 +88,7 @@ private:
 	/*! Load fp_*.ini machine map for a disc image without an EMU core. */
 	bool loadDiscProfileOverrideForPath(const QString &cdPath);
 	void clearDiscProfileOverride(void);
-	/*! Live CD image change (CDLOAD; no emulator restart). */
+	/*! Live CD image change (state save → eject → mount; no emulator restart). */
 	void requestCdImageChange(const QString &path);
 	void fillDiscProfileSettings(SettingsDialog::Values &values) const;
 	void applyRuntimeDiscProfileOverrides();
@@ -96,6 +97,8 @@ private:
 	void teardownEmulatorConnections();
 	void stopEmulator();
 	void stopEmulatorAsync(const std::function<void()> &on_stopped);
+	/*! On app exit only (not emulator restart): save state0_XXXXXXXX.TState before teardown. */
+	void maybeSaveDiscStateSaveBeforeStop(EmulatorController *controller);
 	void cleanupStoppedEmulator(EmulatorController *stopping);
 	void completeEmulatorStop();
 	void scheduleRestartEmulator();
@@ -187,6 +190,8 @@ private:
 	QThread *emu_thread_=nullptr;
 	QTimer poll_timer_;
 	QString cd_path_;
+	/*! Canonical CD path used at the previous emulator boot (restart state-save policy). */
+	QString cd_path_at_last_boot_;
 	/*! CD path to mount on the next startEmulator (set by open/recent before stop→start). */
 	QString pending_boot_cd_path_;
 	QString fd_path_[2];
@@ -254,6 +259,7 @@ private:
 	bool cached_mouse_profile_apply_=false;
 	int cached_integration_mode_=0;
 	bool cached_disc_profile_loaded_=false;
+	unsigned int cached_disc_fingerprint_hash32_=0;
 	bool disc_profile_override_active_=false;
 	QVariantMap disc_profile_machine_override_;
 	QLabel *profile_enabled_label_=nullptr;

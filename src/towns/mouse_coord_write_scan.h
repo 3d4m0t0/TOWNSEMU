@@ -542,6 +542,8 @@ public:
 	    Unset values are written as 0; CD basename/size are preserved. */
 	bool ResetProfileSettings(void);
 	bool TryLoadForDisc(const std::string &discPath);
+	/*! After LoadState: reload disc profile and re-arm bound app-exec identity (in-game). */
+	void SyncAfterStateLoad(void);
 	void ClearActiveProfile(void);
 	/*! Create a new fp_*.ini for the mounted disc from machine defaults (no mouse phys yet). */
 	bool CreateProfileForCurrentDisc(const MachineSettings &machineDefaults);

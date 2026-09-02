@@ -357,6 +357,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.mouseMaxY=TownsStartParameters::DEFAULT_MOUSE_MAXY;
 	v.appSpecificSetting=TOWNS_APPSPECIFIC_NONE;
 	v.useDiscProfiles=true;
+	v.autoResumeEnabled=true;
 	v.discMounted=false;
 	v.discProfileAvailable=false;
 	v.discProfileCreateRequested=false;
@@ -1168,23 +1169,14 @@ void SettingsDialog::buildUi()
 		auto *v=new QVBoxLayout(page);
 		CompactVBox(v);
 
-		use_disc_profiles_=new QCheckBox(tr("Use disc profiles"),page);
-		connect(use_disc_profiles_,&QCheckBox::toggled,this,[this](bool){
-			updateMachineTabControls();
-		});
-		v->addWidget(use_disc_profiles_);
+		auto_resume_enabled_=new QCheckBox(tr("Enable auto-resume"),page);
+		v->addWidget(auto_resume_enabled_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Save settings per mounted CD as a disc profile under profiles/.\n"
-		       "When enabled, a matching profile automatically overrides Basics defaults\n"
-		       "at startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\n"
-		       "also stored and restored when the profile is applied.")));
-
-		idle_inhibit_=new QCheckBox(tr("Inhibit display idle"),page);
-		v->addWidget(idle_inhibit_);
-		v->addWidget(MakeIndentedNote(
-		    page,
-		    tr("Prevents automatic screen blanking/dimming on Wayland sessions.")));
+		    tr("When a disc profile exists for the mounted CD image, automatically save and\n"
+		       "resume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\n"
+		       "app exit, startup, and CD change. Manual restart with the same CD does not\n"
+		       "load a saved state. When off, state saves are neither written nor loaded.")));
 
 		snap_mouse_integration_=new QCheckBox(tr("Faster mouse integration"),page);
 		v->addWidget(snap_mouse_integration_);
@@ -1208,8 +1200,13 @@ void SettingsDialog::buildUi()
 		       "playback is considered finished.")));
 		connect(cdda_cache_during_data_read_,&QCheckBox::toggled,cdda_cache_post_read_grace_sec_,&QWidget::setEnabled);
 
-		auto_diff_on_mos_unused_=new QCheckBox(
-		    tr("MOS unused detection (test)"),page);
+		idle_inhibit_=new QCheckBox(tr("Inhibit display idle"),page);
+		v->addWidget(idle_inhibit_);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("Prevents automatic screen blanking/dimming on Wayland sessions.")));
+
+		auto_diff_on_mos_unused_=new QCheckBox(tr("MOS unused"),page);
 		v->addWidget(auto_diff_on_mos_unused_);
 		v->addWidget(MakeIndentedNote(
 		    page,
@@ -2272,9 +2269,9 @@ void SettingsDialog::loadFromValues(const Values &values)
 	{
 		auto_diff_on_mos_unused_->setChecked(values.autoDifferentialOnMosUnused);
 	}
-	if(nullptr!=use_disc_profiles_)
+	if(nullptr!=auto_resume_enabled_)
 	{
-		use_disc_profiles_->setChecked(values.useDiscProfiles);
+		auto_resume_enabled_->setChecked(values.autoResumeEnabled);
 	}
 	updateProfileTabControls();
 	updateFunctionTab();
@@ -2390,7 +2387,8 @@ void SettingsDialog::applyToValues(Values &out) const
 	{
 		out.autoDifferentialOnMosUnused=auto_diff_on_mos_unused_->isChecked();
 	}
-	out.useDiscProfiles=nullptr!=use_disc_profiles_ && use_disc_profiles_->isChecked();
+	out.useDiscProfiles=true;
+	out.autoResumeEnabled=nullptr!=auto_resume_enabled_ && auto_resume_enabled_->isChecked();
 	out.discMounted=values_.discMounted;
 	out.discProfileAvailable=values_.discProfileAvailable;
 	out.discProfileFileName=values_.discProfileFileName;
@@ -2549,9 +2547,9 @@ void SettingsDialog::resetCurrentTabToDefaults()
 	}
 	else if(page==function_page_)
 	{
-		if(nullptr!=use_disc_profiles_)
+		if(nullptr!=auto_resume_enabled_)
 		{
-			use_disc_profiles_->setChecked(default_values_.useDiscProfiles);
+			auto_resume_enabled_->setChecked(default_values_.autoResumeEnabled);
 		}
 		if(nullptr!=idle_inhibit_)
 		{

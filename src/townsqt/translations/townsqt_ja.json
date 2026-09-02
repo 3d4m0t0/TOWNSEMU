@@ -312,6 +312,56 @@
     },
     {
       "context": "MainWindow",
+      "source": "&State",
+      "translation": "ステート(&S)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Load",
+      "translation": "読み込み(&L)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "&Save",
+      "translation": "保存(&S)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Slot %1",
+      "translation": "スロット %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Emulator is not running",
+      "translation": "エミュレーターは起動していません"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 loaded",
+      "translation": "ステートスロット %1 を読み込みました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to load state slot %1",
+      "translation": "ステートスロット %1 の読み込みに失敗しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "No resume state for the mounted CD (slot 0)",
+      "translation": "マウント中の CD のレジューム用ステート（スロット0）がありません"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 saved",
+      "translation": "ステートスロット %1 を保存しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to save state slot %1",
+      "translation": "ステートスロット %1 の保存に失敗しました"
+    },
+    {
+      "context": "MainWindow",
       "source": "Audio mixer…",
       "translation": "オーディオミキサー…"
     },
@@ -512,8 +562,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "A disc profile is loaded and “Use disc profiles” is on.",
-      "translation": "ディスクプロファイルが読み込まれ、「ディスクプロファイルを使用」がオンです。"
+      "source": "A disc profile is loaded for the mounted CD.",
+      "translation": "マウント中の CD 用ディスクプロファイルが読み込まれています。"
     },
     {
       "context": "MainWindow",
@@ -1302,13 +1352,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Use disc profiles",
-      "translation": "ディスクプロファイルを使用"
+      "source": "Enable auto-resume",
+      "translation": "オートレジューム有効"
     },
     {
       "context": "SettingsDialog",
-      "source": "Save settings per mounted CD as a disc profile under profiles/.\nWhen enabled, a matching profile automatically overrides Basics defaults\nat startup or when the CD is mounted. Floppy (FD0/FD1) mount state is\nalso stored and restored when the profile is applied.",
-      "translation": "マウント中の CD ごとにディスクプロファイルとして profiles/ に設定を保存します。\n有効時、一致するプロファイルが起動時または CD マウント時に、基本構成の既定値を\n自動で上書きします。フロッピー（FD0/FD1）のマウント状況も保存され、\nプロファイル適用時に自動で再現されます。"
+      "source": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded.",
+      "translation": "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了・起動・CD 変更時に、\nディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n必要に応じて自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\nオフのときは、ステートセーブの自動保存・自動読み込みを行いません。"
     },
     {
       "context": "SettingsDialog",
@@ -1347,8 +1397,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "MOS unused detection (test)",
-      "translation": "MOS未使用検出（試験）"
+      "source": "MOS unused",
+      "translation": "MOS未使用"
     },
     {
       "context": "SettingsDialog",

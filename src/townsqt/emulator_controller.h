@@ -32,6 +32,8 @@ public Q_SLOTS:
 	void resetMachine();
 	void loadCdImage(const QString &path);
 	void ejectCd();
+	/*! Save state save, eject current CD, then mount path (emulator thread only). */
+	Q_INVOKABLE bool swapCdImage(const QString &path);
 	void loadFdImage(int drive,const QString &path);
 	void ejectFd(int drive);
 	void setFdWriteProtect(int drive,bool write_protect);
@@ -124,6 +126,16 @@ public Q_SLOTS:
 	Q_INVOKABLE void applySnapMouseSettings(bool enabled,int warmup_frames);
 	Q_INVOKABLE bool snapMouseIntegration() const;
 	Q_INVOKABLE void applyCddaCacheSettings(bool enabled,int post_read_grace_sec);
+	/*! Save VM state to path (emulator thread only). Pauses the VM first. */
+	Q_INVOKABLE bool saveStateToFile(const QString &path,bool resume_run_after=true);
+	/*! Load VM state from path (emulator thread only). Pauses the VM first. */
+	Q_INVOKABLE bool loadStateFromFile(const QString &path);
+	/*! Load state slot 0 = resume (state0_*); slots 1..9 = manual stateN.TState. */
+	Q_INVOKABLE bool loadStateSlot(int slot);
+	/*! Save manual state slot 1..9 (slot 0 is resume-only). */
+	Q_INVOKABLE bool saveStateSlot(int slot);
+	/*! Save state0_XXXXXXXX.TState when a disc profile is active (emulator thread only). */
+	Q_INVOKABLE bool saveDiscStateSaveIfProfiled(bool resume_run_after=true);
 
 Q_SIGNALS:
 	void frameReady();
@@ -173,6 +185,7 @@ private:
 	void presentDueFrames();
 	void updateStats();
 	void loadCdImageInternal(const QString &path);
+	void runPendingStateSaveOnVmThread(FMTownsCommon &towns);
 	/*! When disc profiles are enabled and loaded, write current FD0/FD1 paths into fp_*.ini. */
 	void persistFdMountsToDiscProfile(void);
 };

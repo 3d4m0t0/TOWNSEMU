@@ -10,6 +10,7 @@
 #include "townsdef.h"
 #include "qt_sync_sound.h"
 #include "townsqt_paths.h"
+#include "townsqt_disc_statesave.h"
 #include "townsqt_cpu_profile.h"
 #include "townsqt_model_profile.h"
 #include "townsqt_settings.h"
@@ -29,7 +30,9 @@
 #include <QVariantList>
 
 #include <algorithm>
+#include <chrono>
 #include <exception>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -133,6 +136,11 @@ struct EmulatorController::Impl
 	QtCommandThread cmdThread;
 	std::thread vmThread;
 	std::thread uiThread;
+	std::mutex pending_state_save_mutex;
+	std::string pending_state_save_path;
+	std::atomic<bool> pending_state_save_requested{false};
+	std::atomic<bool> pending_state_save_completed{false};
+	std::atomic<bool> pending_state_save_success{false};
 };
 
 EmulatorController::EmulatorController(const TownsARGV &argv,
@@ -192,16 +200,19 @@ void EmulatorController::run()
 		towns.mouseCoordWriteScan.SetProfileDirectory(
 		    TownsQtPaths::profilesDir().toStdString());
 		towns.var.useDiscProfiles=TownsQtSettings::useDiscProfiles();
+		// A/C boot: CD mounted by Setup → profile → optional state save (path not kept in memory).
+		const std::string startupStateFName=towns.var.startUpStateFName;
+		towns.var.startUpStateFName.clear();
+		argv_.startUpStateFName.clear();
 		{
 			const std::string disc=towns.cdrom.state.GetDisc().fName;
 			if(true!=disc.empty())
 			{
+				towns.mouseCoordWriteScan.SetProfileDirectory(
+				    TownsQtPaths::profilesDir().toStdString());
 				towns.mouseCoordWriteScan.TryLoadForDisc(disc);
 			}
 		}
-		QMetaObject::invokeMethod(this,[this](){
-			Q_EMIT discProfileStateChanged();
-		},Qt::QueuedConnection);
 		applyAudioVolumes(
 		    TownsQtSettings::fmChipVolume(),
 		    TownsQtSettings::pcmChipVolume(),
@@ -220,6 +231,26 @@ void EmulatorController::run()
 
 		impl_->window->Start();
 		impl_->window->ClearVMClosedFlag();
+		impl_->outside_world->Start();
+
+		bool startupStateLoaded=false;
+		if(""!=startupStateFName)
+		{
+			if(true==towns.LoadState(startupStateFName))
+			{
+				startupStateLoaded=true;
+			}
+			else
+			{
+				std::cerr << "Tsugaru_QT: Failed to load startup state "
+				          << startupStateFName << std::endl;
+			}
+		}
+
+		QMetaObject::invokeMethod(this,[this](){
+			Q_EMIT discProfileStateChanged();
+		},Qt::QueuedConnection);
+
 		applyPeripheralSettings(
 		    TownsQtSettings::gamePort(0),
 		    TownsQtSettings::gamePort(1),
@@ -232,9 +263,10 @@ void EmulatorController::run()
 		    TownsQtSettings::mouseMinY(),
 		    TownsQtSettings::mouseMaxX(),
 		    TownsQtSettings::mouseMaxY());
-		applyCpuFastMode(TownsQtSettings::cpuFastModeEnabled());
-		// BIOS may rewrite wait/CMOS after Start; re-assert host preference.
+		if(true!=startupStateLoaded)
 		{
+			applyCpuFastMode(TownsQtSettings::cpuFastModeEnabled());
+			// BIOS may rewrite wait/CMOS after Start; re-assert host preference.
 			const bool prefer_fast=TownsQtSettings::cpuFastModeEnabled();
 			QTimer::singleShot(0,this,[this,prefer_fast]{
 				applyCpuFastModeLive(prefer_fast);
@@ -283,6 +315,10 @@ void EmulatorController::run()
 
 		impl_->uiThread=std::thread(
 		    &QtCommandThread::Run,&impl_->cmdThread,&impl_->townsThread,&towns,&argv_,impl_->outside_world);
+
+		impl_->townsThread.SetOnPauseTick([this](FMTownsCommon &townsRef){
+			runPendingStateSaveOnVmThread(townsRef);
+		});
 
 		impl_->vmThread=std::thread([this,&towns]{
 			impl_->townsThread.VMStart(&towns,impl_->outside_world,&impl_->cmdThread);
@@ -386,6 +422,27 @@ void EmulatorController::resetMachine()
 	});
 }
 
+namespace
+{
+bool WriteStateSaveFileForTowns(FMTownsCommon &towns,const std::string &stdPath)
+{
+	const std::string tmpPath=stdPath+".tmp";
+	if(true!=towns.SaveState(tmpPath))
+	{
+		(void)QFile::remove(QString::fromStdString(tmpPath));
+		return false;
+	}
+	QFile::remove(QString::fromStdString(stdPath));
+	if(true!=QFile::rename(QString::fromStdString(tmpPath),QString::fromStdString(stdPath)))
+	{
+		std::cerr << "Tsugaru_QT: Failed to replace state save " << stdPath << std::endl;
+		(void)QFile::remove(QString::fromStdString(tmpPath));
+		return false;
+	}
+	return true;
+}
+}
+
 void EmulatorController::loadCdImage(const QString &path)
 {
 	loadCdImageInternal(path);
@@ -418,18 +475,86 @@ void EmulatorController::loadCdImageInternal(const QString &path)
 
 void EmulatorController::ejectCd()
 {
-	if(nullptr!=impl_->outside_world)
+	if(nullptr==impl_->outside_world || nullptr==towns_)
 	{
-		cd_path_.clear();
-		TownsQtSettings::clearLastCdImagePath();
-		Q_EMIT cdPathChanged(cd_path_);
-		impl_->cmdThread.EnqueueCommand(*impl_->outside_world,"CDEJECT");
-		QMetaObject::invokeMethod(this,[this](){
-			QTimer::singleShot(100,this,[this](){
-				Q_EMIT discProfileStateChanged();
-			});
-		},Qt::QueuedConnection);
+		return;
 	}
+	const bool had_disc=!towns_->cdrom.state.GetDisc().fName.empty();
+	// B: profile state save → CD unmount.
+	if(true==had_disc)
+	{
+		(void)saveDiscStateSaveIfProfiled(false);
+		towns_->cdrom.StopCDDA();
+		towns_->cdrom.Eject();
+		towns_->mouseCoordWriteScan.ClearActiveProfile();
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+	}
+	else
+	{
+		impl_->cmdThread.EnqueueCommand(*impl_->outside_world,"CDEJECT");
+	}
+	cd_path_.clear();
+	TownsQtSettings::clearLastCdImagePath();
+	Q_EMIT cdPathChanged(cd_path_);
+	QMetaObject::invokeMethod(this,[this](){
+		QTimer::singleShot(100,this,[this](){
+			Q_EMIT discProfileStateChanged();
+		});
+	},Qt::QueuedConnection);
+}
+
+bool EmulatorController::swapCdImage(const QString &path)
+{
+	if(path.isEmpty() || nullptr==impl_->outside_world || nullptr==towns_)
+	{
+		return false;
+	}
+	const QString canonical=QFileInfo(path).canonicalFilePath();
+	const QString usePath=canonical.isEmpty() ? path : canonical;
+	if(true!=QFile::exists(usePath))
+	{
+		return false;
+	}
+
+	const bool had_disc=!towns_->cdrom.state.GetDisc().fName.empty();
+	// B (old disc) then A mount (new disc; state save apply only on next VM boot).
+	if(true==had_disc)
+	{
+		(void)saveDiscStateSaveIfProfiled(false);
+		towns_->cdrom.StopCDDA();
+		towns_->cdrom.Eject();
+		towns_->mouseCoordWriteScan.ClearActiveProfile();
+	}
+	else
+	{
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_PAUSE);
+		(void)impl_->townsThread.WaitForHostPauseAcknowledged(2000);
+	}
+
+	const std::string imgPath=usePath.toStdString();
+	const auto err=towns_->cdrom.LoadDiscImage(imgPath);
+	if(DiscImage::ERROR_NOERROR!=err)
+	{
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+		return false;
+	}
+
+	towns_->mouseCoordWriteScan.SetProfileDirectory(
+	    TownsQtPaths::profilesDir().toStdString());
+	towns_->mouseCoordWriteScan.ClearActiveProfile();
+	towns_->mouseCoordWriteScan.TryLoadForDisc(imgPath);
+	impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+
+	cd_path_=usePath;
+	TownsQtSettings::addRecentCdImagePath(cd_path_);
+	TownsQtSettings::setLastCdImagePath(cd_path_);
+	Q_EMIT cdPathChanged(cd_path_);
+	QMetaObject::invokeMethod(this,[this](){
+		QTimer::singleShot(100,this,[this](){
+			Q_EMIT discProfileStateChanged();
+		});
+	},Qt::QueuedConnection);
+	return true;
 }
 
 void EmulatorController::loadFdImage(int drive,const QString &path)
@@ -1144,6 +1269,196 @@ void EmulatorController::applyCddaCacheSettings(bool enabled,int post_read_grace
 	{
 		towns_->cdrom.state.CDDAAudioOutput=false;
 	}
+}
+
+bool EmulatorController::saveStateToFile(const QString &path,bool resume_run_after)
+{
+	if(nullptr==towns_ || path.isEmpty())
+	{
+		return false;
+	}
+	const int prior_mode=impl_->townsThread.GetRunMode();
+	impl_->townsThread.ClearHostPauseAcknowledged();
+	{
+		std::lock_guard<std::mutex> lock(impl_->pending_state_save_mutex);
+		impl_->pending_state_save_path=path.toStdString();
+		impl_->pending_state_save_success.store(false,std::memory_order_release);
+		impl_->pending_state_save_completed.store(false,std::memory_order_release);
+		impl_->pending_state_save_requested.store(true,std::memory_order_release);
+	}
+	impl_->townsThread.SetRunMode(TownsThread::RUNMODE_PAUSE);
+	bool completed=false;
+	for(int elapsed=0; elapsed<10000; elapsed+=10)
+	{
+		if(true==impl_->pending_state_save_completed.load(std::memory_order_acquire))
+		{
+			completed=true;
+			break;
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+	if(true!=completed)
+	{
+		std::cerr << "Tsugaru_QT: state save timed out" << std::endl;
+		impl_->pending_state_save_requested.store(false,std::memory_order_release);
+	}
+	const bool ok=completed && impl_->pending_state_save_success.load(std::memory_order_acquire);
+	if(true==resume_run_after && TownsThread::RUNMODE_RUN==prior_mode)
+	{
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+	}
+	return ok;
+}
+
+void EmulatorController::runPendingStateSaveOnVmThread(FMTownsCommon &towns)
+{
+	if(true!=impl_->pending_state_save_requested.load(std::memory_order_acquire))
+	{
+		return;
+	}
+	std::string path;
+	{
+		std::lock_guard<std::mutex> lock(impl_->pending_state_save_mutex);
+		if(true!=impl_->pending_state_save_requested)
+		{
+			return;
+		}
+		path=impl_->pending_state_save_path;
+	}
+	const bool ok=WriteStateSaveFileForTowns(towns,path);
+	impl_->pending_state_save_success.store(ok,std::memory_order_release);
+	impl_->pending_state_save_requested.store(false,std::memory_order_release);
+	impl_->pending_state_save_completed.store(true,std::memory_order_release);
+}
+
+bool EmulatorController::loadStateFromFile(const QString &path)
+{
+	if(nullptr==towns_ || path.isEmpty() || true!=QFile::exists(path))
+	{
+		return false;
+	}
+	if(true!=TownsQtPaths::ensureLayout())
+	{
+		return false;
+	}
+	const int prior_mode=impl_->townsThread.GetRunMode();
+	impl_->townsThread.SetRunMode(TownsThread::RUNMODE_PAUSE);
+	if(true!=impl_->townsThread.WaitForHostPauseAcknowledged(5000))
+	{
+		std::cerr << "Tsugaru_QT: VM pause timeout before state load" << std::endl;
+		if(TownsThread::RUNMODE_RUN==prior_mode)
+		{
+			impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+		}
+		return false;
+	}
+	const bool ok=towns_->LoadState(path.toStdString());
+	if(true!=ok)
+	{
+		std::cerr << "Tsugaru_QT: Failed to load state " << path.toStdString() << std::endl;
+	}
+	if(TownsThread::RUNMODE_RUN==prior_mode)
+	{
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+	}
+	if(true==ok)
+	{
+		QMetaObject::invokeMethod(this,[this](){
+			Q_EMIT discProfileStateChanged();
+		},Qt::QueuedConnection);
+	}
+	return ok;
+}
+
+bool EmulatorController::loadStateSlot(int slot)
+{
+	if(nullptr==towns_ || slot<0 || 9<slot)
+	{
+		return false;
+	}
+	QString path;
+	if(0==slot)
+	{
+		const std::string disc=towns_->cdrom.state.GetDisc().fName;
+		if(true==disc.empty())
+		{
+			return false;
+		}
+		path=TownsQtDiscStateSave::ResumeStatePathForDisc(QString::fromStdString(disc));
+	}
+	else
+	{
+		path=TownsQtDiscStateSave::ManualStateSlotPath(slot);
+	}
+	return loadStateFromFile(path);
+}
+
+bool EmulatorController::saveStateSlot(int slot)
+{
+	if(slot<1 || 9<slot)
+	{
+		return false;
+	}
+	const QString path=TownsQtDiscStateSave::ManualStateSlotPath(slot);
+	if(path.isEmpty())
+	{
+		return false;
+	}
+	return saveStateToFile(path,true);
+}
+
+bool EmulatorController::saveDiscStateSaveIfProfiled(bool resume_run_after)
+{
+	if(true!=TownsQtSettings::autoResumeEnabled())
+	{
+		return false;
+	}
+	if(nullptr==towns_ || true!=towns_->var.useDiscProfiles)
+	{
+		return false;
+	}
+	const std::string discPath=towns_->cdrom.state.GetDisc().fName;
+	if(true==discPath.empty())
+	{
+		return false;
+	}
+	unsigned int fingerprint=0;
+	if(true==towns_->mouseCoordWriteScan.DiscProfileLoaded())
+	{
+		const auto profile=towns_->mouseCoordWriteScan.GetActiveProfile();
+		if(true==profile.HasFingerprint())
+		{
+			fingerprint=profile.discFingerprintHash32;
+		}
+	}
+	if(0==fingerprint)
+	{
+		const auto &disc=towns_->cdrom.state.GetDisc();
+		DiscIdentity discId=disc.ComputeIdentity(false);
+		if(true!=discId.hasFingerprint)
+		{
+			discId=disc.ComputeIdentity(true);
+		}
+		if(true!=discId.hasFingerprint)
+		{
+			return false;
+		}
+		fingerprint=discId.fingerprintHash32;
+	}
+	if(true!=TownsQtDiscStateSave::ProfileExistsForFingerprint(fingerprint))
+	{
+		return false;
+	}
+	if(true!=TownsQtPaths::ensureLayout())
+	{
+		return false;
+	}
+	const QString statePath=TownsQtDiscStateSave::PathForFingerprint(fingerprint);
+	if(statePath.isEmpty())
+	{
+		return false;
+	}
+	return saveStateToFile(statePath,resume_run_after);
 }
 
 void EmulatorController::applyDisplayOptions(bool damperWireLine,bool scanLineEffectIn15KHz,int spriteTransferMode)

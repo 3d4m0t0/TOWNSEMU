@@ -4858,3 +4858,61 @@ bool MouseCoordWriteScan::TryLoadForDisc(const std::string &discPath)
 	}
 	return true;
 }
+
+void MouseCoordWriteScan::SyncAfterStateLoad(void)
+{
+	if(nullptr==townsPtr)
+	{
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mtx);
+	if(true!=profileLoaded || true!=activeProfile.verified)
+	{
+		return;
+	}
+	if(true!=activeProfile.HasAppExecBind())
+	{
+		return;
+	}
+	ClearActiveAppPayloadLocked("state_load");
+	appExecParents.clear();
+	appExecSilentNestDepth=0;
+	activeAppExecValid=true;
+	activeAppExecName=activeProfile.appExecName;
+	activeAppExecHash32=activeProfile.appExecHash32;
+	const std::string base=DosExecBasename(activeAppExecName);
+	activeAppExtender=IsDosExtenderBasename(base);
+	const unsigned long long now=townsPtr->state.townsTime;
+	activeAppExecStartTime=(APP_EXEC_APPLY_GRACE_NS<now) ?
+	    (now-APP_EXEC_APPLY_GRACE_NS) : 0ull;
+	appExecLoggedInGame=true;
+	appExecSoftAliveSeen=false;
+	appExecSoftMovedInSession=false;
+	appExecSoftTrackedHost=false;
+	appExecSoftTrackSampleValid=false;
+	appExecSoftStuckHostMotion=0;
+	appExecSoftUnresponsive=false;
+	appExecSoftPendingHostStuck=0;
+	appExecSoftLagSamplesLeft=0;
+	if(true==townsPtr->state.mouseBIOSActive)
+	{
+		appExecSawMosActive=true;
+		appExecMosStartSerial=townsPtr->state.mouseBIOSStartSerial;
+		appExecMosStartTime=now;
+		appExecGameportBaseline=townsPtr->state.gameportMouseReadCount;
+	}
+	else
+	{
+		appExecSawMosActive=false;
+		appExecMosStartSerial=0;
+		appExecMosStartTime=0;
+		appExecGameportBaseline=townsPtr->state.gameportMouseReadCount;
+	}
+	std::ostringstream oss;
+	oss << "[APP] state-load resume name=" << activeAppExecName
+	    << " hash=0x" << cpputil::Uitox(activeAppExecHash32)
+	    << (true==activeAppExtender ? " extender=1" : "");
+	LogAppMonitorLine(oss.str());
+	townsPtr->var.mouseCoordProfileApply=false;
+	townsPtr->DontControlMouse();
+}

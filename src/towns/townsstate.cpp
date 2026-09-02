@@ -25,6 +25,7 @@ bool FMTownsCommon::SaveState(std::string fName) const
 			ofp.write((char *)&len,4);
 			ofp.write((char *)dat.data(),len);
 		}
+		ofp.flush();
 		return true;
 	}
 	return false;
@@ -216,6 +217,17 @@ void FMTownsCommon::LoadStatePostProcess(void)
 
 	cdrom.ResumeCDDAAfterRestore();
 	scsi.ResumeCDDAAfterRestore();
+
+	// Save states do not include host-side app-exec tracking; re-sync profile + apply.
+	if(true==var.useDiscProfiles)
+	{
+		const std::string &disc=cdrom.state.GetDisc().fName;
+		if(true!=disc.empty())
+		{
+			mouseCoordWriteScan.TryLoadForDisc(disc);
+			mouseCoordWriteScan.SyncAfterStateLoad();
+		}
+	}
 
 	// Save states may have been taken without a MIDI board; honor machine config.
 	midi.EnableCards(var.configuredMidiCards);

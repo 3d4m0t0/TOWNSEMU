@@ -90,6 +90,19 @@ void TownsThread::VMMainLoopTemplate(
 
 		runModeCopy=runMode;
 
+		if(TownsThread::RUNMODE_PAUSE==runModeCopy)
+		{
+			hostPauseAcknowledged_.store(true,std::memory_order_release);
+			if(onPauseTick_)
+			{
+				onPauseTick_(*townsPtr);
+			}
+		}
+		else
+		{
+			hostPauseAcknowledged_.store(false,std::memory_order_release);
+		}
+
 		bool clockTicking=false;  // Will be made true if VM is running.
 
 		townsPtr->var.justLoadedState=false;
@@ -132,11 +145,13 @@ void TownsThread::VMMainLoopTemplate(
 				{
 					townsPtr->var.nextTimeSync=0;
 				}
-				while(townsPtr->state.townsTime<townsPtr->var.nextTimeSync)
+				while(townsPtr->state.townsTime<townsPtr->var.nextTimeSync &&
+				      RUNMODE_RUN==runMode)
 				{
 					// With the inner-loop, it saves one 64-bit comparison + conditional jump per instruction for RunFastDevicePolling.
 					while(townsPtr->state.townsTime<=townsPtr->state.nextFastDevicePollingTime &&
-					      0==townsPtr->GetStopFlags()) // Same check, except one timer check
+					      0==townsPtr->GetStopFlags() &&
+					      RUNMODE_RUN==runMode) // Same check, except one timer check
 					{
 						townsPtr->RunOneInstruction();
 						townsPtr->pic.ProcessIRQ(townsPtr->CPU(),townsPtr->mem);
@@ -481,6 +496,29 @@ void TownsThread::SetRunMode(int nextRunMode)
 void TownsThread::SetReturnOnPause(bool flag)
 {
 	returnOnPause=flag;
+}
+
+void TownsThread::SetOnPauseTick(std::function<void(FMTownsCommon &)> fn)
+{
+	onPauseTick_=std::move(fn);
+}
+
+bool TownsThread::WaitForHostPauseAcknowledged(int timeoutMs) const
+{
+	for(int elapsed=0; elapsed<timeoutMs; elapsed+=10)
+	{
+		if(true==hostPauseAcknowledged_.load(std::memory_order_acquire))
+		{
+			return true;
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+	return hostPauseAcknowledged_.load(std::memory_order_acquire);
+}
+
+void TownsThread::ClearHostPauseAcknowledged(void)
+{
+	hostPauseAcknowledged_.store(false,std::memory_order_release);
 }
 
 void TownsThread::PrintStatus(const FMTownsCommon &towns) const
