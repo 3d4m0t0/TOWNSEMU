@@ -3037,6 +3037,15 @@ size_t Outside_World::WindowInterface::VmCaptureQueueDepth(void) const
 	std::lock_guard<std::mutex> lock(vmCaptureMutex);
 	return vmCaptureQueue.size();
 }
+void Outside_World::WindowInterface::ClearPendingCaptures(void)
+{
+	{
+		std::lock_guard<std::mutex> lock(vmCaptureMutex);
+		vmCaptureQueue.clear();
+	}
+	std::lock_guard<std::mutex> imgLock(newImageLock);
+	shared.needRender=false;
+}
 /*! Called from the VM thread to tell the new image should be rendered.
     Captures are queued on the VM thread and flushed when the GUI thread
     is ready, so try_lock failure does not drop a frame.

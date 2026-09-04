@@ -105,8 +105,6 @@ void TownsThread::VMMainLoopTemplate(
 
 		bool clockTicking=false;  // Will be made true if VM is running.
 
-		townsPtr->var.justLoadedState=false;
-
 		switch(runMode)
 		{
 		case RUNMODE_PAUSE:
@@ -341,6 +339,8 @@ void TownsThread::VMMainLoopTemplate(
 		uiThread->uiLock.unlock();
 		if(true==townsPtr->var.justLoadedState)
 		{
+			// Skip AdjustRealTime once: townsTime jumped; real-time deficit is meaningless.
+			townsPtr->var.justLoadedState=false;
 			townsPtr->PublishObserverTownsTime();
 		}
 		else if(true==clockTicking)

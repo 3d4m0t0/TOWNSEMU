@@ -239,6 +239,16 @@ void EmulatorController::run()
 			if(true==towns.LoadState(startupStateFName))
 			{
 				startupStateLoaded=true;
+				if(nullptr!=framebuffer_)
+				{
+					framebuffer_->ClearQueue();
+				}
+				if(nullptr!=impl_->window)
+				{
+					impl_->window->ClearPendingCaptures();
+				}
+				last_frame_serial_=0;
+				has_presented_frame_=false;
 			}
 			else
 			{
@@ -1277,32 +1287,32 @@ bool EmulatorController::saveStateToFile(const QString &path,bool resume_run_aft
 	{
 		return false;
 	}
+	if(true!=TownsQtPaths::ensureLayout())
+	{
+		return false;
+	}
+
 	const int prior_mode=impl_->townsThread.GetRunMode();
 	impl_->townsThread.ClearHostPauseAcknowledged();
-	{
-		std::lock_guard<std::mutex> lock(impl_->pending_state_save_mutex);
-		impl_->pending_state_save_path=path.toStdString();
-		impl_->pending_state_save_success.store(false,std::memory_order_release);
-		impl_->pending_state_save_completed.store(false,std::memory_order_release);
-		impl_->pending_state_save_requested.store(true,std::memory_order_release);
-	}
 	impl_->townsThread.SetRunMode(TownsThread::RUNMODE_PAUSE);
-	bool completed=false;
-	for(int elapsed=0; elapsed<10000; elapsed+=10)
+	if(true!=impl_->townsThread.WaitForHostPauseAcknowledged(5000))
 	{
-		if(true==impl_->pending_state_save_completed.load(std::memory_order_acquire))
+		std::cerr << "Tsugaru_QT: VM pause timeout before state save" << std::endl;
+		if(TownsThread::RUNMODE_RUN==prior_mode)
 		{
-			completed=true;
-			break;
+			impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		return false;
 	}
-	if(true!=completed)
+
+	// Same thread model as LoadState: VM is paused; write from this side.
+	// Do not mutate CRTC before save (mode-specific regs/sifter must be preserved).
+	const bool ok=WriteStateSaveFileForTowns(*towns_,path.toStdString());
+	if(true!=ok)
 	{
-		std::cerr << "Tsugaru_QT: state save timed out" << std::endl;
-		impl_->pending_state_save_requested.store(false,std::memory_order_release);
+		std::cerr << "Tsugaru_QT: Failed to save state " << path.toStdString() << std::endl;
 	}
-	const bool ok=completed && impl_->pending_state_save_success.load(std::memory_order_acquire);
+
 	if(true==resume_run_after && TownsThread::RUNMODE_RUN==prior_mode)
 	{
 		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
@@ -1357,6 +1367,21 @@ bool EmulatorController::loadStateFromFile(const QString &path)
 	{
 		std::cerr << "Tsugaru_QT: Failed to load state " << path.toStdString() << std::endl;
 	}
+	else
+	{
+		// Discard frames stamped with the pre-load townsTime so PresentOneDueFrame
+		// is not stuck behind a larger vsync_index after the clock jumps.
+		if(nullptr!=framebuffer_)
+		{
+			framebuffer_->ClearQueue();
+		}
+		if(nullptr!=impl_->window)
+		{
+			impl_->window->ClearPendingCaptures();
+		}
+		last_frame_serial_=0;
+		has_presented_frame_=false;
+	}
 	if(TownsThread::RUNMODE_RUN==prior_mode)
 	{
 		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
@@ -1365,6 +1390,7 @@ bool EmulatorController::loadStateFromFile(const QString &path)
 	{
 		QMetaObject::invokeMethod(this,[this](){
 			Q_EMIT discProfileStateChanged();
+			Q_EMIT frameReady();
 		},Qt::QueuedConnection);
 	}
 	return ok;

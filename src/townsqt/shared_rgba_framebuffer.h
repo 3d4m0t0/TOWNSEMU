@@ -40,6 +40,9 @@ public:
 	/*! Oldest queued frame VSYNC index, or 0 if empty. */
 	uint64_t FrontVsyncIndex() const;
 
+	/*! Drop all pending vsync-timed frames (call after LoadState / townsTime jump). */
+	void ClearQueue();
+
 	/*! Thread-safe; may be called from the VM thread. */
 	void SetPresentCallback(std::function<void()> callback);
 

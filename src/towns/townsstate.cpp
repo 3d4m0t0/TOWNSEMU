@@ -232,6 +232,13 @@ void FMTownsCommon::LoadStatePostProcess(void)
 	// Save states may have been taken without a MIDI board; honor machine config.
 	midi.EnableCards(var.configuredMidiCards);
 
+	// Force a capture soon, and publish townsTime so host present queues are not
+	// gated on a pre-load observer clock (TownsQt PresentOneDueFrame vsync_index).
+	state.nextRenderingTime=state.townsTime;
+	PublishObserverTownsTime();
+
+	crtc.RepairCorruptDisplayState();
+
 	var.justLoadedState=true;
 }
 

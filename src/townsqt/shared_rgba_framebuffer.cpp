@@ -59,6 +59,14 @@ bool SharedRgbaFramebuffer::PresentOneDueFrame(uint64_t due_index,uint64_t *pres
 
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
+		// After LoadState, townsTime can jump backward while queued frames still carry
+		// the old (larger) vsync_index. Those would block the queue forever.
+		// Normal pacing only leads by a frame or two; anything further is stale.
+		constexpr uint64_t kMaxVsyncLead=4;
+		while(!queue_.empty() && queue_.front().vsync_index>due_index+kMaxVsyncLead)
+		{
+			queue_.pop_front();
+		}
 		if(!queue_.empty() && queue_.front().vsync_index<=due_index)
 		{
 			frame=std::move(queue_.front());
@@ -89,6 +97,12 @@ uint64_t SharedRgbaFramebuffer::FrontVsyncIndex() const
 		return 0;
 	}
 	return queue_.front().vsync_index;
+}
+
+void SharedRgbaFramebuffer::ClearQueue()
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	queue_.clear();
 }
 
 void SharedRgbaFramebuffer::StageFromImage(TownsRender::ImageCopy &&img)

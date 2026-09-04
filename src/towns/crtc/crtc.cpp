@@ -180,6 +180,85 @@ bool TownsCRTC::AvoidFirst1msOfVerticalPeriod(const unsigned long long int towns
 	return  1000000<intoFrame && intoFrame<CRT_VERTICAL_DURATION;
 }
 
+bool TownsCRTC::RepairInvisibleDisplayPages(void)
+{
+	if(true==state.ShowPage(0) || true==state.ShowPage(1))
+	{
+		return false;
+	}
+
+	// Both pages off: typical of a bad state save (high-res flag set with empty
+	// DISPPAGE, or FDA0/0448 cleared).  Fall back to conventional page 0.
+	const bool wasHighRes=state.highResCRTCEnabled;
+	const unsigned int prevDisp=state.highResCrtcReg[HIGHRES_REG_DISPPAGE];
+
+	if(true==state.highResCRTCEnabled)
+	{
+		// High-res path with DISPPAGE show bits clear — treat as false enable.
+		state.highResCRTCEnabled=false;
+	}
+	if(true!=state.showPageFDA0[0] && true!=state.showPageFDA0[1])
+	{
+		state.showPageFDA0[0]=true;
+	}
+	if(true!=state.showPage0448[0] && true!=state.showPage0448[1])
+	{
+		if(true==state.showPageFDA0[0])
+		{
+			state.showPage0448[0]=true;
+		}
+		if(true==state.showPageFDA0[1])
+		{
+			state.showPage0448[1]=true;
+		}
+		if(true!=state.showPage0448[0] && true!=state.showPage0448[1])
+		{
+			state.showPage0448[0]=true;
+		}
+	}
+
+	std::cout << "Tsugaru: CRTC display pages were both off"
+	          << (true==wasHighRes ? " (cleared highResCRTCEnabled)" : "")
+	          << " DISPPAGE=0x" << cpputil::Uitox(prevDisp)
+	          << " — repaired FDA0=("
+	          << (state.showPageFDA0[0] ? 1 : 0) << ","
+	          << (state.showPageFDA0[1] ? 1 : 0) << ") 0448=("
+	          << (state.showPage0448[0] ? 1 : 0) << ","
+	          << (state.showPage0448[1] ? 1 : 0) << ")"
+	          << std::endl;
+	return true;
+}
+
+bool TownsCRTC::RepairCorruptDisplayState(void)
+{
+	bool changed=RepairInvisibleDisplayPages();
+
+	// Hardware only ever programs 0 or TOWNS_FMRMODE_VRAM_OFFSET (0x20000).
+	// 0xFFFFFF etc. is a symptom of CRTC deserialize misalignment (see version 3 skip).
+	if(0!=state.FMRVRAMOffset && TOWNS_FMRMODE_VRAM_OFFSET!=state.FMRVRAMOffset)
+	{
+		std::cout << "Tsugaru: CRTC FMRVRAMOffset=0x" << cpputil::Uitox(state.FMRVRAMOffset)
+		          << " illegal — cleared" << std::endl;
+		state.FMRVRAMOffset=0;
+		changed=true;
+	}
+
+	// Display-plane mask is 4 bits.
+	if(0x0F<state.FMRGVRAMDisplayPlanes)
+	{
+		std::cout << "Tsugaru: CRTC FMRGVRAMDisplayPlanes=0x"
+		          << cpputil::Uitox(state.FMRGVRAMDisplayPlanes)
+		          << " — clamped to 0x0F" << std::endl;
+		state.FMRGVRAMDisplayPlanes=0x0F;
+		changed=true;
+	}
+
+	// Do NOT rewrite crtcReg/sifter to defaults: low-res VGA / 15KHz / game-specific
+	// timings are legitimate and must survive save/load.
+
+	return changed;
+}
+
 bool TownsCRTC::InSinglePageMode(void) const
 {
 	if(true==fmt3631->IsEnabled())
@@ -1949,6 +2028,8 @@ std::vector <std::string> TownsCRTC::GetHighResPaletteText(void) const
 {
 	// Version 1 Added High-Res CRTC Hardware Mouse Cursor.
 	// Version 2 Added highResCrtcReg4Bit0.
+	// Version 3 briefly added vsyncPortConsumedFrame (uint64) after VSYNC flags;
+	// that field was removed.  We still accept version 3 on load (skip the uint64).
 	return 2;
 }
 /* virtual */ void TownsCRTC::SpecificSerialize(std::vector <unsigned char> &data,std::string) const
@@ -2014,6 +2095,14 @@ std::vector <std::string> TownsCRTC::GetHighResPaletteText(void) const
 {
 	state.VSYNCIRQ=ReadBool(data);;
 	state.VSYNC=ReadBool(data);;
+	if(3<=version)
+	{
+		// Compatibility with short-lived version 3 saves that inserted
+		// vsyncPortConsumedFrame (uint64) here.  Skipping prevents an 8-byte
+		// shift of crtcReg/sifter/FMR fields (blank / corrupt display on load,
+		// then permanently broken re-saves).
+		(void)ReadUint64(data);
+	}
 
 	for(auto &r : state.crtcReg)
 	{

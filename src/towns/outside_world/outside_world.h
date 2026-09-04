@@ -437,6 +437,8 @@ public:
 		bool EnqueueCapture(class FMTownsCommon &towns,bool imageNeedsFlip);
 		bool FlushOneCaptureToShared(void);
 		size_t VmCaptureQueueDepth(void) const;
+		/*! Drop VM-thread captures awaiting render (after LoadState / townsTime jump). */
+		void ClearPendingCaptures(void);
 
 		class SharedVariables
 		{
