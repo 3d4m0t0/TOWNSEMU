@@ -552,7 +552,11 @@ bool TownsCDROM::CacheSameTrack(DiscImage::MinSecFrm msfBegin) const
 	{
 		return false;
 	}
-	return state.GetDisc().GetTrackFromMSF(msfBegin)==state.GetDisc().GetTrackFromMSF(state.CDDAWaveBaseTime);
+	// Reuse only when PLAY starts at the same MSF as the cached wave.
+	// Same TOC track alone is not enough: one audio track often holds several
+	// play ranges (next song = later MSF). TOC-only matching rewound an exhausted
+	// wave and replayed the previous range instead of prefetching the new one.
+	return msfBegin==state.CDDAWaveBaseTime;
 }
 
 void TownsCDROM::PushGetStateStatus(void)
@@ -1216,7 +1220,7 @@ void TownsCDROM::PrepareCDDAPlay(void)
 		return;
 	}
 
-	// Different track (or no usable cache): discard host cache, then prefetch the new range.
+	// Different play start (or no usable cache): discard host cache, then prefetch the new range.
 	// Cache OFF also clears the previous wave so Start does not peak at 2× track RAM.
 	if(true!=state.CDDAWave.empty())
 	{
@@ -1368,9 +1372,9 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 
 			if(true==cacheContinue)
 			{
-				// Same-track PLAY: guest IDLE→PLAYING; keep mixing.
-				// If the cached wave already finished, rewind — a new PLAY means replay from start
-				// (mid-track continue after data-read keeps a non-exhausted pointer).
+				// Same-start PLAY (or invalid-MSF resume): guest IDLE→PLAYING; keep mixing.
+				// If the cached wave already finished, rewind — same-start PLAY means replay.
+				// Mid-play continue after data-read keeps a non-exhausted pointer.
 				state.ClearStatusQueue();
 
 				state.DRY=true;
@@ -1772,7 +1776,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 		break;
 	case CDCMD_CDDARESUME:// 0x87,
 		// After MODE the guest is IDLE; with cache ON, RESUME may still re-enter PLAY
-		// on the existing wave (same as same-track PLAY continue within grace).
+		// on the existing wave (same as same-start PLAY continue within grace).
 		if(CDDA_PAUSED==state.CDDAState ||
 		   (true==var.cddaCacheDuringDataRead &&
 		    CDDA_IDLE==state.CDDAState &&
