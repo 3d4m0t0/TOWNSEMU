@@ -737,6 +737,11 @@
     },
     {
       "context": "MouseCoordProfilePage",
+      "source": "DS off",
+      "translation": "DS off"
+    },
+    {
+      "context": "MouseCoordProfilePage",
       "source": "Min",
       "translation": "Min"
     },

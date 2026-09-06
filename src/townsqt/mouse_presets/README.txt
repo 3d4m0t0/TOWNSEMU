@@ -25,4 +25,5 @@ editor values to ~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini
 disc profile.
 
 See example.ini. Copy it to mouse_<fingerprint>.ini and fill phys /
-mode / hash.
+mode / hash. Prefer pairN_ds_off_* (DS.base-relative) when available so
+Phys tracks guest layout changes; keep pairN_x/y as absolute fallback.

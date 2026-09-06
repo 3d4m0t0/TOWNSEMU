@@ -75,6 +75,16 @@ QString PhysText(unsigned int phys)
 	return QStringLiteral("0x%1").arg(phys,8,16,QLatin1Char('0'));
 }
 
+/*! Always emit hex (including 0x00000000) when the axis has a DS-off recipe. */
+QString DsOffText(unsigned int off,bool present)
+{
+	if(true!=present)
+	{
+		return QString();
+	}
+	return QStringLiteral("0x%1").arg(off,8,16,QLatin1Char('0'));
+}
+
 }
 
 MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
@@ -283,22 +293,35 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 
 	grid->addWidget(new QLabel(tr("Axis"),coords_box),0,0);
 	grid->addWidget(new QLabel(tr("Phys"),coords_box),0,1);
-	grid->addWidget(new QLabel(tr("Min"),coords_box),0,2);
-	grid->addWidget(new QLabel(tr("Max"),coords_box),0,3);
-	grid->addWidget(new QLabel(tr("Offset"),coords_box),0,4);
-	grid->addWidget(new QLabel(tr("Scale"),coords_box),0,5);
-	grid->addWidget(new QLabel(tr("Invert"),coords_box),0,6,Qt::AlignHCenter);
+	grid->addWidget(new QLabel(tr("DS off"),coords_box),0,2);
+	grid->addWidget(new QLabel(tr("Min"),coords_box),0,3);
+	grid->addWidget(new QLabel(tr("Max"),coords_box),0,4);
+	grid->addWidget(new QLabel(tr("Offset"),coords_box),0,5);
+	grid->addWidget(new QLabel(tr("Scale"),coords_box),0,6);
+	grid->addWidget(new QLabel(tr("Invert"),coords_box),0,7,Qt::AlignHCenter);
 
 	game_phys_x_=new QLineEdit(coords_box);
 	game_phys_y_=new QLineEdit(coords_box);
 	game_phys2_x_=new QLineEdit(coords_box);
 	game_phys2_y_=new QLineEdit(coords_box);
-	for(QLineEdit *edit : {game_phys_x_,game_phys_y_,game_phys2_x_,game_phys2_y_})
+	game_ds_off_x_=new QLineEdit(coords_box);
+	game_ds_off_y_=new QLineEdit(coords_box);
+	game_ds_off2_x_=new QLineEdit(coords_box);
+	game_ds_off2_y_=new QLineEdit(coords_box);
+	for(QLineEdit *edit : {game_phys_x_,game_phys_y_,game_phys2_x_,game_phys2_y_,
+	                       game_ds_off_x_,game_ds_off_y_,game_ds_off2_x_,game_ds_off2_y_})
 	{
 		edit->setPlaceholderText(QStringLiteral("0x........"));
 		edit->setFont(mono);
 		edit->setFrame(true);
 		edit->setFixedWidth(physW);
+	}
+	const QString dsOffTip=
+	    tr("Offset from live DS.base (WC-style). Prefer this over absolute Phys when "
+	       "guest layout shifts with memory/CMOS/HDD changes.");
+	for(QLineEdit *edit : {game_ds_off_x_,game_ds_off_y_,game_ds_off2_x_,game_ds_off2_y_})
+	{
+		edit->setToolTip(dsOffTip);
 	}
 	const QString phys2Tip=
 	    tr("Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value.");
@@ -343,18 +366,20 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 
 	grid->addWidget(new QLabel(tr("X"),coords_box),1,0);
 	grid->addWidget(game_phys_x_,1,1);
-	grid->addWidget(game_min_x_,1,2);
-	grid->addWidget(game_max_x_,1,3);
-	grid->addWidget(offset_x_,1,4);
-	grid->addWidget(scale_x_,1,5);
-	grid->addWidget(invert_x_,1,6,Qt::AlignHCenter);
+	grid->addWidget(game_ds_off_x_,1,2);
+	grid->addWidget(game_min_x_,1,3);
+	grid->addWidget(game_max_x_,1,4);
+	grid->addWidget(offset_x_,1,5);
+	grid->addWidget(scale_x_,1,6);
+	grid->addWidget(invert_x_,1,7,Qt::AlignHCenter);
 	grid->addWidget(new QLabel(tr("Y"),coords_box),2,0);
 	grid->addWidget(game_phys_y_,2,1);
-	grid->addWidget(game_min_y_,2,2);
-	grid->addWidget(game_max_y_,2,3);
-	grid->addWidget(offset_y_,2,4);
-	grid->addWidget(scale_y_,2,5);
-	grid->addWidget(invert_y_,2,6,Qt::AlignHCenter);
+	grid->addWidget(game_ds_off_y_,2,2);
+	grid->addWidget(game_min_y_,2,3);
+	grid->addWidget(game_max_y_,2,4);
+	grid->addWidget(offset_y_,2,5);
+	grid->addWidget(scale_y_,2,6);
+	grid->addWidget(invert_y_,2,7,Qt::AlignHCenter);
 
 	auto *phys2_lbl=new QLabel(tr("Phys 2"),coords_box);
 	phys2_lbl->setToolTip(phys2Tip);
@@ -363,10 +388,12 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 
 	grid->addWidget(new QLabel(tr("X2"),coords_box),4,0);
 	grid->addWidget(game_phys2_x_,4,1);
-	grid->addWidget(scale2_x_,4,5);
+	grid->addWidget(game_ds_off2_x_,4,2);
+	grid->addWidget(scale2_x_,4,6);
 	grid->addWidget(new QLabel(tr("Y2"),coords_box),5,0);
 	grid->addWidget(game_phys2_y_,5,1);
-	grid->addWidget(scale2_y_,5,5);
+	grid->addWidget(game_ds_off2_y_,5,2);
+	grid->addWidget(scale2_y_,5,6);
 	root->addWidget(coords_box);
 
 	memory_write_=new QCheckBox(tr("Memory write"),this);
@@ -436,6 +463,15 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 	connect(game_phys2_y_,&QLineEdit::textChanged,this,[this](const QString &){
 		emitContentChanged();
 	});
+	for(QLineEdit *edit : {game_ds_off_x_,game_ds_off_y_,game_ds_off2_x_,game_ds_off2_y_})
+	{
+		if(nullptr!=edit)
+		{
+			connect(edit,&QLineEdit::textChanged,this,[this](const QString &){
+				emitContentChanged();
+			});
+		}
+	}
 	if(nullptr!=invert_x_)
 	{
 		connect(invert_x_,&QCheckBox::toggled,this,[this](bool){
@@ -648,6 +684,15 @@ void MouseCoordProfilePage::clearAppSpecificFields(void)
 	{
 		game_phys2_y_->clear();
 	}
+	for(QLineEdit *edit : {game_ds_off_x_,game_ds_off_y_,game_ds_off2_x_,game_ds_off2_y_})
+	{
+		if(nullptr!=edit)
+		{
+			edit->clear();
+		}
+	}
+	pair0_ds_sel_=0;
+	pair1_ds_sel_=0;
 	if(nullptr!=game_min_x_)
 	{
 		game_min_x_->setValue(0);
@@ -808,6 +853,23 @@ void MouseCoordProfilePage::setProfile(const QVariantMap &profile)
 	const QString base=QStringLiteral("prof_pair0");
 	game_phys_x_->setText(PhysText(profile.value(base+QStringLiteral("_x")).toUInt()));
 	game_phys_y_->setText(PhysText(profile.value(base+QStringLiteral("_y")).toUInt()));
+	if(nullptr!=game_ds_off_x_)
+	{
+		const bool has=
+		    profile.value(base+QStringLiteral("_has_ds_off")).toBool() ||
+		    profile.contains(base+QStringLiteral("_ds_off_x"));
+		game_ds_off_x_->setText(
+		    DsOffText(profile.value(base+QStringLiteral("_ds_off_x")).toUInt(),has));
+	}
+	if(nullptr!=game_ds_off_y_)
+	{
+		const bool has=
+		    profile.value(base+QStringLiteral("_has_ds_off")).toBool() ||
+		    profile.contains(base+QStringLiteral("_ds_off_y"));
+		game_ds_off_y_->setText(
+		    DsOffText(profile.value(base+QStringLiteral("_ds_off_y")).toUInt(),has));
+	}
+	pair0_ds_sel_=profile.value(base+QStringLiteral("_ds_sel")).toUInt();
 	game_min_x_->setValue(profile.value(base+QStringLiteral("_min_x"),0).toInt());
 	game_max_x_->setValue(profile.value(base+QStringLiteral("_max_x"),0).toInt());
 	game_min_y_->setValue(profile.value(base+QStringLiteral("_min_y"),0).toInt());
@@ -821,6 +883,23 @@ void MouseCoordProfilePage::setProfile(const QVariantMap &profile)
 	{
 		game_phys2_y_->setText(PhysText(profile.value(base1+QStringLiteral("_y")).toUInt()));
 	}
+	if(nullptr!=game_ds_off2_x_)
+	{
+		const bool has=
+		    profile.value(base1+QStringLiteral("_has_ds_off")).toBool() ||
+		    profile.contains(base1+QStringLiteral("_ds_off_x"));
+		game_ds_off2_x_->setText(
+		    DsOffText(profile.value(base1+QStringLiteral("_ds_off_x")).toUInt(),has));
+	}
+	if(nullptr!=game_ds_off2_y_)
+	{
+		const bool has=
+		    profile.value(base1+QStringLiteral("_has_ds_off")).toBool() ||
+		    profile.contains(base1+QStringLiteral("_ds_off_y"));
+		game_ds_off2_y_->setText(
+		    DsOffText(profile.value(base1+QStringLiteral("_ds_off_y")).toUInt(),has));
+	}
+	pair1_ds_sel_=profile.value(base1+QStringLiteral("_ds_sel")).toUInt();
 	scale_x_->setValue(profile.value(base+QStringLiteral("_scale_x"),
 	    profile.value(QStringLiteral("prof_scale_x"),1)).toInt());
 	scale_y_->setValue(profile.value(base+QStringLiteral("_scale_y"),
@@ -919,7 +998,9 @@ void MouseCoordProfilePage::setGameCursorFromSelection(
     unsigned int physX,unsigned int physY,
     unsigned int minX,unsigned int maxX,
     unsigned int minY,unsigned int maxY,
-    bool hasRangeX,bool hasRangeY)
+    bool hasRangeX,bool hasRangeY,
+    unsigned int dsOffX,unsigned int dsOffY,
+    unsigned int dsSelector,bool hasDsOff)
 {
 	if(0==physX || 0==physY)
 	{
@@ -927,6 +1008,18 @@ void MouseCoordProfilePage::setGameCursorFromSelection(
 	}
 	game_phys_x_->setText(PhysText(physX));
 	game_phys_y_->setText(PhysText(physY));
+	if(true==hasDsOff)
+	{
+		if(nullptr!=game_ds_off_x_)
+		{
+			game_ds_off_x_->setText(DsOffText(dsOffX,true));
+		}
+		if(nullptr!=game_ds_off_y_)
+		{
+			game_ds_off_y_->setText(DsOffText(dsOffY,true));
+		}
+		pair0_ds_sel_=dsSelector;
+	}
 	// Observed scan min..max as signed words.  Equal ends = current value only,
 	// not a usable clamp — keep existing editor min/max in that case.
 	const int sMinX=(int)(short)(minX&0xffffu);
@@ -947,7 +1040,9 @@ void MouseCoordProfilePage::setGameCursorFromSelection(
 }
 
 void MouseCoordProfilePage::setGameCursor2FromSelection(
-    unsigned int physX,unsigned int physY)
+    unsigned int physX,unsigned int physY,
+    unsigned int dsOffX,unsigned int dsOffY,
+    unsigned int dsSelector,bool hasDsOff)
 {
 	if(0==physX || 0==physY ||
 	   nullptr==game_phys2_x_ || nullptr==game_phys2_y_)
@@ -956,6 +1051,18 @@ void MouseCoordProfilePage::setGameCursor2FromSelection(
 	}
 	game_phys2_x_->setText(PhysText(physX));
 	game_phys2_y_->setText(PhysText(physY));
+	if(true==hasDsOff)
+	{
+		if(nullptr!=game_ds_off2_x_)
+		{
+			game_ds_off2_x_->setText(DsOffText(dsOffX,true));
+		}
+		if(nullptr!=game_ds_off2_y_)
+		{
+			game_ds_off2_y_->setText(DsOffText(dsOffY,true));
+		}
+		pair1_ds_sel_=dsSelector;
+	}
 	emitContentChanged();
 }
 
@@ -981,6 +1088,20 @@ QVariantMap MouseCoordProfilePage::profile(void)
 	const QString base=QStringLiteral("prof_pair0");
 	out.insert(base+QStringLiteral("_x"),gameX);
 	out.insert(base+QStringLiteral("_y"),gameY);
+	const unsigned int dsOffX=
+	    (nullptr!=game_ds_off_x_) ? ParsePhys(game_ds_off_x_->text(),0) : 0u;
+	const unsigned int dsOffY=
+	    (nullptr!=game_ds_off_y_) ? ParsePhys(game_ds_off_y_->text(),0) : 0u;
+	const bool hasDsOff=
+	    (nullptr!=game_ds_off_x_ && true!=game_ds_off_x_->text().trimmed().isEmpty()) ||
+	    (nullptr!=game_ds_off_y_ && true!=game_ds_off_y_->text().trimmed().isEmpty());
+	if(true==hasDsOff)
+	{
+		out.insert(base+QStringLiteral("_ds_off_x"),dsOffX);
+		out.insert(base+QStringLiteral("_ds_off_y"),dsOffY);
+		out.insert(base+QStringLiteral("_ds_sel"),pair0_ds_sel_);
+		out.insert(base+QStringLiteral("_has_ds_off"),true);
+	}
 	out.insert(base+QStringLiteral("_bias_x"),0);
 	out.insert(base+QStringLiteral("_bias_y"),0);
 	out.insert(base+QStringLiteral("_scale_x"),scale_x_->value());
@@ -997,6 +1118,20 @@ QVariantMap MouseCoordProfilePage::profile(void)
 	const QString base1=QStringLiteral("prof_pair1");
 	out.insert(base1+QStringLiteral("_x"),game2X);
 	out.insert(base1+QStringLiteral("_y"),game2Y);
+	const unsigned int dsOff2X=
+	    (nullptr!=game_ds_off2_x_) ? ParsePhys(game_ds_off2_x_->text(),0) : 0u;
+	const unsigned int dsOff2Y=
+	    (nullptr!=game_ds_off2_y_) ? ParsePhys(game_ds_off2_y_->text(),0) : 0u;
+	const bool hasDsOff2=
+	    (nullptr!=game_ds_off2_x_ && true!=game_ds_off2_x_->text().trimmed().isEmpty()) ||
+	    (nullptr!=game_ds_off2_y_ && true!=game_ds_off2_y_->text().trimmed().isEmpty());
+	if(true==hasDsOff2)
+	{
+		out.insert(base1+QStringLiteral("_ds_off_x"),dsOff2X);
+		out.insert(base1+QStringLiteral("_ds_off_y"),dsOff2Y);
+		out.insert(base1+QStringLiteral("_ds_sel"),pair1_ds_sel_);
+		out.insert(base1+QStringLiteral("_has_ds_off"),true);
+	}
 	out.insert(base1+QStringLiteral("_bias_x"),0);
 	out.insert(base1+QStringLiteral("_bias_y"),0);
 	out.insert(base1+QStringLiteral("_scale_x"),
@@ -1055,8 +1190,13 @@ bool MouseCoordProfilePage::hasAppSpecificSettings(void) const
 	{
 		return false;
 	}
-	return 0!=ParsePhys(game_phys_x_->text(),0) &&
-	       0!=ParsePhys(game_phys_y_->text(),0);
+	const bool hasAbs=
+	    0!=ParsePhys(game_phys_x_->text(),0) &&
+	    0!=ParsePhys(game_phys_y_->text(),0);
+	const bool hasDs=
+	    (nullptr!=game_ds_off_x_ && true!=game_ds_off_x_->text().trimmed().isEmpty()) &&
+	    (nullptr!=game_ds_off_y_ && true!=game_ds_off_y_->text().trimmed().isEmpty());
+	return true==hasAbs || true==hasDs;
 }
 
 void MouseCoordProfilePage::refreshPresetButtons(void)

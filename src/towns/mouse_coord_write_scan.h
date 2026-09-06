@@ -24,6 +24,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <unordered_set>
 #include <vector>
 
+#include "townsdef.h"
+
 class FMTownsCommon;
 class Memory;
 
@@ -143,6 +145,13 @@ public:
 	{
 		unsigned int physX=0;
 		unsigned int physY=0;
+		/*! DS.baseLinearAddr-relative offsets (WC-style).  When hasDsOff, runtime
+		    re-resolves phys via DebugLinearAddressToPhysicalAddress. */
+		unsigned int dsOffX=0;
+		unsigned int dsOffY=0;
+		bool hasDsOff=false;
+		/*! Segment selector used at capture (0 = use live DS at resolve time). */
+		unsigned int dsSelector=0;
 		int biasX=0;
 		int biasY=0;
 		/*! Multiplier applied to the mapped write value (0 = skip axis write multiply). */
@@ -156,6 +165,8 @@ public:
 		bool hasRangeX=false;
 		bool hasRangeY=false;
 		bool Valid(void) const{return 0!=physX && 0!=physY;}
+		/*! Absolute phys set, or DS-relative recipe present (may need resolve). */
+		bool Configured(void) const{return Valid() || hasDsOff;}
 	};
 
 	struct MachineSettings
@@ -195,6 +206,8 @@ public:
 		bool fastFd=false;
 		bool hasMidiBoard=false;
 		bool midiBoard=false;
+		bool hasSingleDrive=false;
+		bool singleDrive=false;
 		bool hasHighResCrtc=false;
 		bool highResCrtc=true;
 		bool hasHighResPcm=false;
@@ -206,6 +219,13 @@ public:
 		/*! FD0/FD1 image paths (empty string = explicitly unmounted). */
 		bool hasFdImg[2]={false,false};
 		std::string fdImg[2];
+		/*! SCSI HD0–HD6 image paths (empty string = explicitly unmounted). */
+		static constexpr int kHddImgCount=7;
+		bool hasHddImg[kHddImgCount]={false,false,false,false,false,false,false};
+		std::string hddImg[kHddImgCount];
+		/*! Boot-key combination (BOOT_KEYCOMB_*; Tsugaru KEYCOMB / -BOOTKEY). */
+		bool hasBootKeyComb=false;
+		unsigned int bootKeyComb=BOOT_KEYCOMB_CD;
 
 		bool HasAny(void) const
 		{
@@ -226,12 +246,21 @@ public:
 			       true==hasFastScsi ||
 			       true==hasFastFd ||
 			       true==hasMidiBoard ||
+			       true==hasSingleDrive ||
 			       true==hasHighResCrtc ||
 			       true==hasHighResPcm ||
 			       true==hasCdSpeed ||
 			       true==hasSpriteTransfer ||
 			       true==hasFdImg[0] ||
-			       true==hasFdImg[1];
+			       true==hasFdImg[1] ||
+			       true==hasHddImg[0] ||
+			       true==hasHddImg[1] ||
+			       true==hasHddImg[2] ||
+			       true==hasHddImg[3] ||
+			       true==hasHddImg[4] ||
+			       true==hasHddImg[5] ||
+			       true==hasHddImg[6] ||
+			       true==hasBootKeyComb;
 		}
 	};
 
@@ -299,7 +328,7 @@ public:
 			unsigned int n=0;
 			for(auto &pr : pair)
 			{
-				if(true==pr.Valid())
+				if(true==pr.Configured())
 				{
 					++n;
 				}
@@ -531,6 +560,15 @@ public:
 	    unsigned int &minX,unsigned int &maxX,
 	    unsigned int &minY,unsigned int &maxY) const;
 
+	/*! WC-style: phys = LinToPhys(DS.base + dsOff).  dsSelector 0 = live DS. */
+	bool ResolveDsRelativePhys(
+	    unsigned int dsOff,unsigned int dsSelector,unsigned int &outPhys) const;
+	/*! Capture: phys → (dsOff, dsSelector) using live DS + PhysicalAddressToLinearAddress. */
+	bool CaptureDsRelativeFromPhys(
+	    unsigned int phys,unsigned int &outDsOff,unsigned int &outDsSelector) const;
+	/*! Re-resolve all activeProfile.pair[] with hasDsOff into physX/physY. */
+	void ResolveActiveProfileDsOffsets(void);
+
 	void SetProfileDirectory(const std::string &dir);
 	const std::string &ProfileDirectory(void) const{return profileDir;}
 
@@ -556,6 +594,9 @@ public:
 	bool MergeAndSaveMachineClock(bool fastMode,int frequencyMhz,int customFrequencyMhz);
 	/*! Update FD0/FD1 mount paths on the active disc profile and save. */
 	bool ApplyAndSaveFdMounts(const std::string &fd0,const std::string &fd1);
+	/*! Update SCSI HD0–HD6 mount paths on the active disc profile and save.
+	    Pass nullptr for a slot to leave it unchanged; empty string = unmounted. */
+	bool ApplyAndSaveHddMounts(const std::string *hddPaths,int count);
 	/*! True when a disc profile file is loaded (machine and/or mouse). */
 	bool DiscProfileLoaded(void) const;
 	/*! Basename of the on-disk profile (e.g. "fp_........ini"), or empty if new/unsaved. */
@@ -924,6 +965,8 @@ private:
 	bool CollectSoftCursorPhys(
 	    unsigned int &physX,unsigned int &physY,
 	    unsigned int &altX,unsigned int &altY) const;
+	/*! Resolve one CoordPair in place (hasDsOff → phys). Call with or without mtx. */
+	bool ResolveCoordPairDsOffLocked(CoordPair &pr) const;
 	void ObserveSoftCursorLocked(void);
 	bool IsKnownSoftCursorPhysLocked(unsigned int physAddr) const;
 	/*! Record a host/IO motion sample and open the frame window (call with mtx held). */

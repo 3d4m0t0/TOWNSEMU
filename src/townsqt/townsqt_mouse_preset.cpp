@@ -129,6 +129,13 @@ QVariantMap ProfileToMouseMap(const MouseCoordWriteScan::Profile &p)
 		const QString base=QStringLiteral("prof_pair%1").arg(i);
 		out.insert(base+QStringLiteral("_x"),static_cast<uint>(pr.physX));
 		out.insert(base+QStringLiteral("_y"),static_cast<uint>(pr.physY));
+		if(true==pr.hasDsOff)
+		{
+			out.insert(base+QStringLiteral("_ds_off_x"),static_cast<uint>(pr.dsOffX));
+			out.insert(base+QStringLiteral("_ds_off_y"),static_cast<uint>(pr.dsOffY));
+			out.insert(base+QStringLiteral("_ds_sel"),static_cast<uint>(pr.dsSelector));
+			out.insert(base+QStringLiteral("_has_ds_off"),true);
+		}
 		out.insert(base+QStringLiteral("_scale_x"),pr.scaleX);
 		out.insert(base+QStringLiteral("_scale_y"),pr.scaleY);
 		if(true==pr.hasRangeX)
@@ -197,6 +204,19 @@ QString PresetIniFromProfile(unsigned int fingerprintHash32,const QVariantMap &p
 	                      MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE));
 	lines << QStringLiteral("pair0_x=%1").arg(HexU32(u32("prof_pair0_x")));
 	lines << QStringLiteral("pair0_y=%1").arg(HexU32(u32("prof_pair0_y")));
+	if(true==profile.value(QStringLiteral("prof_pair0_has_ds_off")).toBool() ||
+	   true==profile.contains(QStringLiteral("prof_pair0_ds_off_x")))
+	{
+		lines << QStringLiteral("pair0_ds_off_x=%1")
+		             .arg(HexU32(u32("prof_pair0_ds_off_x")));
+		lines << QStringLiteral("pair0_ds_off_y=%1")
+		             .arg(HexU32(u32("prof_pair0_ds_off_y")));
+		const unsigned int sel=u32("prof_pair0_ds_sel");
+		if(0!=sel)
+		{
+			lines << QStringLiteral("pair0_ds_sel=%1").arg(HexU32(sel));
+		}
+	}
 	lines << QStringLiteral("pair0_min_x=%1").arg(i32("prof_pair0_min_x"));
 	lines << QStringLiteral("pair0_max_x=%1").arg(i32("prof_pair0_max_x"));
 	lines << QStringLiteral("pair0_min_y=%1").arg(i32("prof_pair0_min_y"));
@@ -211,10 +231,25 @@ QString PresetIniFromProfile(unsigned int fingerprintHash32,const QVariantMap &p
 	lines << QStringLiteral("stop_soft_write=%1").arg(flag("prof_stop_soft_write"));
 	const unsigned int pair1x=u32("prof_pair1_x");
 	const unsigned int pair1y=u32("prof_pair1_y");
-	if(0!=pair1x && 0!=pair1y)
+	const bool pair1Ds=
+	    true==profile.value(QStringLiteral("prof_pair1_has_ds_off")).toBool() ||
+	    true==profile.contains(QStringLiteral("prof_pair1_ds_off_x"));
+	if((0!=pair1x && 0!=pair1y) || true==pair1Ds)
 	{
 		lines << QStringLiteral("pair1_x=%1").arg(HexU32(pair1x));
 		lines << QStringLiteral("pair1_y=%1").arg(HexU32(pair1y));
+		if(true==pair1Ds)
+		{
+			lines << QStringLiteral("pair1_ds_off_x=%1")
+			             .arg(HexU32(u32("prof_pair1_ds_off_x")));
+			lines << QStringLiteral("pair1_ds_off_y=%1")
+			             .arg(HexU32(u32("prof_pair1_ds_off_y")));
+			const unsigned int sel=u32("prof_pair1_ds_sel");
+			if(0!=sel)
+			{
+				lines << QStringLiteral("pair1_ds_sel=%1").arg(HexU32(sel));
+			}
+		}
 		lines << QStringLiteral("pair1_scale_x=%1").arg(i32("prof_pair1_scale_x",1));
 		lines << QStringLiteral("pair1_scale_y=%1").arg(i32("prof_pair1_scale_y",1));
 	}

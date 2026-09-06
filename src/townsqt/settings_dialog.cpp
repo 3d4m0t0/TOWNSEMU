@@ -484,24 +484,30 @@ void SettingsDialog::setGameCursorFromSelection(
     unsigned int physX,unsigned int physY,
     unsigned int minX,unsigned int maxX,
     unsigned int minY,unsigned int maxY,
-    bool hasRangeX,bool hasRangeY)
+    bool hasRangeX,bool hasRangeY,
+    unsigned int dsOffX,unsigned int dsOffY,
+    unsigned int dsSelector,bool hasDsOff)
 {
 	if(nullptr==mouse_coord_profile_page_)
 	{
 		return;
 	}
 	mouse_coord_profile_page_->setGameCursorFromSelection(
-	    physX,physY,minX,maxX,minY,maxY,hasRangeX,hasRangeY);
+	    physX,physY,minX,maxX,minY,maxY,hasRangeX,hasRangeY,
+	    dsOffX,dsOffY,dsSelector,hasDsOff);
 }
 
 void SettingsDialog::setGameCursor2FromSelection(
-    unsigned int physX,unsigned int physY)
+    unsigned int physX,unsigned int physY,
+    unsigned int dsOffX,unsigned int dsOffY,
+    unsigned int dsSelector,bool hasDsOff)
 {
 	if(nullptr==mouse_coord_profile_page_)
 	{
 		return;
 	}
-	mouse_coord_profile_page_->setGameCursor2FromSelection(physX,physY);
+	mouse_coord_profile_page_->setGameCursor2FromSelection(
+	    physX,physY,dsOffX,dsOffY,dsSelector,hasDsOff);
 }
 
 void SettingsDialog::setMouseBiosActive(bool active)

@@ -28,13 +28,18 @@ public:
 	void setMouseBiosActive(bool active);
 	/*! Update live AH=4BH EXE shown next to Bind (from mouseCoordWriteScanState). */
 	void setLiveAppExec(const QString &name,unsigned int hash32);
-	/*! Fill game-cursor phys + range from scan-window X/Y selection. */
+	/*! Fill game-cursor phys + range from scan-window X/Y selection.
+	    When hasDsOff, also store DS.base-relative offsets (WC-style). */
 	void setGameCursorFromSelection(unsigned int physX,unsigned int physY,
 	                                unsigned int minX,unsigned int maxX,
 	                                unsigned int minY,unsigned int maxY,
-	                                bool hasRangeX,bool hasRangeY);
+	                                bool hasRangeX,bool hasRangeY,
+	                                unsigned int dsOffX=0,unsigned int dsOffY=0,
+	                                unsigned int dsSelector=0,bool hasDsOff=false);
 	/*! Fill optional Phys 2 from scan-window X2/Y2 (range shared with pair0). */
-	void setGameCursor2FromSelection(unsigned int physX,unsigned int physY);
+	void setGameCursor2FromSelection(unsigned int physX,unsigned int physY,
+	                                 unsigned int dsOffX=0,unsigned int dsOffY=0,
+	                                 unsigned int dsSelector=0,bool hasDsOff=false);
 	QVariantMap profile(void);
 	void setEditorEnabled(bool enabled);
 
@@ -64,6 +69,13 @@ private:
 	/*! Optional second Game Phys pair (row below Phys 1). */
 	QLineEdit *game_phys2_x_=nullptr;
 	QLineEdit *game_phys2_y_=nullptr;
+	/*! DS.base-relative offsets (shown when captured; editable). */
+	QLineEdit *game_ds_off_x_=nullptr;
+	QLineEdit *game_ds_off_y_=nullptr;
+	QLineEdit *game_ds_off2_x_=nullptr;
+	QLineEdit *game_ds_off2_y_=nullptr;
+	unsigned int pair0_ds_sel_=0;
+	unsigned int pair1_ds_sel_=0;
 	QSpinBox *game_min_x_=nullptr;
 	QSpinBox *game_max_x_=nullptr;
 	QSpinBox *game_min_y_=nullptr;

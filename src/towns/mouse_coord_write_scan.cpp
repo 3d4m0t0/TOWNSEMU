@@ -689,6 +689,89 @@ bool MouseCoordWriteScan::GetSoftCursorRange(
 	return true;
 }
 
+bool MouseCoordWriteScan::ResolveDsRelativePhys(
+    unsigned int dsOff,unsigned int dsSelector,unsigned int &outPhys) const
+{
+	outPhys=0;
+	if(nullptr==townsPtr)
+	{
+		return false;
+	}
+	auto &cpu=townsPtr->CPU();
+	unsigned int base=cpu.state.DS().baseLinearAddr;
+	if(0!=dsSelector)
+	{
+		i486DXCommon::SegmentRegister ds;
+		cpu.DebugLoadSegmentRegister(ds,dsSelector,townsPtr->mem,cpu.state.mode);
+		base=ds.baseLinearAddr;
+	}
+	unsigned int exceptionType=i486DXCommon::EXCEPTION_NONE;
+	unsigned int exceptionCode=0;
+	const unsigned int phys=(unsigned int)cpu.DebugLinearAddressToPhysicalAddress(
+	    exceptionType,exceptionCode,base+dsOff,townsPtr->mem);
+	if(i486DXCommon::EXCEPTION_NONE!=exceptionType || 0==phys)
+	{
+		return false;
+	}
+	outPhys=phys;
+	return true;
+}
+
+bool MouseCoordWriteScan::CaptureDsRelativeFromPhys(
+    unsigned int phys,unsigned int &outDsOff,unsigned int &outDsSelector) const
+{
+	outDsOff=0;
+	outDsSelector=0;
+	if(nullptr==townsPtr || 0==phys)
+	{
+		return false;
+	}
+	auto &cpu=townsPtr->CPU();
+	const unsigned int linear=
+	    cpu.PhysicalAddressToLinearAddress(phys,townsPtr->mem);
+	const unsigned int dsBase=cpu.state.DS().baseLinearAddr;
+	if(linear<dsBase)
+	{
+		return false;
+	}
+	outDsOff=linear-dsBase;
+	outDsSelector=cpu.state.DS().value;
+	return true;
+}
+
+bool MouseCoordWriteScan::ResolveCoordPairDsOffLocked(CoordPair &pr) const
+{
+	if(true!=pr.hasDsOff)
+	{
+		return false;
+	}
+	unsigned int px=0,py=0;
+	if(true!=ResolveDsRelativePhys(pr.dsOffX,pr.dsSelector,px) ||
+	   true!=ResolveDsRelativePhys(pr.dsOffY,pr.dsSelector,py))
+	{
+		return false;
+	}
+	pr.physX=px;
+	pr.physY=py;
+	return true;
+}
+
+void MouseCoordWriteScan::ResolveActiveProfileDsOffsets(void)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	if(true!=profileLoaded)
+	{
+		return;
+	}
+	for(auto &pr : activeProfile.pair)
+	{
+		if(true==pr.hasDsOff)
+		{
+			(void)ResolveCoordPairDsOffLocked(pr);
+		}
+	}
+}
+
 bool MouseCoordWriteScan::IsKnownSoftCursorPhysLocked(unsigned int physAddr) const
 {
 	unsigned int px=0,py=0,ax=0,ay=0;
@@ -1374,6 +1457,10 @@ std::string MouseCoordWriteScan::Profile::ToIniString(void) const
 		{
 			oss << "midi_board=" << (sync.machine.midiBoard ? 1 : 0) << "\n";
 		}
+		if(true==sync.machine.hasSingleDrive)
+		{
+			oss << "single_drive=" << (sync.machine.singleDrive ? 1 : 0) << "\n";
+		}
 		if(true==sync.machine.hasHighResCrtc)
 		{
 			oss << "high_res_crtc=" << (sync.machine.highResCrtc ? 1 : 0) << "\n";
@@ -1398,6 +1485,17 @@ std::string MouseCoordWriteScan::Profile::ToIniString(void) const
 		{
 			oss << "fd1=" << sync.machine.fdImg[1] << "\n";
 		}
+		for(int hd=0; hd<MachineSettings::kHddImgCount; ++hd)
+		{
+			if(true==sync.machine.hasHddImg[hd])
+			{
+				oss << "hd" << hd << "=" << sync.machine.hddImg[hd] << "\n";
+			}
+		}
+		if(true==sync.machine.hasBootKeyComb)
+		{
+			oss << "boot_key=" << TownsKeyCombToStr(sync.machine.bootKeyComb) << "\n";
+		}
 		oss << "\n";
 	}
 	oss << "[mouse_coord]\n";
@@ -1415,12 +1513,21 @@ std::string MouseCoordWriteScan::Profile::ToIniString(void) const
 		const bool hasRange=
 		    (true==pr.hasRangeX && pr.rangeMinX!=pr.rangeMaxX) ||
 		    (true==pr.hasRangeY && pr.rangeMinY!=pr.rangeMaxY);
-		if(true!=force && true!=pr.Valid() && true!=hasRange)
+		if(true!=force && true!=pr.Configured() && true!=hasRange)
 		{
 			return;
 		}
 		oss << "pair" << i << "_x=0x" << cpputil::Uitox(pr.physX) << "\n";
 		oss << "pair" << i << "_y=0x" << cpputil::Uitox(pr.physY) << "\n";
+		if(true==pr.hasDsOff)
+		{
+			oss << "pair" << i << "_ds_off_x=0x" << cpputil::Uitox(pr.dsOffX) << "\n";
+			oss << "pair" << i << "_ds_off_y=0x" << cpputil::Uitox(pr.dsOffY) << "\n";
+			if(0!=pr.dsSelector)
+			{
+				oss << "pair" << i << "_ds_sel=0x" << cpputil::Uitox(pr.dsSelector) << "\n";
+			}
+		}
 		oss << "pair" << i << "_bias_x=" << pr.biasX << "\n";
 		oss << "pair" << i << "_bias_y=" << pr.biasY << "\n";
 		oss << "pair" << i << "_scale_x=" << pr.scaleX << "\n";
@@ -1614,6 +1721,11 @@ bool MouseCoordWriteScan::Profile::FromIniString(const std::string &ini,Profile 
 				p.machine.midiBoard=(0!=std::strtol(val.c_str(),nullptr,0));
 				p.machine.hasMidiBoard=true;
 			}
+			else if("single_drive"==key)
+			{
+				p.machine.singleDrive=(0!=std::strtol(val.c_str(),nullptr,0));
+				p.machine.hasSingleDrive=true;
+			}
 			else if("high_res_crtc"==key)
 			{
 				p.machine.highResCrtc=(0!=std::strtol(val.c_str(),nullptr,0));
@@ -1643,6 +1755,18 @@ bool MouseCoordWriteScan::Profile::FromIniString(const std::string &ini,Profile 
 			{
 				p.machine.fdImg[1]=val;
 				p.machine.hasFdImg[1]=true;
+			}
+			else if(3==key.size() && 'h'==key[0] && 'd'==key[1] &&
+			        key[2]>='0' && key[2]<='6')
+			{
+				const int hd=key[2]-'0';
+				p.machine.hddImg[hd]=val;
+				p.machine.hasHddImg[hd]=true;
+			}
+			else if("boot_key"==key)
+			{
+				p.machine.bootKeyComb=TownsStrToKeyComb(val);
+				p.machine.hasBootKeyComb=true;
 			}
 			continue;
 		}
@@ -1730,6 +1854,20 @@ bool MouseCoordWriteScan::Profile::FromIniString(const std::string &ini,Profile 
 				{
 					p.pair[idx].rangeMaxY=static_cast<int>(std::strtol(val.c_str(),nullptr,0));
 					p.pair[idx].hasRangeY=true;
+				}
+				else if("_ds_off_x"==sub)
+				{
+					p.pair[idx].dsOffX=static_cast<unsigned int>(std::strtoul(val.c_str(),nullptr,0));
+					p.pair[idx].hasDsOff=true;
+				}
+				else if("_ds_off_y"==sub)
+				{
+					p.pair[idx].dsOffY=static_cast<unsigned int>(std::strtoul(val.c_str(),nullptr,0));
+					p.pair[idx].hasDsOff=true;
+				}
+				else if("_ds_sel"==sub)
+				{
+					p.pair[idx].dsSelector=static_cast<unsigned int>(std::strtoul(val.c_str(),nullptr,0));
 				}
 			}
 		}
@@ -1937,6 +2075,16 @@ void MouseCoordWriteScan::SetActiveProfile(const Profile &p)
 		activeProfile.SyncLegacyFlagsFromMode();
 		profileLoaded=activeProfile.HasFingerprint();
 		softLogValid=false;
+		if(true==profileLoaded)
+		{
+			for(auto &pr : activeProfile.pair)
+			{
+				if(true==pr.hasDsOff)
+				{
+					(void)ResolveCoordPairDsOffLocked(pr);
+				}
+			}
+		}
 		if(true==activeProfile.HasPhys() || 0<activeProfile.NumPairs())
 		{
 			SeedProfileCandidatesLocked();
@@ -3090,6 +3238,16 @@ void MouseCoordWriteScan::NoteMouseProfileApply(bool on)
 		return;
 	}
 	loggedProfileApply=on;
+	if(true==on && true==profileLoaded)
+	{
+		for(auto &pr : activeProfile.pair)
+		{
+			if(true==pr.hasDsOff)
+			{
+				(void)ResolveCoordPairDsOffLocked(pr);
+			}
+		}
+	}
 	LogAppMonitorLine(on ? "[APP] mouse apply ON" : "[APP] mouse apply OFF");
 }
 
@@ -3249,6 +3407,14 @@ bool MouseCoordWriteScan::ReadProfileCoords(int &mx,int &my) const
 		}
 		p=activeProfile;
 	}
+	// Prefer DS-relative recipe when present; fall back to stored absolute phys.
+	for(auto &pr : p.pair)
+	{
+		if(true==pr.hasDsOff)
+		{
+			(void)ResolveCoordPairDsOffLocked(pr);
+		}
+	}
 	// The app keeps its own cursor from BIOS deltas; when it is known, it — not the
 	// BIOS soft word — is what the on-screen cursor follows, so integrate against it.
 	const bool prev=townsPtr->var.suppressMosCoordReadProbe;
@@ -3358,6 +3524,13 @@ bool MouseCoordWriteScan::WriteAppCursorCoords(int mx,int my)
 			lastDirectWriteOk=false;
 			return false;
 		}
+		for(auto &pr : activeProfile.pair)
+		{
+			if(true==pr.hasDsOff)
+			{
+				(void)ResolveCoordPairDsOffLocked(pr);
+			}
+		}
 		p=activeProfile;
 	}
 
@@ -3450,6 +3623,13 @@ void MouseCoordWriteScan::SyncAppStoreGuard(bool on)
 		}
 		else
 		{
+			for(auto &pr : activeProfile.pair)
+			{
+				if(true==pr.hasDsOff)
+				{
+					(void)ResolveCoordPairDsOffLocked(pr);
+				}
+			}
 			p=activeProfile;
 		}
 	}
@@ -4547,6 +4727,30 @@ bool MouseCoordWriteScan::ApplyAndSaveFdMounts(const std::string &fd0,const std:
 	return WriteProfileFile(p);
 }
 
+bool MouseCoordWriteScan::ApplyAndSaveHddMounts(const std::string *hddPaths,int count)
+{
+	if(nullptr==hddPaths || 0>=count)
+	{
+		return false;
+	}
+	Profile p;
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		if(true!=profileLoaded || true!=activeProfile.HasFingerprint())
+		{
+			return false;
+		}
+		const int n=std::min(count,MachineSettings::kHddImgCount);
+		for(int hd=0; hd<n; ++hd)
+		{
+			activeProfile.machine.hasHddImg[hd]=true;
+			activeProfile.machine.hddImg[hd]=hddPaths[hd];
+		}
+		p=activeProfile;
+	}
+	return WriteProfileFile(p);
+}
+
 bool MouseCoordWriteScan::CreateProfileForCurrentDisc(const MachineSettings &machineDefaults)
 {
 	if(nullptr==townsPtr || true==profileDir.empty())
@@ -4891,6 +5095,13 @@ void MouseCoordWriteScan::SyncAfterStateLoad(void)
 	appExecSoftTrackedHost=false;
 	appExecSoftTrackSampleValid=false;
 	appExecSoftStuckHostMotion=0;
+	for(auto &pr : activeProfile.pair)
+	{
+		if(true==pr.hasDsOff)
+		{
+			(void)ResolveCoordPairDsOffLocked(pr);
+		}
+	}
 	appExecSoftUnresponsive=false;
 	appExecSoftPendingHostStuck=0;
 	appExecSoftLagSamplesLeft=0;

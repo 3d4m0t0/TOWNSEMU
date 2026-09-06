@@ -64,6 +64,8 @@ public Q_SLOTS:
 	Q_INVOKABLE QVariantList takeMouseCoordClearedChase();
 	Q_INVOKABLE QVariantMap mouseCoordWriteScanState() const;
 	Q_INVOKABLE QByteArray fetchPhysBytes(unsigned int physAddr,unsigned int length) const;
+	/*! Capture DS.base-relative offsets for a phys pair (empty map if DS unavailable). */
+	Q_INVOKABLE QVariantMap captureDsRelativeFromPhys(unsigned int physX,unsigned int physY) const;
 	Q_INVOKABLE bool captureMouseCoordProfileFromSoftCursor();
 	Q_INVOKABLE bool saveMouseCoordProfile();
 	/*! Clear phys/pairs in the CD profile file (file kept); unload active profile. */

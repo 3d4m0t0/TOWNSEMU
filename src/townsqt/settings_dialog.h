@@ -130,8 +130,12 @@ public:
 	void setGameCursorFromSelection(unsigned int physX,unsigned int physY,
 	                                unsigned int minX,unsigned int maxX,
 	                                unsigned int minY,unsigned int maxY,
-	                                bool hasRangeX,bool hasRangeY);
-	void setGameCursor2FromSelection(unsigned int physX,unsigned int physY);
+	                                bool hasRangeX,bool hasRangeY,
+	                                unsigned int dsOffX=0,unsigned int dsOffY=0,
+	                                unsigned int dsSelector=0,bool hasDsOff=false);
+	void setGameCursor2FromSelection(unsigned int physX,unsigned int physY,
+	                                 unsigned int dsOffX=0,unsigned int dsOffY=0,
+	                                 unsigned int dsSelector=0,bool hasDsOff=false);
 	void setMouseBiosActive(bool active);
 	/*! Refresh live AH=4BH EXE shown on the Mouse integration tab. */
 	void setLiveAppExec(const QString &name,unsigned int hash32);

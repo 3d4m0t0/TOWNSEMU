@@ -2298,6 +2298,13 @@ QVariantMap EmulatorController::mouseCoordWriteScanState() const
 				const QString base=QStringLiteral("prof_pair%1").arg(i);
 				result[base+QStringLiteral("_x")]=static_cast<uint>(pr.physX);
 				result[base+QStringLiteral("_y")]=static_cast<uint>(pr.physY);
+				if(true==pr.hasDsOff)
+				{
+					result[base+QStringLiteral("_ds_off_x")]=static_cast<uint>(pr.dsOffX);
+					result[base+QStringLiteral("_ds_off_y")]=static_cast<uint>(pr.dsOffY);
+					result[base+QStringLiteral("_ds_sel")]=static_cast<uint>(pr.dsSelector);
+					result[base+QStringLiteral("_has_ds_off")]=true;
+				}
 				result[base+QStringLiteral("_bias_x")]=pr.biasX;
 				result[base+QStringLiteral("_bias_y")]=pr.biasY;
 				result[base+QStringLiteral("_scale_x")]=pr.scaleX;
@@ -2469,6 +2476,27 @@ QVariantMap EmulatorController::mouseCoordWriteScanState() const
 	return result;
 }
 
+QVariantMap EmulatorController::captureDsRelativeFromPhys(
+    unsigned int physX,unsigned int physY) const
+{
+	QVariantMap out;
+	if(nullptr==towns_ || 0==physX || 0==physY)
+	{
+		return out;
+	}
+	unsigned int offX=0,offY=0,selX=0,selY=0;
+	if(true!=towns_->mouseCoordWriteScan.CaptureDsRelativeFromPhys(physX,offX,selX) ||
+	   true!=towns_->mouseCoordWriteScan.CaptureDsRelativeFromPhys(physY,offY,selY))
+	{
+		return out;
+	}
+	out.insert(QStringLiteral("ds_off_x"),static_cast<uint>(offX));
+	out.insert(QStringLiteral("ds_off_y"),static_cast<uint>(offY));
+	out.insert(QStringLiteral("ds_sel"),static_cast<uint>((0!=selX) ? selX : selY));
+	out.insert(QStringLiteral("ok"),true);
+	return out;
+}
+
 bool EmulatorController::captureMouseCoordProfileFromSoftCursor()
 {
 	if(nullptr==towns_)
@@ -2531,6 +2559,29 @@ bool EmulatorController::applyMouseCoordProfile(const QVariantMap &profile)
 		if(profile.contains(base+QStringLiteral("_y")))
 		{
 			pr.physY=profile.value(base+QStringLiteral("_y")).toUInt();
+		}
+		if(profile.contains(base+QStringLiteral("_ds_off_x")) ||
+		   profile.contains(base+QStringLiteral("_ds_off_y")))
+		{
+			pr.dsOffX=profile.value(base+QStringLiteral("_ds_off_x")).toUInt();
+			pr.dsOffY=profile.value(base+QStringLiteral("_ds_off_y")).toUInt();
+			pr.hasDsOff=true;
+			pr.dsSelector=profile.value(base+QStringLiteral("_ds_sel")).toUInt();
+		}
+		else if(true==pr.Valid())
+		{
+			// Capture DS-relative offsets when absolute phys was set without offs.
+			unsigned int offX=0,offY=0,selX=0,selY=0;
+			if(true==towns_->mouseCoordWriteScan.CaptureDsRelativeFromPhys(
+			       pr.physX,offX,selX) &&
+			   true==towns_->mouseCoordWriteScan.CaptureDsRelativeFromPhys(
+			       pr.physY,offY,selY))
+			{
+				pr.dsOffX=offX;
+				pr.dsOffY=offY;
+				pr.dsSelector=(0!=selX) ? selX : selY;
+				pr.hasDsOff=true;
+			}
 		}
 		if(profile.contains(base+QStringLiteral("_bias_x")))
 		{
@@ -2659,10 +2710,14 @@ bool EmulatorController::applyMouseCoordProfile(const QVariantMap &profile)
 	// simply stays idle until pairs are configured.
 	for(auto &pr : p.pair)
 	{
-		if(true!=pr.Valid())
+		if(true!=pr.Configured())
 		{
 			pr.physX=0;
 			pr.physY=0;
+			pr.hasDsOff=false;
+			pr.dsOffX=0;
+			pr.dsOffY=0;
+			pr.dsSelector=0;
 			pr.hasRangeX=false;
 			pr.hasRangeY=false;
 			pr.rangeMinX=0;

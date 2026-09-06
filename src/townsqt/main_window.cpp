@@ -1915,18 +1915,60 @@ void MainWindow::openSettingsDialog()
 				const auto gameCursor=mouse_coord_scan_window_->selectedGameCursor();
 				if(true==gameCursor.valid())
 				{
+					unsigned int dsOffX=0,dsOffY=0,dsSel=0;
+					bool hasDsOff=false;
+					if(nullptr!=controller_)
+					{
+						QVariantMap dsMap;
+						QMetaObject::invokeMethod(
+						    controller_,
+						    "captureDsRelativeFromPhys",
+						    Qt::BlockingQueuedConnection,
+						    Q_RETURN_ARG(QVariantMap,dsMap),
+						    Q_ARG(uint,gameCursor.physX),
+						    Q_ARG(uint,gameCursor.physY));
+						if(true==dsMap.value(QStringLiteral("ok")).toBool())
+						{
+							dsOffX=dsMap.value(QStringLiteral("ds_off_x")).toUInt();
+							dsOffY=dsMap.value(QStringLiteral("ds_off_y")).toUInt();
+							dsSel=dsMap.value(QStringLiteral("ds_sel")).toUInt();
+							hasDsOff=true;
+						}
+					}
 					dlg.setGameCursorFromSelection(
 					    gameCursor.physX,gameCursor.physY,
 					    gameCursor.minX,gameCursor.maxX,
 					    gameCursor.minY,gameCursor.maxY,
-					    gameCursor.hasRangeX,gameCursor.hasRangeY);
+					    gameCursor.hasRangeX,gameCursor.hasRangeY,
+					    dsOffX,dsOffY,dsSel,hasDsOff);
 					dlg.setApplyPending(true);
 				}
 				const auto gameCursor2=mouse_coord_scan_window_->selectedGameCursor2();
 				if(true==gameCursor2.valid())
 				{
+					unsigned int dsOffX=0,dsOffY=0,dsSel=0;
+					bool hasDsOff=false;
+					if(nullptr!=controller_)
+					{
+						QVariantMap dsMap;
+						QMetaObject::invokeMethod(
+						    controller_,
+						    "captureDsRelativeFromPhys",
+						    Qt::BlockingQueuedConnection,
+						    Q_RETURN_ARG(QVariantMap,dsMap),
+						    Q_ARG(uint,gameCursor2.physX),
+						    Q_ARG(uint,gameCursor2.physY));
+						if(true==dsMap.value(QStringLiteral("ok")).toBool())
+						{
+							dsOffX=dsMap.value(QStringLiteral("ds_off_x")).toUInt();
+							dsOffY=dsMap.value(QStringLiteral("ds_off_y")).toUInt();
+							dsSel=dsMap.value(QStringLiteral("ds_sel")).toUInt();
+							hasDsOff=true;
+						}
+					}
 					dlg.setGameCursor2FromSelection(
-					    gameCursor2.physX,gameCursor2.physY);
+					    gameCursor2.physX,gameCursor2.physY,
+					    dsOffX,dsOffY,dsSel,hasDsOff);
 					dlg.setApplyPending(true);
 				}
 			}
