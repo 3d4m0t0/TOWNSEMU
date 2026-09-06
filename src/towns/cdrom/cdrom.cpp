@@ -246,6 +246,7 @@ void TownsCDROM::State::Reset(void)
 	CDDAWaveBaseTime.Set(0,0,0);
 	CDDAHostSamplesMixed=0;
 	CDDACacheStopAfterHostSamples=0;
+	CDDACacheHostStoppedByGrace=false;
 	CDDACacheBridgingDataRead=false;
 	CDDAStateBeforeDataRead=CDDA_IDLE;
 	dataTransferActive=false;
@@ -293,13 +294,12 @@ void TownsCDROM::UpdateCDDAStateInternal(long long int townsTime)
 	{
 		state.CDDACacheStopAfterHostSamples=0;
 		state.CDDAStateBeforeDataRead=CDDA_IDLE;
-		// Grace expired without PLAY/RESUME after STOP→MODE: mute host only.
-		// Do not mute while guest is PAUSED (MODE interrupted play; position kept).
+		// Grace expired without PLAY/RESUME: mute host only (guest may stay PAUSED).
 		if(CDDA_PLAYING!=state.CDDAState &&
-		   CDDA_PAUSED!=state.CDDAState &&
 		   true==state.CDDAAudioOutput)
 		{
 			state.CDDAAudioOutput=false;
+			state.CDDACacheHostStoppedByGrace=true;
 			std::ostringstream oss;
 			oss << "[CACHE] stop host mix after grace (keep position)"
 			    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();
@@ -386,6 +386,7 @@ void TownsCDROM::DiscardCDDAWaveCache(void)
 	state.CDDAWaveBaseTime.Set(0,0,0);
 	state.CDDAHostSamplesMixed=0;
 	state.CDDACacheStopAfterHostSamples=0;
+	state.CDDACacheHostStoppedByGrace=false;
 	state.CDDACacheBridgingDataRead=false;
 	state.CDDAStateBeforeDataRead=CDDA_IDLE;
 	state.CDDAPrefetchWaitForMode=false;
@@ -482,12 +483,25 @@ void TownsCDROM::CacheOnDataReadStarted(unsigned int numSectors)
 
 	if(true==CacheWaveRemaining())
 	{
-		state.CDDAAudioOutput=true;
-		state.CDDACacheBridgingDataRead=true;
-		std::ostringstream oss;
-		oss << "[CACHE] bridge MODE read sectors=" << numSectors
-		    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();
-		LogMonitorLine(oss.str());
+		// Grace already muted host: keep position but do not restart bridge on MODE.
+		if(true==state.CDDACacheHostStoppedByGrace)
+		{
+			state.CDDAAudioOutput=false;
+			state.CDDACacheBridgingDataRead=false;
+			std::ostringstream oss;
+			oss << "[CACHE] skip MODE bridge (stopped by grace)"
+			    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();
+			LogMonitorLine(oss.str());
+		}
+		else
+		{
+			state.CDDAAudioOutput=true;
+			state.CDDACacheBridgingDataRead=true;
+			std::ostringstream oss;
+			oss << "[CACHE] bridge MODE read sectors=" << numSectors
+			    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();
+			LogMonitorLine(oss.str());
+		}
 	}
 	else
 	{
@@ -523,24 +537,16 @@ void TownsCDROM::CacheOnDataReadFinished(void)
 		return;
 	}
 
-	// PLAY/PAUSE → MODE: keep host mix with no grace timer.  Guest is PAUSED and
-	// may only GETSTATE for a long time; muting after N seconds caused audible dropouts.
-	// STOP/IDLE → MODE: arm grace; PLAY/RESUME within grace continues, else mute host.
-	if(CDDA_PLAYING==before || CDDA_PAUSED==before || CDDA_PAUSED==state.CDDAState)
-	{
-		CacheClearStopDeadline();
-		std::ostringstream oss;
-		oss << "[CACHE] host mix after MODE (guest paused, no grace)"
-		    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();
-		LogMonitorLine(oss.str());
-		return;
-	}
-
+	// After MODE bridge: arm grace for STOP/IDLE and PAUSED alike.
+	// Further MODE within the window clears and re-arms; PLAY/RESUME clears it.
+	// Without PLAY/RESUME before grace expires, host mix stops (guest state kept).
 	CacheArmStopIfNoPlay();
 	{
 		std::ostringstream oss;
-		oss << "[CACHE] host mix after MODE (guest idle) arm grace sec="
+		oss << "[CACHE] host mix after MODE arm grace sec="
 		    << (0<var.cddaCachePostReadGraceSec ? var.cddaCachePostReadGraceSec : 3u)
+		    << " before=" << before
+		    << " cdda=" << state.CDDAState
 		    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();
 		LogMonitorLine(oss.str());
 	}
@@ -1394,6 +1400,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 				// invalidMSF: keep previous Start/End/Repeat (BIOS quirk resume).
 				state.CDDAAudioOutput=true;
 				CacheClearStopDeadline();
+				state.CDDACacheHostStoppedByGrace=false;
 				state.CDDACacheBridgingDataRead=false;
 				state.CDDAStateBeforeDataRead=CDDA_IDLE;
 
@@ -1479,6 +1486,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 				state.CDDAWaveBaseTime=msfBegin;
 				state.CDDAAudioOutput=true;
 				CacheClearStopDeadline();
+				state.CDDACacheHostStoppedByGrace=false;
 				state.CDDACacheBridgingDataRead=false;
 				state.CDDAStateBeforeDataRead=CDDA_IDLE;
 
@@ -1785,6 +1793,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 			state.CDDAState=CDDA_PLAYING;
 			state.CDDAAudioOutput=true;
 			CacheClearStopDeadline();
+			state.CDDACacheHostStoppedByGrace=false;
 			state.CDDACacheBridgingDataRead=false;
 			state.CDDAStateBeforeDataRead=CDDA_IDLE;
 		}
@@ -2783,11 +2792,12 @@ void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSa
 		{
 			state.CDDACacheStopAfterHostSamples=0;
 			state.CDDAStateBeforeDataRead=CDDA_IDLE;
+			// Grace expired without PLAY/RESUME: mute host only (guest may stay PAUSED).
 			if(CDDA_PLAYING!=state.CDDAState &&
-			   CDDA_PAUSED!=state.CDDAState &&
 			   true==state.CDDAAudioOutput)
 			{
 				state.CDDAAudioOutput=false;
+				state.CDDACacheHostStoppedByGrace=true;
 				std::ostringstream oss;
 				oss << "[CACHE] stop host mix after grace (keep position)"
 				    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();

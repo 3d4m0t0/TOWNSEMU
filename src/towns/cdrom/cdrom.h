@@ -285,10 +285,11 @@ public:
 		DiscImage::MinSecFrm CDDAWaveBaseTime;
 		bool CDDAAudioOutput=false;  // Host mix only; never affects GETSTATE / StatusSecondByte
 
-		// After MODE with prior PLAY/PAUSE: guest PAUSED, host may mix with no grace.
-		// Grace (sample-based) applies only to STOP/IDLE→MODE; mute host if no PLAY/RESUME.
+		// After MODE bridge: grace (sample-based) mutes host if no PLAY/RESUME.
+		// Once muted by grace, further MODE must not re-bridge until PLAY/RESUME.
 		uint64_t CDDAHostSamplesMixed=0;
 		uint64_t CDDACacheStopAfterHostSamples=0; // 0=inactive; else mute host when HostSamplesMixed reaches this
+		bool CDDACacheHostStoppedByGrace=false;
 		bool CDDACacheBridgingDataRead=false;
 		unsigned int CDDAStateBeforeDataRead=CDDA_IDLE;
 
