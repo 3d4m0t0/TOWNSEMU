@@ -88,11 +88,19 @@ private:
 	/*! Load fp_*.ini machine map for a disc image without an EMU core. */
 	bool loadDiscProfileOverrideForPath(const QString &cdPath);
 	void clearDiscProfileOverride(void);
-	/*! Live CD image change (state save → eject → mount; no emulator restart). */
+	/*! Live CD image change (state save → eject → mount).
+	    Profiled disc → retarget edit paths and restart; unprofiled/eject → keep prior edit target. */
 	void requestCdImageChange(const QString &path);
 	void fillDiscProfileSettings(SettingsDialog::Values &values) const;
-	void applyRuntimeDiscProfileOverrides();
+	/*! Sync edit target from the mounted disc.
+	    If the disc has no profile and retainOverrideIfUnprofiled, leave prior profile
+	    CMOS/settings target unchanged (multi-disc install). */
+	void applyRuntimeDiscProfileOverrides(bool retainOverrideIfUnprofiled=true);
 	void applyDiscProfileOverridesToArgv();
+	/*! Profile hd0..hd6 keys → argv_.scsiImg (skips CD-ROM SCSI slots). */
+	void applyDiscProfileHddOverridesToArgv();
+	/*! Conf baseline then profile HDD overrides. Returns true if any slot path/type changed. */
+	bool syncArgvHardDiskFromSettingsAndProfile();
 	bool runtimeUseDiscProfile() const;
 	void teardownEmulatorConnections();
 	void stopEmulator();

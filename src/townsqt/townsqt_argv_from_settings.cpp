@@ -51,6 +51,7 @@ void ApplyMachineFromSettings(TownsARGV &argv)
 	argv.fmVol=TownsQtSettings::fmChipVolume();
 	argv.pcmVol=TownsQtSettings::pcmChipVolume();
 	argv.alwaysBootToFASTMode=TownsQtSettings::cpuFastModeEnabled();
+	argv.bootKeyComb=TownsQtSettings::bootKeyComb();
 	argv.damperWireLine=TownsQtSettings::damperWireLine();
 	argv.spriteTransferMode=static_cast<unsigned int>(TownsQtSettings::spriteTransferMode());
 	argv.scanLineEffectIn15KHz=TownsQtSettings::scanLineEffectIn15KHz();
@@ -101,21 +102,23 @@ void ApplyHardDiskFromSettings(TownsARGV &argv)
 {
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
-		if(TownsStartParameters::SCSIIMAGE_NONE!=argv.scsiImg[slot].imageType)
+		// CD-ROM occupies a SCSI slot; never replace it with an HDD from settings.
+		if(TownsStartParameters::SCSIIMAGE_CDROM==argv.scsiImg[slot].imageType)
 		{
 			continue;
 		}
-		if(!TownsQtSettings::hddEnabled(slot))
+		if(true==TownsQtSettings::hddEnabled(slot))
 		{
-			continue;
+			const QString path=TownsQtSettings::hddImagePath(slot);
+			if(true!=path.isEmpty())
+			{
+				argv.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_HARDDISK;
+				argv.scsiImg[slot].imgFName=path.toStdString();
+				continue;
+			}
 		}
-		const QString path=TownsQtSettings::hddImagePath(slot);
-		if(path.isEmpty())
-		{
-			continue;
-		}
-		argv.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_HARDDISK;
-		argv.scsiImg[slot].imgFName=path.toStdString();
+		argv.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_NONE;
+		argv.scsiImg[slot].imgFName.clear();
 	}
 }
 

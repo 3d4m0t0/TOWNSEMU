@@ -6,7 +6,7 @@ namespace TownsQtArgvFromSettings
 {
 void ApplyMachineFromSettings(TownsARGV &argv);
 void ApplySessionSettings(TownsARGV &argv);
-/*! Fill empty SCSI HDD slots from TownsQt settings; CLI -HDn wins. */
+/*! Sync SCSI HDD slots from TownsQt settings (skips CD-ROM slots). */
 void ApplyHardDiskFromSettings(TownsARGV &argv);
 /*! Use ~/.config/townsqt/cmos.bin unless -CMOS or -DONTAUTOSAVECMOS was given. */
 void ApplyDefaultCmosPath(TownsARGV &argv);

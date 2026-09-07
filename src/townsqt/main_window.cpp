@@ -8,6 +8,7 @@
 #include "audio_mixer_dialog.h"
 #include "emulator_controller.h"
 #include "hdd_settings_dialog.h"
+#include "drive_config_page.h"
 #include "townsargv.h"
 #include "townsqt_argv_from_settings.h"
 #include "townsqt_cpu_profile.h"
@@ -83,6 +84,7 @@ QVariantMap DiscMachineMapFromBasics(const SettingsDialog::Values &v)
 	m.insert(QStringLiteral("frequency_mhz"),v.cpuFrequencyMhz);
 	m.insert(QStringLiteral("custom_frequency_mhz"),v.cpuCustomFrequencyMhz);
 	m.insert(QStringLiteral("fast_mode"),v.cpuFastMode);
+	m.insert(QStringLiteral("boot_key"),QString::fromStdString(TownsKeyCombToStr(v.bootKeyComb)));
 	m.insert(QStringLiteral("mem_size_mb"),v.memSizeInMB);
 	m.insert(QStringLiteral("gameport0"),v.gamePort0);
 	m.insert(QStringLiteral("gameport1"),v.gamePort1);
@@ -103,6 +105,7 @@ QVariantMap DiscMachineMapFromProfile(const SettingsDialog::Values &v)
 	m.insert(QStringLiteral("frequency_mhz"),v.profileCpuFrequencyMhz);
 	m.insert(QStringLiteral("custom_frequency_mhz"),v.profileCpuCustomFrequencyMhz);
 	m.insert(QStringLiteral("fast_mode"),v.profileCpuFastMode);
+	m.insert(QStringLiteral("boot_key"),QString::fromStdString(TownsKeyCombToStr(v.profileBootKeyComb)));
 	m.insert(QStringLiteral("mem_size_mb"),v.profileMemSizeInMB);
 	m.insert(QStringLiteral("gameport0"),v.profileGamePort0);
 	m.insert(QStringLiteral("gameport1"),v.profileGamePort1);
@@ -176,6 +179,14 @@ QVariantMap DiscMachineMapFromScanProfile(const MouseCoordWriteScan::Profile &p)
 	{
 		m.insert(QStringLiteral("midi_board"),p.machine.midiBoard);
 	}
+	if(true==p.machine.hasSingleDrive)
+	{
+		m.insert(QStringLiteral("single_drive"),p.machine.singleDrive);
+	}
+	if(true==p.machine.hasBootKeyComb)
+	{
+		m.insert(QStringLiteral("boot_key"),QString::fromStdString(TownsKeyCombToStr(p.machine.bootKeyComb)));
+	}
 	if(true==p.machine.hasFdImg[0])
 	{
 		m.insert(QStringLiteral("fd0"),QString::fromStdString(p.machine.fdImg[0]));
@@ -184,6 +195,13 @@ QVariantMap DiscMachineMapFromScanProfile(const MouseCoordWriteScan::Profile &p)
 	{
 		m.insert(QStringLiteral("fd1"),QString::fromStdString(p.machine.fdImg[1]));
 	}
+	for(int hd=0; hd<MouseCoordWriteScan::MachineSettings::kHddImgCount; ++hd)
+	{
+		if(true==p.machine.hasHddImg[hd])
+		{
+			m.insert(QStringLiteral("hd%1").arg(hd),QString::fromStdString(p.machine.hddImg[hd]));
+		}
+	}
 	return m;
 }
 
@@ -191,6 +209,22 @@ void InsertCurrentFdMounts(QVariantMap &m,const QString fdPath[2])
 {
 	m.insert(QStringLiteral("fd0"),fdPath[0]);
 	m.insert(QStringLiteral("fd1"),fdPath[1]);
+}
+
+void InsertCurrentHddMounts(QVariantMap &m,const TownsARGV &argv)
+{
+	for(int hd=0; hd<TownsQtSettings::kHddSlotCount; ++hd)
+	{
+		QString path;
+		if(TownsStartParameters::SCSIIMAGE_HARDDISK==argv.scsiImg[hd].imageType &&
+		   true!=argv.scsiImg[hd].imgFName.empty())
+		{
+			path=QString::fromStdString(argv.scsiImg[hd].imgFName);
+		}
+		// Do not fall back to townsqt.conf: an empty argv slot means unmounted
+		// (conf fallback re-wrote hd0 into the disc profile after Remove).
+		m.insert(QStringLiteral("hd%1").arg(hd),path);
+	}
 }
 
 /*! Mouse integration needs a resolvable soft cursor — not mouseBIOSActive alone.
@@ -271,6 +305,23 @@ bool CreateBlankFdImage(const QString &path)
 
 bool MachineSettingsNeedRestart(const SettingsDialog::Values &values,const TownsARGV &argv)
 {
+	auto normBootKey=[](unsigned int key)->unsigned int{
+		// Startup default is NONE; TownsQt UI/settings use CD for the same “no override” boot.
+		return (BOOT_KEYCOMB_NONE==key) ? BOOT_KEYCOMB_CD : key;
+	};
+	auto samePath=[](const QString &a,const QString &b)->bool{
+		if(a==b)
+		{
+			return true;
+		}
+		const QString ca=QFileInfo(a).canonicalFilePath();
+		const QString cb=QFileInfo(b).canonicalFilePath();
+		if(true!=ca.isEmpty() && true!=cb.isEmpty())
+		{
+			return ca==cb;
+		}
+		return QFileInfo(a).absoluteFilePath()==QFileInfo(b).absoluteFilePath();
+	};
 	if(values.cpuKind!=TownsQtSettings::cpuKind())
 	{
 		return true;
@@ -291,6 +342,10 @@ bool MachineSettingsNeedRestart(const SettingsDialog::Values &values,const Towns
 	const bool runningFastFd=argv.fastFD;
 	if(true==values.discProfileAvailable)
 	{
+		if(normBootKey(values.profileBootKeyComb)!=normBootKey(argv.bootKeyComb))
+		{
+			return true;
+		}
 		if(values.profileMemSizeInMB!=runningMem)
 		{
 			return true;
@@ -318,6 +373,10 @@ bool MachineSettingsNeedRestart(const SettingsDialog::Values &values,const Towns
 	}
 	else
 	{
+		if(normBootKey(values.bootKeyComb)!=normBootKey(argv.bootKeyComb))
+		{
+			return true;
+		}
 		if(values.memSizeInMB!=runningMem)
 		{
 			return true;
@@ -355,14 +414,7 @@ bool MachineSettingsNeedRestart(const SettingsDialog::Values &values,const Towns
 	{
 		return true;
 	}
-	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
-	{
-		if(values.hdd[slot].enabled!=TownsQtSettings::hddEnabled(slot) ||
-		   values.hdd[slot].path!=TownsQtSettings::hddImagePath(slot))
-		{
-			return true;
-		}
-	}
+	// HDD mounts never force a restart here (take effect on the next restart).
 	return false;
 }
 }
@@ -544,7 +596,8 @@ bool MainWindow::loadDiscProfileOverrideForPath(const QString &cdPath)
 	cached_disc_profile_loaded_=scan.DiscProfileLoaded();
 	cached_disc_fingerprint_hash32_=scan.GetActiveProfile().discFingerprintHash32;
 	const QVariantMap machine=DiscMachineMapFromScanProfile(scan.GetActiveProfile());
-	disc_profile_override_active_=cached_disc_profile_loaded_ && !machine.isEmpty();
+	// Profile presence (not non-empty [machine]) owns CMOS / FD / HDD for this CD.
+	disc_profile_override_active_=cached_disc_profile_loaded_;
 	disc_profile_machine_override_=disc_profile_override_active_ ? machine : QVariantMap();
 	return cached_disc_profile_loaded_;
 }
@@ -600,14 +653,12 @@ void MainWindow::prepareArgvForNextBoot(void)
 	if(!cdPath.isEmpty() && true==TownsQtSettings::autoResumeEnabled())
 	{
 		bool apply_startup_state_save=true;
-		// Manual restart with the same CD: cold boot from saved state, not state save.
-		if(true==refreshedFromSettings && !cd_path_at_last_boot_.isEmpty())
+		if(true==refreshedFromSettings)
 		{
+			// Same disc as last boot → cold start (skip auto-resume).
+			// Last boot had no CD (empty) vs a newly mounted disc is a change — do not
+			// treat empty last path as "same CD" (that skipped resume after no-CD→CD).
 			apply_startup_state_save=(cd_path_at_last_boot_!=cdPath);
-		}
-		else if(true==refreshedFromSettings)
-		{
-			apply_startup_state_save=false;
 		}
 		if(true==apply_startup_state_save)
 		{
@@ -628,12 +679,26 @@ void MainWindow::prepareArgvForNextBoot(void)
 	}
 	applyDiscProfileOverridesToArgv();
 
+	// Per disc-profile CMOS (cmos/cmos_XXXXXXXX.bin). Shared cmos.bin when no profile.
+	// Drive letters / single-drive: Settings → Drive configuration (VM CMOSRAM + file).
+	{
+		const unsigned int fp=
+		    (true==disc_profile_override_active_) ? cached_disc_fingerprint_hash32_ : 0u;
+		argv_.CMOSFName=TownsQtPaths::cmosFilePathForProfile(fp).toStdString();
+		argv_.autoSaveCMOS=true;
+	}
+
 	for(int drive=0; drive<2; ++drive)
 	{
 		const char *key=(0==drive) ? "fd0" : "fd1";
-		if(true==disc_profile_override_active_ &&
-		   disc_profile_machine_override_.contains(QString::fromLatin1(key)))
+		if(true==disc_profile_override_active_)
 		{
+			// Profile owns FD (already applied in applyDiscProfileOverridesToArgv).
+			if(true==disc_profile_machine_override_.contains(QString::fromLatin1(key)))
+			{
+				continue;
+			}
+			fd_path_[drive]=QString::fromStdString(argv_.fdImgFName[drive]);
 			continue;
 		}
 		if(!argv_.fdImgFName[drive].empty())
@@ -678,7 +743,9 @@ void MainWindow::requestCdImageChange(const QString &path)
 	TownsQtSettings::addRecentCdImagePath(usePath);
 	rebuildRecentCdMenu();
 
-	// Live CD swap: state save → eject → mount.  Do not restart the emulator.
+	// Live CD swap: state save → eject → mount.
+	// Profiled disc → switch edit target (profile CMOS/FD/HDD) and restart.
+	// Unprofiled disc → keep prior edit target; no restart.
 	if(nullptr!=emu_thread_ && emu_thread_->isRunning() && nullptr!=controller_)
 	{
 		pending_boot_cd_path_.clear();
@@ -699,7 +766,13 @@ void MainWindow::requestCdImageChange(const QString &path)
 		TownsQtSettings::setLastCdImagePath(usePath);
 		updateOpenCdMenuLabel();
 		syncEjectMenus();
-		applyRuntimeDiscProfileOverrides();
+		applyRuntimeDiscProfileOverrides(true);
+		if(true==cached_disc_profile_loaded_ && true!=emu_restarting_)
+		{
+			QTimer::singleShot(0,this,[this]{
+				scheduleRestartEmulator();
+			});
+		}
 		statusBar()->showMessage(tr("CD: %1").arg(QFileInfo(usePath).fileName()),5000);
 		return;
 	}
@@ -922,10 +995,13 @@ void MainWindow::setupMenuBar()
 	connect(open_cd_action_,&QAction::triggered,this,&MainWindow::openCdImage);
 	eject_cd_action_=cdromMenu->addAction(tr("&Eject CD"));
 	connect(eject_cd_action_,&QAction::triggered,this,[this]{
-		if(nullptr!=controller_)
+		if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
 		{
-			QMetaObject::invokeMethod(controller_,"ejectCd",Qt::BlockingQueuedConnection);
+			return;
 		}
+		QMetaObject::invokeMethod(controller_,"ejectCd",Qt::BlockingQueuedConnection);
+		// Keep prior profile edit target if any; no restart.
+		applyRuntimeDiscProfileOverrides(true);
 	});
 	cd_recent_menu_=cdromMenu->addMenu(tr("Open &recent files"));
 	connect(cd_recent_menu_,&QMenu::aboutToShow,this,&MainWindow::rebuildRecentCdMenu);
@@ -1544,19 +1620,41 @@ void MainWindow::openHddSettingsDialog()
 	HddSettingsDialog::Slot slots[TownsQtSettings::kHddSlotCount];
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
-		slots[slot].enabled=TownsQtSettings::hddEnabled(slot);
-		slots[slot].path=TownsQtSettings::hddImagePath(slot);
-		if(!slots[slot].enabled &&
-		   slots[slot].path.isEmpty() &&
-		   TownsStartParameters::SCSIIMAGE_HARDDISK==argv_.scsiImg[slot].imageType &&
-		   !argv_.scsiImg[slot].imgFName.empty())
+		if(true==disc_profile_override_active_)
+		{
+			// Profiled CD: show profile/argv mounts only (no global-conf fallback).
+			if(TownsStartParameters::SCSIIMAGE_HARDDISK==argv_.scsiImg[slot].imageType &&
+			   !argv_.scsiImg[slot].imgFName.empty())
+			{
+				slots[slot].enabled=true;
+				slots[slot].path=QString::fromStdString(argv_.scsiImg[slot].imgFName);
+			}
+			else
+			{
+				slots[slot].enabled=false;
+				slots[slot].path.clear();
+			}
+		}
+		else if(TownsStartParameters::SCSIIMAGE_HARDDISK==argv_.scsiImg[slot].imageType &&
+		        !argv_.scsiImg[slot].imgFName.empty())
 		{
 			slots[slot].enabled=true;
 			slots[slot].path=QString::fromStdString(argv_.scsiImg[slot].imgFName);
 		}
+		else
+		{
+			slots[slot].enabled=TownsQtSettings::hddEnabled(slot);
+			slots[slot].path=TownsQtSettings::hddImagePath(slot);
+		}
 	}
 
-	HddSettingsDialog dlg(slots,this);
+	HddSettingsDialog::Slot initial_slots[TownsQtSettings::kHddSlotCount];
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		initial_slots[slot]=slots[slot];
+	}
+
+	HddSettingsDialog dlg(slots,this,cd_path_);
 	if(QDialog::Accepted!=dlg.exec())
 	{
 		return;
@@ -1566,17 +1664,32 @@ void MainWindow::openHddSettingsDialog()
 	bool changed=false;
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
-		if(slots[slot].enabled!=TownsQtSettings::hddEnabled(slot) ||
-		   slots[slot].path!=TownsQtSettings::hddImagePath(slot))
+		if(slots[slot].enabled!=initial_slots[slot].enabled ||
+		   slots[slot].path!=initial_slots[slot].path)
 		{
 			changed=true;
 		}
-		TownsQtSettings::setHddEnabled(slot,slots[slot].enabled);
-		TownsQtSettings::setHddImagePath(slot,slots[slot].path);
+	}
+	if(true!=changed)
+	{
+		return;
+	}
+
+	const bool profiled=
+	    true==TownsQtSettings::useDiscProfiles() && true==disc_profile_override_active_;
+	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		if(true!=profiled)
+		{
+			// Unprofiled / no-CD: persist to global townsqt.conf only.
+			TownsQtSettings::setHddEnabled(slot,slots[slot].enabled);
+			TownsQtSettings::setHddImagePath(slot,slots[slot].path);
+		}
 		if(TownsStartParameters::SCSIIMAGE_CDROM==argv_.scsiImg[slot].imageType)
 		{
 			continue;
 		}
+		// Update argv for the next restart (live mounts stay until then).
 		if(slots[slot].enabled && !slots[slot].path.isEmpty())
 		{
 			argv_.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_HARDDISK;
@@ -1587,21 +1700,35 @@ void MainWindow::openHddSettingsDialog()
 			argv_.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_NONE;
 			argv_.scsiImg[slot].imgFName.clear();
 		}
+		if(true==profiled)
+		{
+			disc_profile_machine_override_.insert(
+			    QStringLiteral("hd%1").arg(slot),
+			    (slots[slot].enabled && !slots[slot].path.isEmpty()) ? slots[slot].path : QString());
+		}
 	}
-	if(true!=changed)
+	if(true==profiled &&
+	   nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
 	{
-		return;
+		QStringList hddPaths;
+		hddPaths.reserve(TownsQtSettings::kHddSlotCount);
+		for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+		{
+			hddPaths<<((true==slots[slot].enabled && true!=slots[slot].path.isEmpty()) ?
+			           slots[slot].path : QString());
+		}
+		bool persisted=false;
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "persistHddMountsToDiscProfile",
+		    Qt::BlockingQueuedConnection,
+		    Q_RETURN_ARG(bool,persisted),
+		    Q_ARG(QStringList,hddPaths));
+		Q_UNUSED(persisted);
 	}
-	if(emu_restarting_)
-	{
-		emu_restart_pending_=true;
-	}
-	else
-	{
-		QTimer::singleShot(0,this,[this]{
-			scheduleRestartEmulator();
-		});
-	}
+	// No restart: mounts apply on the next emulator restart.
+	statusBar()->showMessage(
+	    tr("Hard disk settings saved. They take effect after restart."),5000);
 }
 
 void MainWindow::openSettingsDialog()
@@ -1634,6 +1761,7 @@ void MainWindow::openSettingsDialog()
 		initial.cpuFrequencyMhz=TownsQtSettings::cpuFrequencyMhz();
 		initial.cpuCustomFrequencyMhz=TownsQtSettings::cpuCustomFrequencyMhz();
 		initial.cpuFastMode=TownsQtSettings::cpuFastModeEnabled();
+		initial.bootKeyComb=TownsQtSettings::bootKeyComb();
 		initial.memSizeInMB=TownsQtSettings::memSizeInMB();
 		initial.cpuHighFidelity=TownsQtSettings::cpuHighFidelity();
 		initial.pretend386DX=TownsQtSettings::pretend386DX();
@@ -1685,18 +1813,33 @@ void MainWindow::openSettingsDialog()
 		initial.useDiscProfiles=true;
 		initial.autoResumeEnabled=TownsQtSettings::autoResumeEnabled();
 		for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
+	{
+		if(true==disc_profile_override_active_)
 		{
-			initial.hdd[slot].enabled=TownsQtSettings::hddEnabled(slot);
-			initial.hdd[slot].path=TownsQtSettings::hddImagePath(slot);
-			if(!initial.hdd[slot].enabled &&
-			   initial.hdd[slot].path.isEmpty() &&
-			   TownsStartParameters::SCSIIMAGE_HARDDISK==argv_.scsiImg[slot].imageType &&
+			if(TownsStartParameters::SCSIIMAGE_HARDDISK==argv_.scsiImg[slot].imageType &&
 			   !argv_.scsiImg[slot].imgFName.empty())
 			{
 				initial.hdd[slot].enabled=true;
 				initial.hdd[slot].path=QString::fromStdString(argv_.scsiImg[slot].imgFName);
 			}
+			else
+			{
+				initial.hdd[slot].enabled=false;
+				initial.hdd[slot].path.clear();
+			}
 		}
+		else if(TownsStartParameters::SCSIIMAGE_HARDDISK==argv_.scsiImg[slot].imageType &&
+		        !argv_.scsiImg[slot].imgFName.empty())
+		{
+			initial.hdd[slot].enabled=true;
+			initial.hdd[slot].path=QString::fromStdString(argv_.scsiImg[slot].imgFName);
+		}
+		else
+		{
+			initial.hdd[slot].enabled=TownsQtSettings::hddEnabled(slot);
+			initial.hdd[slot].path=TownsQtSettings::hddImagePath(slot);
+		}
+	}
 		fillDiscProfileSettings(initial);
 	}
 
@@ -1705,6 +1848,77 @@ void MainWindow::openSettingsDialog()
 	    QString::fromStdString(argv_.ROMPath);
 	SettingsDialog dlg(initial,rom_dir,this);
 	active_settings_dialog_=&dlg;
+
+	auto loadDriveConfig=[&](){
+		DriveConfigPage::Values drive;
+		QVariantMap state;
+		if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "cmosDriveSettings",
+			    Qt::BlockingQueuedConnection,
+			    Q_RETURN_ARG(QVariantMap,state));
+		}
+		else if(nullptr!=controller_)
+		{
+			state=controller_->cmosDriveSettings();
+		}
+		drive.singleDrive=state.value(QStringLiteral("single_drive")).toBool();
+		const QVariantList letters=state.value(QStringLiteral("letters")).toList();
+		for(int i=0; i<TownsCmos::kDriveLetterCount; ++i)
+		{
+			drive.letters[i].type=TownsCmos::kTypeUnassigned;
+			drive.letters[i].unit=TownsCmos::kTypeUnassigned;
+			if(i>=letters.size())
+			{
+				continue;
+			}
+			const QVariantMap e=letters.at(i).toMap();
+			drive.letters[i].type=
+			    static_cast<unsigned char>(e.value(QStringLiteral("type"),255).toInt()&0xFF);
+			drive.letters[i].unit=
+			    static_cast<unsigned char>(e.value(QStringLiteral("unit"),255).toInt()&0xFF);
+		}
+		return drive;
+	};
+	dlg.setDriveConfig(loadDriveConfig());
+
+	auto applyDriveConfig=[&](const DriveConfigPage::Values &drive){
+		QVariantList outLetters;
+		outLetters.reserve(TownsCmos::kDriveLetterCount);
+		for(int i=0; i<TownsCmos::kDriveLetterCount; ++i)
+		{
+			QVariantMap e;
+			e.insert(QStringLiteral("type"),static_cast<int>(drive.letters[i].type));
+			e.insert(QStringLiteral("unit"),static_cast<int>(drive.letters[i].unit));
+			outLetters<<e;
+		}
+		bool ok=false;
+		if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "applyCmosDriveSettings",
+			    Qt::BlockingQueuedConnection,
+			    Q_RETURN_ARG(bool,ok),
+			    Q_ARG(bool,drive.singleDrive),
+			    Q_ARG(QVariantList,outLetters));
+		}
+		else if(nullptr!=controller_)
+		{
+			ok=controller_->applyCmosDriveSettings(drive.singleDrive,outLetters);
+		}
+		if(true!=ok)
+		{
+			QMessageBox::warning(
+			    this,
+			    tr("Drive configuration"),
+			    tr("Failed to update CMOS (file missing or not writable)."));
+			return;
+		}
+		syncFdDriveMenus();
+	};
 
 	auto queryDiscMouseProfile=[&](){
 		QVariantMap mouseState;
@@ -1747,8 +1961,10 @@ void MainWindow::openSettingsDialog()
 		// Capture before applySettings — machine-profile save emits signals that
 		// refresh UI state and must not overwrite the editor selection.
 		const QVariantMap mouseMap=dlg.mouseCoordProfile();
+		const DriveConfigPage::Values drive=dlg.driveConfig();
 		applySettings(v);
 		persistMouseMap(mouseMap);
+		applyDriveConfig(drive);
 	});
 	connect(&dlg,&SettingsDialog::createDiscProfileRequested,this,[this,&dlg,&queryDiscMouseProfile](){
 		if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
@@ -1759,6 +1975,7 @@ void MainWindow::openSettingsDialog()
 		bool ok=false;
 		QVariantMap machine=DiscMachineMapFromBasics(v);
 		InsertCurrentFdMounts(machine,fd_path_);
+		InsertCurrentHddMounts(machine,argv_);
 		QMetaObject::invokeMethod(
 		    controller_,
 		    "createDiscProfile",
@@ -1776,7 +1993,13 @@ void MainWindow::openSettingsDialog()
 		SettingsDialog::Values refreshed=dlg.values();
 		fillDiscProfileSettings(refreshed);
 		dlg.setDiscProfileState(refreshed);
-		applyRuntimeDiscProfileOverrides();
+		applyRuntimeDiscProfileOverrides(true);
+		if(true==cached_disc_profile_loaded_ && true!=emu_restarting_)
+		{
+			QTimer::singleShot(0,this,[this]{
+				scheduleRestartEmulator();
+			});
+		}
 		{
 			QVariantMap mouseState=queryDiscMouseProfile();
 			// New disc profile: mouse operation type defaults to Default.
@@ -1814,7 +2037,7 @@ void MainWindow::openSettingsDialog()
 		SettingsDialog::Values refreshed=dlg.values();
 		fillDiscProfileSettings(refreshed);
 		dlg.setDiscProfileState(refreshed);
-		applyRuntimeDiscProfileOverrides();
+		applyRuntimeDiscProfileOverrides(false);
 		dlg.setMouseCoordProfile(queryDiscMouseProfile(),false);
 		dlg.focusBasicsTab();
 		if(nullptr!=statusBar())
@@ -1989,8 +2212,10 @@ void MainWindow::openSettingsDialog()
 		return;
 	}
 	const QVariantMap mouseMap=dlg.mouseCoordProfile();
+	const DriveConfigPage::Values drive=dlg.driveConfig();
 	applySettings(dlg.values());
 	persistMouseMap(mouseMap);
+	applyDriveConfig(drive);
 }
 
 void MainWindow::showAboutDialog()
@@ -2120,6 +2345,16 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setCpuFastModeEnabled(effective.cpuFastMode);
 	argv_.freq=static_cast<unsigned int>(std::clamp(effective.cpuFrequencyMhz,1,100));
 	argv_.alwaysBootToFASTMode=effective.cpuFastMode;
+	{
+		const unsigned int bootKey=
+		    (true==effective.discProfileAvailable) ?
+		    effective.profileBootKeyComb : effective.bootKeyComb;
+		argv_.bootKeyComb=bootKey;
+		if(true!=effective.discProfileAvailable)
+		{
+			TownsQtSettings::setBootKeyComb(bootKey);
+		}
+	}
 	if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
 	{
 		const bool live_fast=
@@ -2187,7 +2422,14 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	{
 		TownsQtSettings::setSpriteTransferMode(0);
 		TownsQtSettings::setCdSpeed(TownsQtModelGroupDefaultCdSpeed(effective.modelGroupIndex));
-		QFile::remove(TownsQtPaths::cmosFilePath());
+		const unsigned int fp=
+		    (true==disc_profile_override_active_) ? cached_disc_fingerprint_hash32_ : 0u;
+		QFile::remove(TownsQtPaths::cmosFilePathForProfile(fp));
+		if(0!=fp)
+		{
+			// Also drop shared CMOS so a fresh machine type does not reuse stale letters.
+			QFile::remove(TownsQtPaths::cmosFilePath());
+		}
 	}
 	else
 	{
@@ -2215,8 +2457,12 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	updateWindowTitle();
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
-		TownsQtSettings::setHddEnabled(slot,effective.hdd[slot].enabled);
-		TownsQtSettings::setHddImagePath(slot,effective.hdd[slot].path);
+		if(true!=disc_profile_override_active_)
+		{
+			// Unprofiled: HDD belongs to townsqt.conf.
+			TownsQtSettings::setHddEnabled(slot,effective.hdd[slot].enabled);
+			TownsQtSettings::setHddImagePath(slot,effective.hdd[slot].path);
+		}
 		if(TownsStartParameters::SCSIIMAGE_CDROM==argv_.scsiImg[slot].imageType)
 		{
 			continue;
@@ -2230,6 +2476,13 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 		{
 			argv_.scsiImg[slot].imageType=TownsStartParameters::SCSIIMAGE_NONE;
 			argv_.scsiImg[slot].imgFName.clear();
+		}
+		if(true==disc_profile_override_active_)
+		{
+			disc_profile_machine_override_.insert(
+			    QStringLiteral("hd%1").arg(slot),
+			    (effective.hdd[slot].enabled && !effective.hdd[slot].path.isEmpty()) ?
+			        effective.hdd[slot].path : QString());
 		}
 	}
 	applyWindowScale(std::clamp(effective.displayScale,1,maxDisplayScale()));
@@ -2318,6 +2571,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 		bool ok=false;
 		QVariantMap machine=DiscMachineMapFromProfile(effective);
 		InsertCurrentFdMounts(machine,fd_path_);
+		InsertCurrentHddMounts(machine,argv_);
 		QMetaObject::invokeMethod(
 		    controller_,
 		    "saveDiscMachineProfile",
@@ -2354,6 +2608,7 @@ void MainWindow::fillDiscProfileSettings(SettingsDialog::Values &values) const
 	values.profileCpuFrequencyMhz=values.cpuFrequencyMhz;
 	values.profileCpuCustomFrequencyMhz=values.cpuCustomFrequencyMhz;
 	values.profileCpuFastMode=values.cpuFastMode;
+	values.profileBootKeyComb=values.bootKeyComb;
 	values.profileMemSizeInMB=values.memSizeInMB;
 	values.profileGamePort0=values.gamePort0;
 	values.profileGamePort1=values.gamePort1;
@@ -2365,6 +2620,7 @@ void MainWindow::fillDiscProfileSettings(SettingsDialog::Values &values) const
 	values.profileFastScsi=values.fastScsi;
 	values.profileFastFd=values.fastFd;
 	values.profileMidiBoard=values.midiBoard;
+	values.profileSingleDrive=values.singleDrive;
 	values.profileHasMouseIntegration=false;
 	if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
 	{
@@ -2427,6 +2683,12 @@ void MainWindow::fillDiscProfileSettings(SettingsDialog::Values &values) const
 		takeBool("prof_fast_scsi",values.profileFastScsi);
 		takeBool("prof_fast_fd",values.profileFastFd);
 		takeBool("prof_midi_board",values.profileMidiBoard);
+		takeBool("prof_single_drive",values.profileSingleDrive);
+		if(mouseState.contains(QStringLiteral("prof_boot_key")))
+		{
+			values.profileBootKeyComb=TownsStrToKeyComb(
+			    mouseState.value(QStringLiteral("prof_boot_key")).toString().toStdString());
+		}
 		values.profileHasMouseIntegration=
 		    mouseState.value(QStringLiteral("prof_has_mouse")).toBool();
 	}
@@ -2439,7 +2701,7 @@ bool MainWindow::runtimeUseDiscProfile() const
 
 void MainWindow::applyDiscProfileOverridesToArgv()
 {
-	if(true!=disc_profile_override_active_ || disc_profile_machine_override_.isEmpty())
+	if(true!=disc_profile_override_active_)
 	{
 		return;
 	}
@@ -2506,29 +2768,29 @@ void MainWindow::applyDiscProfileOverridesToArgv()
 		argv_.maxButtonHoldTime[0][1]=ns;
 		argv_.maxButtonHoldTime[1][1]=ns;
 	}
+	// Profile owns FD: key present → use it; absent → unmounted (not global lastFd).
 	auto applyFd=[&](int drive,const char *key){
-		if(true!=m.contains(QString::fromLatin1(key)))
+		QString path;
+		if(true==m.contains(QString::fromLatin1(key)))
 		{
-			return;
-		}
-		QString path=m.value(QString::fromLatin1(key)).toString().trimmed();
-		if(!path.isEmpty())
-		{
-			const QString canonical=QFileInfo(path).canonicalFilePath();
-			if(!canonical.isEmpty())
+			path=m.value(QString::fromLatin1(key)).toString().trimmed();
+			if(!path.isEmpty())
 			{
-				path=canonical;
-			}
-			if(true!=QFile::exists(path))
-			{
-				path.clear();
+				const QString canonical=QFileInfo(path).canonicalFilePath();
+				if(!canonical.isEmpty())
+				{
+					path=canonical;
+				}
+				if(true!=QFile::exists(path))
+				{
+					path.clear();
+				}
 			}
 		}
 		if(!path.isEmpty())
 		{
 			argv_.fdImgFName[drive]=path.toStdString();
 			fd_path_[drive]=path;
-			TownsQtSettings::setLastFdImagePath(drive,path);
 		}
 		else
 		{
@@ -2538,6 +2800,98 @@ void MainWindow::applyDiscProfileOverridesToArgv()
 	};
 	applyFd(0,"fd0");
 	applyFd(1,"fd1");
+	if(true==m.contains(QStringLiteral("boot_key")))
+	{
+		const unsigned int key=TownsStrToKeyComb(
+		    m.value(QStringLiteral("boot_key")).toString().trimmed().toStdString());
+		if(BOOT_KEYCOMB_CD==key || BOOT_KEYCOMB_F0==key ||
+		   BOOT_KEYCOMB_F1==key || BOOT_KEYCOMB_H0==key)
+		{
+			argv_.bootKeyComb=key;
+		}
+	}
+	applyDiscProfileHddOverridesToArgv();
+}
+
+void MainWindow::applyDiscProfileHddOverridesToArgv()
+{
+	if(true!=disc_profile_override_active_)
+	{
+		return;
+	}
+	const QVariantMap &m=disc_profile_machine_override_;
+	// Profile owns HDD: key present → use it; absent → unmounted (never keep conf HDD).
+	for(int hd=0; hd<TownsQtSettings::kHddSlotCount; ++hd)
+	{
+		if(TownsStartParameters::SCSIIMAGE_CDROM==argv_.scsiImg[hd].imageType)
+		{
+			continue;
+		}
+		const QString key=QStringLiteral("hd%1").arg(hd);
+		QString path;
+		if(true==m.contains(key))
+		{
+			path=m.value(key).toString().trimmed();
+			if(!path.isEmpty())
+			{
+				const QString canonical=QFileInfo(path).canonicalFilePath();
+				if(!canonical.isEmpty())
+				{
+					path=canonical;
+				}
+				if(true!=QFile::exists(path))
+				{
+					path.clear();
+				}
+			}
+		}
+		if(!path.isEmpty())
+		{
+			argv_.scsiImg[hd].imageType=TownsStartParameters::SCSIIMAGE_HARDDISK;
+			argv_.scsiImg[hd].imgFName=path.toStdString();
+		}
+		else
+		{
+			argv_.scsiImg[hd].imageType=TownsStartParameters::SCSIIMAGE_NONE;
+			argv_.scsiImg[hd].imgFName.clear();
+		}
+	}
+}
+
+bool MainWindow::syncArgvHardDiskFromSettingsAndProfile()
+{
+	struct SlotSnap
+	{
+		unsigned int imageType=TownsStartParameters::SCSIIMAGE_NONE;
+		std::string imgFName;
+	};
+	SlotSnap before[TownsQtSettings::kHddSlotCount];
+	for(int hd=0; hd<TownsQtSettings::kHddSlotCount; ++hd)
+	{
+		before[hd].imageType=argv_.scsiImg[hd].imageType;
+		before[hd].imgFName=argv_.scsiImg[hd].imgFName;
+	}
+
+	if(true==disc_profile_override_active_)
+	{
+		// Profiled CD: profile HDD only (missing hd* = unmounted).
+		applyDiscProfileHddOverridesToArgv();
+	}
+	else
+	{
+		// No profile: global townsqt.conf HDD.
+		TownsQtArgvFromSettings::ApplyHardDiskFromSettings(argv_);
+	}
+
+	for(int hd=0; hd<TownsQtSettings::kHddSlotCount; ++hd)
+	{
+		if(before[hd].imageType!=argv_.scsiImg[hd].imageType ||
+		   before[hd].imgFName!=argv_.scsiImg[hd].imgFName)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void MainWindow::onDiscProfileStateChanged()
@@ -2546,7 +2900,7 @@ void MainWindow::onDiscProfileStateChanged()
 	applyRuntimeDiscProfileOverrides();
 }
 
-void MainWindow::applyRuntimeDiscProfileOverrides()
+void MainWindow::applyRuntimeDiscProfileOverrides(bool retainOverrideIfUnprofiled)
 {
 	if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
 	{
@@ -2558,25 +2912,40 @@ void MainWindow::applyRuntimeDiscProfileOverrides()
 	    "mouseCoordWriteScanState",
 	    Qt::BlockingQueuedConnection,
 	    Q_RETURN_ARG(QVariantMap,state));
-	cached_disc_profile_loaded_=state.value(QStringLiteral("disc_profile_loaded")).toBool();
-	cached_disc_fingerprint_hash32_=state.value(QStringLiteral("disc_fingerprint_hash32")).toUInt();
-	if(0==cached_disc_fingerprint_hash32_)
+	const bool discHasProfile=state.value(QStringLiteral("disc_profile_loaded")).toBool();
+	unsigned int discFp=state.value(QStringLiteral("disc_fingerprint_hash32")).toUInt();
+	if(0==discFp)
 	{
-		cached_disc_fingerprint_hash32_=
-		    state.value(QStringLiteral("prof_disc_fingerprint_hash32")).toUInt();
+		discFp=state.value(QStringLiteral("prof_disc_fingerprint_hash32")).toUInt();
 	}
-	const bool wantOverride=true==cached_disc_profile_loaded_;
+	cached_disc_profile_loaded_=discHasProfile;
 
-	QVariantMap machine;
-	auto copyKey=[&](const char *from,const char *to){
-		const QString src=QString::fromLatin1(from);
-		if(state.contains(src))
-		{
-			machine.insert(QString::fromLatin1(to),state.value(src));
-		}
-	};
-	if(true==wantOverride)
+	// Unprofiled CD / eject: do not retarget edit paths (keep prior profile or global).
+	if(true!=discHasProfile)
 	{
+		if(true!=retainOverrideIfUnprofiled || true!=disc_profile_override_active_)
+		{
+			disc_profile_override_active_=false;
+			disc_profile_machine_override_.clear();
+			cached_disc_fingerprint_hash32_=0;
+			argv_.CMOSFName=TownsQtPaths::cmosFilePathForProfile(0u).toStdString();
+			argv_.autoSaveCMOS=true;
+			(void)syncArgvHardDiskFromSettingsAndProfile();
+		}
+		// else: sticky — leave disc_profile_override_active_ / CMOS / HDD as-is.
+	}
+	else
+	{
+		cached_disc_fingerprint_hash32_=discFp;
+
+		QVariantMap machine;
+		auto copyKey=[&](const char *from,const char *to){
+			const QString src=QString::fromLatin1(from);
+			if(state.contains(src))
+			{
+				machine.insert(QString::fromLatin1(to),state.value(src));
+			}
+		};
 		copyKey("prof_frequency_mhz","frequency_mhz");
 		copyKey("prof_custom_frequency_mhz","custom_frequency_mhz");
 		copyKey("prof_fast_mode","fast_mode");
@@ -2591,21 +2960,30 @@ void MainWindow::applyRuntimeDiscProfileOverrides()
 		copyKey("prof_fast_scsi","fast_scsi");
 		copyKey("prof_fast_fd","fast_fd");
 		copyKey("prof_midi_board","midi_board");
+		copyKey("prof_single_drive","single_drive");
 		copyKey("prof_fd0","fd0");
 		copyKey("prof_fd1","fd1");
+		for(int hd=0; hd<TownsQtSettings::kHddSlotCount; ++hd)
+		{
+			const QByteArray from=
+			    QByteArray("prof_hd")+QByteArray::number(hd);
+			const QByteArray to=QByteArray("hd")+QByteArray::number(hd);
+			copyKey(from.constData(),to.constData());
+		}
+		copyKey("prof_boot_key","boot_key");
 		// Frequency without fast_mode still means FAST for the Operation menu / apply.
 		if(machine.contains(QStringLiteral("frequency_mhz")) &&
 		   true!=machine.contains(QStringLiteral("fast_mode")))
 		{
 			machine.insert(QStringLiteral("fast_mode"),true);
 		}
-	}
 
-	disc_profile_override_active_=wantOverride && !machine.isEmpty();
-	disc_profile_machine_override_=disc_profile_override_active_ ? machine : QVariantMap();
+		disc_profile_override_active_=true;
+		disc_profile_machine_override_=machine;
+		argv_.CMOSFName=TownsQtPaths::cmosFilePathForProfile(discFp).toStdString();
+		argv_.autoSaveCMOS=true;
+		(void)syncArgvHardDiskFromSettingsAndProfile();
 
-	if(true==disc_profile_override_active_)
-	{
 		if(machine.contains(QStringLiteral("custom_frequency_mhz")))
 		{
 			TownsQtSettings::setCpuCustomFrequencyMhz(
@@ -2654,21 +3032,24 @@ void MainWindow::applyRuntimeDiscProfileOverrides()
 			});
 		}
 	}
+
 	syncCpuClockMenuActions();
 
-	const unsigned int gp0=wantOverride && machine.contains(QStringLiteral("gameport0")) ?
+	const QVariantMap &machine=disc_profile_machine_override_;
+	const bool useProfilePeripherals=true==disc_profile_override_active_;
+	const unsigned int gp0=useProfilePeripherals && machine.contains(QStringLiteral("gameport0")) ?
 	    machine.value(QStringLiteral("gameport0")).toUInt() :
 	    TownsQtSettings::gamePort(0);
-	const unsigned int gp1=wantOverride && machine.contains(QStringLiteral("gameport1")) ?
+	const unsigned int gp1=useProfilePeripherals && machine.contains(QStringLiteral("gameport1")) ?
 	    machine.value(QStringLiteral("gameport1")).toUInt() :
 	    TownsQtSettings::gamePort(1);
-	const int hold0=wantOverride && machine.contains(QStringLiteral("max_button_hold_ms0")) ?
+	const int hold0=useProfilePeripherals && machine.contains(QStringLiteral("max_button_hold_ms0")) ?
 	    machine.value(QStringLiteral("max_button_hold_ms0")).toInt() :
 	    TownsQtSettings::maxButtonHoldTimeMs(0,0);
-	const int hold1=wantOverride && machine.contains(QStringLiteral("max_button_hold_ms1")) ?
+	const int hold1=useProfilePeripherals && machine.contains(QStringLiteral("max_button_hold_ms1")) ?
 	    machine.value(QStringLiteral("max_button_hold_ms1")).toInt() :
 	    TownsQtSettings::maxButtonHoldTimeMs(0,1);
-	const bool midi=wantOverride && machine.contains(QStringLiteral("midi_board")) ?
+	const bool midi=useProfilePeripherals && machine.contains(QStringLiteral("midi_board")) ?
 	    machine.value(QStringLiteral("midi_board")).toBool() :
 	    TownsQtSettings::midiBoard();
 

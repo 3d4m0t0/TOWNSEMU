@@ -22,7 +22,7 @@
 
 namespace
 {
-constexpr int kDefaultHddSizeMb=100;
+constexpr int kDefaultHddSizeMb=127;
 constexpr int kMinHddSizeMb=1;
 constexpr int kMaxHddSizeMb=1024;
 
@@ -44,9 +44,15 @@ QString FormatByteSize(qint64 bytes)
 }
 }
 
-HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotCount],QWidget *parent)
+HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotCount],
+                                     QWidget *parent,
+                                     const QString &mountedCdImagePath)
 	: QDialog(parent)
 {
+	if(!mountedCdImagePath.isEmpty())
+	{
+		cd_image_base_name_=QFileInfo(mountedCdImagePath).completeBaseName();
+	}
 	setWindowTitle(tr("Hard disk drive settings"));
 	setModal(true);
 
@@ -107,6 +113,9 @@ HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotC
 	    this));
 	layout->addWidget(new QLabel(
 	    tr("Images are stored under %1 by default.").arg(TownsQtPaths::hddDir()),
+	    this));
+	layout->addWidget(new QLabel(
+	    tr("Changes take effect after the emulator is restarted."),
 	    this));
 
 	auto *buttons=new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel,this);
@@ -200,7 +209,10 @@ void HddSettingsDialog::onCreateClicked(int slot)
 		return;
 	}
 
-	const QString default_name=QStringLiteral("hd%1_%2mb.hd").arg(slot).arg(size_mb);
+	const QString default_name=
+	    (0==slot && true!=cd_image_base_name_.isEmpty())
+	        ? (cd_image_base_name_+QStringLiteral(".hd"))
+	        : QStringLiteral("hd%1_%2mb.hd").arg(slot).arg(size_mb);
 	QString path=QFileDialog::getSaveFileName(
 	    this,
 	    tr("Create hard disk image"),

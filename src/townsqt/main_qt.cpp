@@ -517,6 +517,7 @@ int main(int argc,char *argv[])
 	townsArgv.fmVol=TownsQtSettings::fmChipVolume();
 	townsArgv.pcmVol=TownsQtSettings::pcmChipVolume();
 	townsArgv.alwaysBootToFASTMode=TownsQtSettings::cpuFastModeEnabled();
+	townsArgv.bootKeyComb=TownsQtSettings::bootKeyComb();
 
 	TownsQtArgvFromSettings::ApplySessionSettings(townsArgv);
 	TownsQtArgvFromSettings::ApplyHardDiskFromSettings(townsArgv);

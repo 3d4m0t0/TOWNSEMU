@@ -31,6 +31,7 @@ constexpr char kSpriteTransferModeKey[]="sprite/transfer_mode";
 constexpr char kCpuFrequencyMhzKey[]="cpu/frequency_mhz";
 constexpr char kCpuCustomFrequencyMhzKey[]="cpu/custom_frequency_mhz";
 constexpr char kCpuFastModeKey[]="cpu/fast_mode";
+constexpr char kBootKeyCombKey[]="machine/boot_key";
 constexpr char kCdSpeedKey[]="media/cd_speed";
 constexpr char kMemSizeMbKey[]="machine/mem_size_mb";
 constexpr char kCpuHighFidelityKey[]="cpu/high_fidelity";
@@ -39,6 +40,7 @@ constexpr char kUseFpuKey[]="machine/use_fpu";
 constexpr char kFastScsiKey[]="machine/fast_scsi";
 constexpr char kFastFdKey[]="machine/fast_fd";
 constexpr char kMidiBoardKey[]="machine/midi_board";
+constexpr char kSingleDriveKey[]="machine/single_drive";
 constexpr char kHighResCrtcKey[]="machine/high_res_crtc";
 constexpr char kHighResPcmKey[]="machine/high_res_pcm";
 constexpr char kMidiSoundFontKey[]="midi/soundfont";
@@ -297,6 +299,30 @@ void TownsQtSettings::setCpuFastModeEnabled(bool enabled)
 	settings.sync();
 }
 
+unsigned int TownsQtSettings::bootKeyComb()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	const QString stored=settings.value(QString::fromLatin1(kBootKeyCombKey),QStringLiteral("CD")).toString();
+	const unsigned int key=TownsStrToKeyComb(stored.toStdString());
+	if(BOOT_KEYCOMB_CD==key || BOOT_KEYCOMB_F0==key || BOOT_KEYCOMB_F1==key || BOOT_KEYCOMB_H0==key)
+	{
+		return key;
+	}
+	return BOOT_KEYCOMB_CD;
+}
+
+void TownsQtSettings::setBootKeyComb(unsigned int keyComb)
+{
+	if(BOOT_KEYCOMB_CD!=keyComb && BOOT_KEYCOMB_F0!=keyComb &&
+	   BOOT_KEYCOMB_F1!=keyComb && BOOT_KEYCOMB_H0!=keyComb)
+	{
+		keyComb=BOOT_KEYCOMB_CD;
+	}
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kBootKeyCombKey),QString::fromStdString(TownsKeyCombToStr(keyComb)));
+	settings.sync();
+}
+
 int TownsQtSettings::cdSpeed()
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
@@ -443,6 +469,24 @@ void TownsQtSettings::setMidiBoard(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kMidiBoardKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::singleDrive()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(!settings.contains(QString::fromLatin1(kSingleDriveKey)))
+	{
+		setSingleDrive(false);
+		return false;
+	}
+	return settings.value(QString::fromLatin1(kSingleDriveKey),false).toBool();
+}
+
+void TownsQtSettings::setSingleDrive(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kSingleDriveKey),enabled);
 	settings.sync();
 }
 

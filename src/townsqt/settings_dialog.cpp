@@ -313,6 +313,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.cpuFrequencyMhz=33;
 	v.cpuCustomFrequencyMhz=33;
 	v.cpuFastMode=true;
+	v.bootKeyComb=BOOT_KEYCOMB_CD;
 	v.memSizeInMB=4;
 	v.cpuHighFidelity=false;
 	v.pretend386DX=false;
@@ -320,6 +321,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.fastScsi=false;
 	v.fastFd=false;
 	v.midiBoard=false;
+	v.singleDrive=false;
 	v.highResCrtc=true;
 	v.highResPcm=true;
 	v.cpuKind=TownsQtCpuKindDefault();
@@ -365,6 +367,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.profileCpuFrequencyMhz=33;
 	v.profileCpuCustomFrequencyMhz=33;
 	v.profileCpuFastMode=true;
+	v.profileBootKeyComb=BOOT_KEYCOMB_CD;
 	v.profileMemSizeInMB=4;
 	v.profileGamePort0=TOWNS_GAMEPORTEMU_PHYSICAL0;
 	v.profileGamePort1=TOWNS_GAMEPORTEMU_MOUSE;
@@ -376,6 +379,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.profileFastScsi=false;
 	v.profileFastFd=false;
 	v.profileMidiBoard=false;
+	v.profileSingleDrive=false;
 	v.profileHasMouseIntegration=false;
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
@@ -441,6 +445,7 @@ void SettingsDialog::setDiscProfileState(const Values &values)
 	values_.profileCpuFrequencyMhz=values.profileCpuFrequencyMhz;
 	values_.profileCpuCustomFrequencyMhz=values.profileCpuCustomFrequencyMhz;
 	values_.profileCpuFastMode=values.profileCpuFastMode;
+	values_.profileBootKeyComb=values.profileBootKeyComb;
 	values_.profileMemSizeInMB=values.profileMemSizeInMB;
 	values_.profileGamePort0=values.profileGamePort0;
 	values_.profileGamePort1=values.profileGamePort1;
@@ -452,6 +457,7 @@ void SettingsDialog::setDiscProfileState(const Values &values)
 	values_.profileFastScsi=values.profileFastScsi;
 	values_.profileFastFd=values.profileFastFd;
 	values_.profileMidiBoard=values.profileMidiBoard;
+	values_.profileSingleDrive=values.profileSingleDrive;
 	values_.profileHasMouseIntegration=values.profileHasMouseIntegration;
 	loading_=true;
 	loadSharedMachineWidgets(values_,editingDiscProfile());
@@ -546,6 +552,27 @@ void SettingsDialog::focusBasicsTab(void)
 	tabs_->setCurrentWidget(machine_page_);
 }
 
+void SettingsDialog::setDriveConfig(const DriveConfigPage::Values &values)
+{
+	default_drive_config_=values;
+	if(nullptr!=drive_config_page_)
+	{
+		const bool was=loading_;
+		loading_=true;
+		drive_config_page_->setValues(values);
+		loading_=was;
+	}
+}
+
+DriveConfigPage::Values SettingsDialog::driveConfig(void) const
+{
+	if(nullptr!=drive_config_page_)
+	{
+		return drive_config_page_->values();
+	}
+	return default_drive_config_;
+}
+
 int SettingsDialog::mouseIntegrationTabIndex(void) const
 {
 	if(nullptr==tabs_ || nullptr==mouse_integration_page_)
@@ -569,32 +596,11 @@ void SettingsDialog::applyFixedDialogSize()
 
 	QTabBar *bar=tabs_->tabBar();
 	const QMargins margins=main->contentsMargins();
+	// Size the dialog from page/button content with compact tabs first.
 	bar->setUsesScrollButtons(false);
-	bar->setExpanding(true);
+	bar->setExpanding(false);
 	bar->setElideMode(Qt::ElideNone);
-
-	{
-		const QFontMetrics fm(bar->font());
-		int longest=0;
-		const QStringList tabSamples={
-		    tr("Basics"),QStringLiteral("Basics"),QStringLiteral("基本構成"),
-		    tr("Mouse integration"),QStringLiteral("Mouse integration"),QStringLiteral("マウス統合"),
-		    tr("Video / Audio"),QStringLiteral("Video / Audio"),QStringLiteral("映像／音声"),
-		    tr("Features"),QStringLiteral("Features"),QStringLiteral("機能"),
-		};
-		for(const QString &s : tabSamples)
-		{
-			longest=std::max(longest,fm.horizontalAdvance(s));
-		}
-		for(int i=0; i<bar->count(); ++i)
-		{
-			longest=std::max(longest,fm.horizontalAdvance(bar->tabText(i)));
-		}
-		const int hPad=std::max(
-		    24,bar->style()->pixelMetric(QStyle::PM_TabBarTabHSpace,nullptr,bar));
-		bar->setStyleSheet(
-		    QStringLiteral("QTabBar::tab { min-width: %1px; }").arg(longest+hPad));
-	}
+	bar->setStyleSheet(QString());
 
 	// Width from minimumSizeHint avoids Expanding rows (game ports / audio device)
 	// pulling the dialog far wider than the MIDI / machine controls.
@@ -617,7 +623,7 @@ void SettingsDialog::applyFixedDialogSize()
 	tabs_->setCurrentIndex(0<=prev_tab ? prev_tab : 0);
 	main->activate();
 
-	// Include tab captions and bottom button row when deciding final fixed size.
+	// Include compact tab captions and bottom button row when deciding final fixed size.
 	const int tab_width=bar->sizeHint().width()+margins.left()+margins.right()+12;
 	int button_row_width=0;
 	if(0<main->count())
@@ -629,6 +635,8 @@ void SettingsDialog::applyFixedDialogSize()
 	}
 	const int width=std::max({max_width,tab_width,button_row_width});
 	setFixedSize(width,max_height);
+	// Keep dialog width; stretch tabs evenly across the bar.
+	bar->setExpanding(true);
 }
 
 void SettingsDialog::buildUi()
@@ -784,35 +792,69 @@ void SettingsDialog::buildUi()
 		fast_row->setSpacing(8);
 		cpu_freq_group_=new QButtonGroup(fast_row_host);
 		cpu_freq_group_->setExclusive(true);
-		cpu_freq_compat_=new QRadioButton(tr("Compatible"),fast_row_host);
-		cpu_freq_16_=new QRadioButton(QStringLiteral("16MHz"),fast_row_host);
-		cpu_freq_20_=new QRadioButton(QStringLiteral("20MHz"),fast_row_host);
-		cpu_freq_25_=new QRadioButton(QStringLiteral("25MHz"),fast_row_host);
+		cpu_freq_preset_radio_=new QRadioButton(fast_row_host);
+		cpu_freq_preset_=new QComboBox(fast_row_host);
+		// Compatible = slow/CMOS mode; 16/20/25 = FAST presets.
+		cpu_freq_preset_->addItem(tr("Compatible"),-1);
+		cpu_freq_preset_->addItem(QStringLiteral("16MHz"),16);
+		cpu_freq_preset_->addItem(QStringLiteral("20MHz"),20);
+		cpu_freq_preset_->addItem(QStringLiteral("25MHz"),25);
+		FitComboToText(cpu_freq_preset_,QStringList{
+		    tr("Compatible"),QStringLiteral("25MHz")});
 		cpu_freq_custom_=new QRadioButton(fast_row_host);
-		cpu_freq_group_->addButton(cpu_freq_compat_,-1);
-		cpu_freq_group_->addButton(cpu_freq_16_,16);
-		cpu_freq_group_->addButton(cpu_freq_20_,20);
-		cpu_freq_group_->addButton(cpu_freq_25_,25);
+		cpu_freq_group_->addButton(cpu_freq_preset_radio_,1);
 		cpu_freq_group_->addButton(cpu_freq_custom_,0);
-		fast_row->addWidget(cpu_freq_compat_);
-		fast_row->addWidget(cpu_freq_16_);
-		fast_row->addWidget(cpu_freq_20_);
-		fast_row->addWidget(cpu_freq_25_);
-		fast_row->addWidget(cpu_freq_custom_);
 		cpu_freq_custom_mhz_=new QSpinBox(fast_row_host);
 		cpu_freq_custom_mhz_->setRange(33,60);
 		cpu_freq_custom_mhz_->setSuffix(tr(" MHz"));
 		FitSpinToSample(cpu_freq_custom_mhz_,QStringLiteral("60")+tr(" MHz"));
+		fast_row->addWidget(cpu_freq_preset_radio_);
+		fast_row->addWidget(cpu_freq_preset_);
+		fast_row->addWidget(cpu_freq_custom_);
 		fast_row->addWidget(cpu_freq_custom_mhz_);
+		boot_drive_label_=new QLabel(tr("Boot drive"),fast_row_host);
+		boot_drive_=new QComboBox(fast_row_host);
+		// Tsugaru boot-key strings: CD / F0 / F1 / H0 (BOOT_KEYCOMB_*).
+		boot_drive_->addItem(tr("CD-ROM"),static_cast<int>(BOOT_KEYCOMB_CD));
+		boot_drive_->addItem(QStringLiteral("FD0"),static_cast<int>(BOOT_KEYCOMB_F0));
+		boot_drive_->addItem(QStringLiteral("FD1"),static_cast<int>(BOOT_KEYCOMB_F1));
+		boot_drive_->addItem(QStringLiteral("HDD0"),static_cast<int>(BOOT_KEYCOMB_H0));
+		FitComboToText(boot_drive_,QStringList{
+		    tr("CD-ROM"),QStringLiteral("FD0"),QStringLiteral("FD1"),QStringLiteral("HDD0")});
+		fast_row->addSpacing(12);
+		fast_row->addWidget(boot_drive_label_);
+		fast_row->addWidget(boot_drive_);
 		fast_row->addStretch(1);
 		connect(cpu_freq_group_,&QButtonGroup::idToggled,this,[this](int id,bool checked){
 			if(!checked || loading_)
 			{
 				return;
 			}
-			if(0<=id)
+			if(0==id)
 			{
-				values_.cpuFrequencyMhz=(0==id) ? selectedCpuCustomFrequencyMhz() : id;
+				values_.cpuFrequencyMhz=selectedCpuCustomFrequencyMhz();
+				values_.cpuCustomFrequencyMhz=values_.cpuFrequencyMhz;
+			}
+			else if(true==selectedCpuFastMode())
+			{
+				values_.cpuFrequencyMhz=selectedCpuFrequencyMhz();
+			}
+			updateFastModeControls();
+			markDirty();
+		});
+		connect(cpu_freq_preset_,qOverload<int>(&QComboBox::currentIndexChanged),this,[this](int){
+			if(loading_)
+			{
+				return;
+			}
+			if(nullptr!=cpu_freq_preset_radio_ && true!=cpu_freq_preset_radio_->isChecked())
+			{
+				QSignalBlocker blocker(cpu_freq_preset_radio_);
+				cpu_freq_preset_radio_->setChecked(true);
+			}
+			if(true==selectedCpuFastMode())
+			{
+				values_.cpuFrequencyMhz=selectedCpuFrequencyMhz();
 			}
 			updateFastModeControls();
 			markDirty();
@@ -828,7 +870,15 @@ void SettingsDialog::buildUi()
 				cpu_freq_custom_->setChecked(true);
 			}
 			values_.cpuFrequencyMhz=selectedCpuCustomFrequencyMhz();
+			values_.cpuCustomFrequencyMhz=values_.cpuFrequencyMhz;
 			updateFastModeControls();
+			markDirty();
+		});
+		connect(boot_drive_,qOverload<int>(&QComboBox::currentIndexChanged),this,[this](int){
+			if(loading_)
+			{
+				return;
+			}
 			markDirty();
 		});
 		profile_v->addWidget(fast_row_host);
@@ -856,9 +906,9 @@ void SettingsDialog::buildUi()
 		connect(midi_board_,&QCheckBox::toggled,this,&SettingsDialog::updateAudioTabMidiSection);
 		checks->addWidget(pretend_386_,0,0,Qt::AlignLeft|Qt::AlignVCenter);
 		checks->addWidget(use_fpu_,0,1,Qt::AlignLeft|Qt::AlignVCenter);
+		checks->addWidget(midi_board_,0,2,Qt::AlignLeft|Qt::AlignVCenter);
 		checks->addWidget(fast_scsi_,1,0,Qt::AlignLeft|Qt::AlignVCenter);
 		checks->addWidget(fast_fd_,1,1,Qt::AlignLeft|Qt::AlignVCenter);
-		checks->addWidget(midi_board_,1,2,Qt::AlignLeft|Qt::AlignVCenter);
 		opt_top->addLayout(checks,1);
 
 		auto *opt_sep=new QFrame(opt_grid_widget_);
@@ -944,13 +994,29 @@ void SettingsDialog::buildUi()
 		auto *basics_footer=MakeTabFooterNote(
 		    page,
 		    tr("Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
-		       "Memory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
-		       "Create a disc profile when a CD is mounted to save per-disc settings."));
+		       "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
+		       "Create a disc profile when a CD is mounted to save per-disc settings\n"
+		       "(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin)."));
 		basics_footer->setMaximumWidth(640);
 		basics_footer_label_=basics_footer;
 		FinishTabPage(v,basics_footer);
 		machine_page_=page;
 		tabs_->addTab(page,tr("Basics"));
+	}
+
+	{
+		auto *page=new QWidget(tabs_);
+		auto *v=new QVBoxLayout(page);
+		v->setContentsMargins(4,4,4,4);
+		v->setSpacing(3);
+		drive_config_page_=new DriveConfigPage(page);
+		v->addWidget(drive_config_page_,1);
+		v->addWidget(MakeTabFooterNote(
+		    page,
+		    tr("Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\n"
+		       "Apply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.")));
+		drive_config_page_host_=page;
+		tabs_->addTab(page,tr("Drive configuration"));
 	}
 
 	{
@@ -1719,6 +1785,10 @@ void SettingsDialog::updateSysRomInfoLabel()
 void SettingsDialog::updateFastModeControls()
 {
 	const bool custom=nullptr!=cpu_freq_custom_ && cpu_freq_custom_->isChecked();
+	if(nullptr!=cpu_freq_preset_)
+	{
+		cpu_freq_preset_->setEnabled(true!=custom);
+	}
 	if(nullptr!=cpu_freq_custom_mhz_)
 	{
 		cpu_freq_custom_mhz_->setEnabled(custom);
@@ -1738,9 +1808,13 @@ int SettingsDialog::selectedCpuCustomFrequencyMhz() const
 
 bool SettingsDialog::selectedCpuFastMode() const
 {
-	if(nullptr!=cpu_freq_compat_)
+	if(nullptr!=cpu_freq_custom_ && cpu_freq_custom_->isChecked())
 	{
-		return true!=cpu_freq_compat_->isChecked();
+		return true;
+	}
+	if(nullptr!=cpu_freq_preset_)
+	{
+		return -1!=cpu_freq_preset_->currentData().toInt();
 	}
 	return editingDiscProfile() ? values_.profileCpuFastMode : values_.cpuFastMode;
 }
@@ -1751,9 +1825,9 @@ int SettingsDialog::selectedCpuFrequencyMhz() const
 	{
 		return selectedCpuCustomFrequencyMhz();
 	}
-	if(nullptr!=cpu_freq_group_)
+	if(nullptr!=cpu_freq_preset_)
 	{
-		const int id=cpu_freq_group_->checkedId();
+		const int id=cpu_freq_preset_->currentData().toInt();
 		if(16==id || 20==id || 25==id)
 		{
 			return id;
@@ -1777,22 +1851,39 @@ void SettingsDialog::setCpuFrequencyWidgets(bool fast_mode,int active_mhz,int cu
 		QSignalBlocker blocker(cpu_freq_custom_mhz_);
 		cpu_freq_custom_mhz_->setValue(custom_mhz);
 	}
-	QRadioButton *target=cpu_freq_compat_;
-	if(true==fast_mode)
+	const bool use_custom=
+	    true==fast_mode && 16!=active_mhz && 20!=active_mhz && 25!=active_mhz;
+	if(nullptr!=cpu_freq_preset_)
+	{
+		QSignalBlocker blocker(cpu_freq_preset_);
+		int idx=-1;
+		if(true!=fast_mode)
+		{
+			idx=cpu_freq_preset_->findData(-1);
+		}
+		else if(true!=use_custom)
+		{
+			idx=cpu_freq_preset_->findData(active_mhz);
+		}
+		else
+		{
+			// Keep last preset selection while custom radio is active.
+			idx=cpu_freq_preset_->currentIndex();
+			if(0>idx || -1==cpu_freq_preset_->itemData(idx).toInt())
+			{
+				idx=cpu_freq_preset_->findData(25);
+			}
+		}
+		if(0>idx)
+		{
+			idx=0;
+		}
+		cpu_freq_preset_->setCurrentIndex(idx);
+	}
+	QRadioButton *target=cpu_freq_preset_radio_;
+	if(true==use_custom)
 	{
 		target=cpu_freq_custom_;
-		if(16==active_mhz)
-		{
-			target=cpu_freq_16_;
-		}
-		else if(20==active_mhz)
-		{
-			target=cpu_freq_20_;
-		}
-		else if(25==active_mhz)
-		{
-			target=cpu_freq_25_;
-		}
 	}
 	if(nullptr!=target)
 	{
@@ -1800,6 +1891,38 @@ void SettingsDialog::setCpuFrequencyWidgets(bool fast_mode,int active_mhz,int cu
 		target->setChecked(true);
 	}
 	updateFastModeControls();
+}
+
+unsigned int SettingsDialog::selectedBootKeyComb() const
+{
+	if(nullptr!=boot_drive_)
+	{
+		const QVariant data=boot_drive_->currentData();
+		if(true==data.isValid())
+		{
+			return static_cast<unsigned int>(data.toInt());
+		}
+	}
+	return editingDiscProfile() ? values_.profileBootKeyComb : values_.bootKeyComb;
+}
+
+void SettingsDialog::setBootDriveWidget(unsigned int keyComb)
+{
+	if(nullptr==boot_drive_)
+	{
+		return;
+	}
+	int idx=boot_drive_->findData(static_cast<int>(keyComb));
+	if(0>idx)
+	{
+		idx=boot_drive_->findData(static_cast<int>(BOOT_KEYCOMB_CD));
+	}
+	if(0>idx)
+	{
+		idx=0;
+	}
+	QSignalBlocker blocker(boot_drive_);
+	boot_drive_->setCurrentIndex(idx);
 }
 
 bool SettingsDialog::editingDiscProfile(void) const
@@ -1837,23 +1960,28 @@ void SettingsDialog::applyProfileEditAppearance(void)
 		{
 			basics_footer_label_->setText(
 			    tr("Editing the disc profile (fp_XXXXXXXX.ini, amber block).\n"
-			       "Apply or OK saves clock, memory, ports, and options to the profile.\n"
+			       "Apply or OK saves clock, boot drive, memory, ports, options,\n"
+			       "and FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\n"
+			       "CMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\n"
 			       "CPU and model stay global in townsqt.conf and are not stored in the profile.\n"
-			       "Memory and CPU fidelity changes restart the emulator."));
+			       "Memory, boot drive, and CPU fidelity changes restart the emulator."));
 		}
 		else if(true==values_.discMounted)
 		{
 			basics_footer_label_->setText(
-			    tr("No disc profile for this CD yet. Use Create profile to save per-disc settings.\n"
+			    tr("No disc profile for this CD yet. Use Create profile to save per-disc settings\n"
+			       "(including FD0, FD1, and HD0–HD6 mount state for restore).\n"
+			       "A profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\n"
 			       "Until then, Apply or OK saves Basics defaults to townsqt.conf.\n"
-			       "Memory and CPU fidelity changes restart the emulator; game-port changes apply immediately."));
+			       "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately."));
 		}
 		else
 		{
 			basics_footer_label_->setText(
 			    tr("Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
-			       "Memory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
-			       "Create a disc profile when a CD is mounted to save per-disc settings."));
+			       "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
+			       "Create a disc profile when a CD is mounted to save per-disc settings\n"
+			       "(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin)."));
 		}
 	}
 }
@@ -1863,6 +1991,7 @@ void SettingsDialog::loadSharedMachineWidgets(const Values &values,bool fromProf
 	const int freq=fromProfile ? values.profileCpuFrequencyMhz : values.cpuFrequencyMhz;
 	const int custom=fromProfile ? values.profileCpuCustomFrequencyMhz : values.cpuCustomFrequencyMhz;
 	const bool fast=fromProfile ? values.profileCpuFastMode : values.cpuFastMode;
+	const unsigned int bootKey=fromProfile ? values.profileBootKeyComb : values.bootKeyComb;
 	const int mem=fromProfile ? values.profileMemSizeInMB : values.memSizeInMB;
 	const bool fidelity=fromProfile ? values.profileCpuHighFidelity : values.cpuHighFidelity;
 	const bool pretend=fromProfile ? values.profilePretend386DX : values.pretend386DX;
@@ -1876,6 +2005,7 @@ void SettingsDialog::loadSharedMachineWidgets(const Values &values,bool fromProf
 	const int hold1=fromProfile ? values.profileMaxButtonHoldTimeMs1 : values.maxButtonHoldTimeMs1;
 
 	setCpuFrequencyWidgets(fast,freq,custom);
+	setBootDriveWidget(bootKey);
 	if(nullptr!=mem_size_mb_)
 	{
 		const int max_mem=TownsQtModelGroupMaxMemMb(currentModelGroupIndex());
@@ -1930,6 +2060,7 @@ void SettingsDialog::readSharedMachineWidgets(Values &out,bool toProfile) const
 	const int freq=selectedCpuFrequencyMhz();
 	const int custom=selectedCpuCustomFrequencyMhz();
 	const bool fast=selectedCpuFastMode();
+	const unsigned int bootKey=selectedBootKeyComb();
 	const int mem=nullptr!=mem_size_mb_ ? mem_size_mb_->value() :
 	    (toProfile ? values_.profileMemSizeInMB : values_.memSizeInMB);
 	const bool fidelity=nullptr!=cpu_fidelity_ ?
@@ -1961,6 +2092,7 @@ void SettingsDialog::readSharedMachineWidgets(Values &out,bool toProfile) const
 		out.profileCpuFrequencyMhz=freq;
 		out.profileCpuCustomFrequencyMhz=custom;
 		out.profileCpuFastMode=fast;
+		out.profileBootKeyComb=bootKey;
 		out.profileMemSizeInMB=mem;
 		out.profileCpuHighFidelity=fidelity;
 		out.profilePretend386DX=pretend;
@@ -1978,6 +2110,7 @@ void SettingsDialog::readSharedMachineWidgets(Values &out,bool toProfile) const
 		out.cpuFrequencyMhz=freq;
 		out.cpuCustomFrequencyMhz=custom;
 		out.cpuFastMode=fast;
+		out.bootKeyComb=bootKey;
 		out.memSizeInMB=mem;
 		out.cpuHighFidelity=fidelity;
 		out.pretend386DX=pretend;
@@ -1993,6 +2126,7 @@ void SettingsDialog::readSharedMachineWidgets(Values &out,bool toProfile) const
 		out.profileCpuFrequencyMhz=freq;
 		out.profileCpuCustomFrequencyMhz=custom;
 		out.profileCpuFastMode=fast;
+		out.profileBootKeyComb=bootKey;
 		out.profileMemSizeInMB=mem;
 		out.profileCpuHighFidelity=fidelity;
 		out.profilePretend386DX=pretend;
@@ -2034,9 +2168,9 @@ void SettingsDialog::updateMachineTabControls()
 	}
 	for(QWidget *w : std::initializer_list<QWidget *>{
 	    mem_label_,mem_size_mb_,pretend_386_,use_fpu_,fast_scsi_,fast_fd_,
-	    midi_board_,cpu_fidelity_,cpu_freq_compat_,cpu_freq_16_,cpu_freq_20_,
-	    cpu_freq_25_,cpu_freq_custom_,gameport0_,gameport1_,
-	    max_button_hold0_,max_button_hold1_})
+	    midi_board_,cpu_fidelity_,cpu_freq_preset_radio_,cpu_freq_preset_,
+	    cpu_freq_custom_,cpu_freq_custom_mhz_,boot_drive_label_,boot_drive_,
+	    gameport0_,gameport1_,max_button_hold0_,max_button_hold1_})
 	{
 		if(nullptr!=w)
 		{
@@ -2044,11 +2178,9 @@ void SettingsDialog::updateMachineTabControls()
 			w->setToolTip(QString());
 		}
 	}
-	if(nullptr!=cpu_freq_custom_mhz_)
+	if(true==editable)
 	{
-		const bool custom=nullptr!=cpu_freq_custom_ && cpu_freq_custom_->isChecked();
-		cpu_freq_custom_mhz_->setEnabled(editable && custom);
-		cpu_freq_custom_mhz_->setToolTip(QString());
+		updateFastModeControls();
 	}
 	applyProfileEditAppearance();
 	updateCapabilityStatusLabels();
@@ -2191,6 +2323,7 @@ void SettingsDialog::loadFromValues(const Values &values)
 	values_.profileCpuFrequencyMhz=values.profileCpuFrequencyMhz;
 	values_.profileCpuCustomFrequencyMhz=values.profileCpuCustomFrequencyMhz;
 	values_.profileCpuFastMode=values.profileCpuFastMode;
+	values_.profileBootKeyComb=values.profileBootKeyComb;
 	values_.profileMemSizeInMB=values.profileMemSizeInMB;
 	values_.profileGamePort0=values.profileGamePort0;
 	values_.profileGamePort1=values.profileGamePort1;
@@ -2202,6 +2335,7 @@ void SettingsDialog::loadFromValues(const Values &values)
 	values_.profileFastScsi=values.profileFastScsi;
 	values_.profileFastFd=values.profileFastFd;
 	values_.profileMidiBoard=values.profileMidiBoard;
+	values_.profileSingleDrive=values.profileSingleDrive;
 	values_.profileHasMouseIntegration=values.profileHasMouseIntegration;
 	values_.discProfileCreateRequested=false;
 	// CPU/model always from global Values; shared fields from profile when present.
@@ -2297,6 +2431,7 @@ void SettingsDialog::applyToValues(Values &out) const
 		out.cpuFrequencyMhz=values_.cpuFrequencyMhz;
 		out.cpuCustomFrequencyMhz=values_.cpuCustomFrequencyMhz;
 		out.cpuFastMode=values_.cpuFastMode;
+		out.bootKeyComb=values_.bootKeyComb;
 		out.memSizeInMB=values_.memSizeInMB;
 		out.cpuHighFidelity=values_.cpuHighFidelity;
 		out.pretend386DX=values_.pretend386DX;
@@ -2422,6 +2557,7 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		    default_values_.cpuFastMode,
 		    default_values_.cpuFrequencyMhz,
 		    default_values_.cpuCustomFrequencyMhz);
+		setBootDriveWidget(default_values_.bootKeyComb);
 		if(nullptr!=mem_size_mb_)
 		{
 			mem_size_mb_->setValue(default_values_.memSizeInMB);
@@ -2499,6 +2635,13 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		if(nullptr!=max_button_hold1_)
 		{
 			max_button_hold1_->setValue(default_values_.maxButtonHoldTimeMs1);
+		}
+	}
+	else if(page==drive_config_page_host_)
+	{
+		if(nullptr!=drive_config_page_)
+		{
+			drive_config_page_->setValues(default_drive_config_);
 		}
 	}
 	else if(page==display_audio_page_)

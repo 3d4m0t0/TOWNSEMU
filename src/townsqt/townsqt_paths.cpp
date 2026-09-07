@@ -30,6 +30,26 @@ QString TownsQtPaths::cmosFilePath()
 	return configDir()+QStringLiteral("/cmos.bin");
 }
 
+QString TownsQtPaths::cmosDir()
+{
+	return configDir()+QStringLiteral("/cmos");
+}
+
+QString TownsQtPaths::cmosFilePathForDiscFingerprint(unsigned int fingerprintHash32)
+{
+	return cmosDir()+QStringLiteral("/cmos_%1.bin")
+	    .arg(fingerprintHash32,8,16,QLatin1Char('0'));
+}
+
+QString TownsQtPaths::cmosFilePathForProfile(unsigned int fingerprintHash32)
+{
+	if(0==fingerprintHash32)
+	{
+		return cmosFilePath();
+	}
+	return cmosFilePathForDiscFingerprint(fingerprintHash32);
+}
+
 QString TownsQtPaths::configFilePath()
 {
 	return configDir()+QStringLiteral("/townsqt.conf");
@@ -68,6 +88,27 @@ bool TownsQtPaths::ensureLayout()
 	if(true!=dir.mkpath(hddDir()))
 	{
 		return false;
+	}
+	const QString cmos=cmosDir();
+	if(true!=dir.mkpath(cmos))
+	{
+		return false;
+	}
+	{
+		// One-time migrate legacy <configDir>/cmos_XXXXXXXX.bin into cmos/.
+		QDir config(configDir());
+		const QFileInfoList legacyCmos=config.entryInfoList(
+		    QStringList{QStringLiteral("cmos_*.bin")},
+		    QDir::Files);
+		for(const QFileInfo &fi : legacyCmos)
+		{
+			const QString dest=cmos+QStringLiteral("/")+fi.fileName();
+			if(true==QFileInfo::exists(dest))
+			{
+				continue;
+			}
+			(void)QDir().rename(fi.absoluteFilePath(),dest);
+		}
 	}
 	const QString profiles=profilesDir();
 	const QString legacy=configDir()+QStringLiteral("/mouse_coord_profiles");

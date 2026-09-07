@@ -16,6 +16,7 @@
 #include "townsqt_settings.h"
 #include "townsdef.h"
 #include "townsthread.h"
+#include "townscmos_util.h"
 
 #include "fssimplewindow_connection.h"
 #include "cpputil.h"
@@ -25,12 +26,14 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QTimer>
 #include <QVariantMap>
 #include <QVariantList>
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <exception>
 #include <iostream>
 #include <memory>
@@ -109,6 +112,7 @@ MouseCoordWriteScan::MachineSettings MachineSettingsFromVariantMap(const QVarian
 	takeBool("fast_scsi",m.hasFastScsi,m.fastScsi);
 	takeBool("fast_fd",m.hasFastFd,m.fastFd);
 	takeBool("midi_board",m.hasMidiBoard,m.midiBoard);
+	takeBool("single_drive",m.hasSingleDrive,m.singleDrive);
 	takeBool("high_res_crtc",m.hasHighResCrtc,m.highResCrtc);
 	takeBool("high_res_pcm",m.hasHighResPcm,m.highResPcm);
 	takeInt("cd_speed",m.hasCdSpeed,m.cdSpeed,0,64);
@@ -123,6 +127,22 @@ MouseCoordWriteScan::MachineSettings MachineSettingsFromVariantMap(const QVarian
 	};
 	takeFd("fd0",0);
 	takeFd("fd1",1);
+	for(int hd=0; hd<MouseCoordWriteScan::MachineSettings::kHddImgCount; ++hd)
+	{
+		const QString key=QStringLiteral("hd%1").arg(hd);
+		if(true!=machine.contains(key))
+		{
+			continue;
+		}
+		m.hasHddImg[hd]=true;
+		m.hddImg[hd]=machine.value(key).toString().trimmed().toStdString();
+	}
+	if(true==machine.contains(QStringLiteral("boot_key")))
+	{
+		m.hasBootKeyComb=true;
+		m.bootKeyComb=TownsStrToKeyComb(
+		    machine.value(QStringLiteral("boot_key")).toString().trimmed().toStdString());
+	}
 	return m;
 }
 }
@@ -636,6 +656,32 @@ void EmulatorController::persistFdMountsToDiscProfile(void)
 	Q_EMIT discProfileStateChanged();
 }
 
+bool EmulatorController::persistHddMountsToDiscProfile(const QStringList &hdd_paths)
+{
+	if(nullptr==towns_ || true!=TownsQtSettings::useDiscProfiles())
+	{
+		return false;
+	}
+	if(true!=towns_->mouseCoordWriteScan.DiscProfileLoaded())
+	{
+		return false;
+	}
+	std::string paths[MouseCoordWriteScan::MachineSettings::kHddImgCount];
+	const int n=std::min(
+	    static_cast<int>(hdd_paths.size()),
+	    MouseCoordWriteScan::MachineSettings::kHddImgCount);
+	for(int hd=0; hd<n; ++hd)
+	{
+		paths[hd]=hdd_paths.at(hd).trimmed().toStdString();
+	}
+	if(true!=towns_->mouseCoordWriteScan.ApplyAndSaveHddMounts(paths,n))
+	{
+		return false;
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
 void EmulatorController::setFdWriteProtect(int drive,bool write_protect)
 {
 	drive=std::clamp(drive,0,1);
@@ -700,18 +746,8 @@ bool EmulatorController::QueryFdDriveAvailable(int drive,const FMTownsCommon *to
 		return 0==towns->physMem.state.CMOSRAM[cmos_index];
 	}
 
-	// Emulator not running yet: peek saved CMOS (default is dual-drive).
-	QFile cmos_file(TownsQtPaths::cmosFilePath());
-	if(!cmos_file.open(QIODevice::ReadOnly))
-	{
-		return true;
-	}
-	const QByteArray cmos=cmos_file.read(static_cast<int>(cmos_index)+1);
-	if(cmos.size()<=static_cast<int>(cmos_index))
-	{
-		return true;
-	}
-	return 0==static_cast<unsigned char>(cmos.at(static_cast<int>(cmos_index)));
+	// Emulator not running yet: peek the CMOS file selected for this boot.
+	return true!=QueryCmosSingleDrive(nullptr);
 }
 
 bool EmulatorController::fdDriveAvailable(int drive) const
@@ -732,6 +768,234 @@ void EmulatorController::applyMidiBoard(bool enabled)
 	}
 	towns_->var.configuredMidiCards=argv_.nMidiCards;
 	towns_->midi.EnableCards(argv_.nMidiCards);
+}
+
+namespace
+{
+constexpr unsigned int CmosSingleDriveIndex(void)
+{
+	return TownsCmos::kSingleDriveIndex;
+}
+
+QVariantMap DriveSettingsToVariantMap(bool singleDrive,
+                                      const TownsCmos::DriveAssignEntry letters[TownsCmos::kDriveLetterCount])
+{
+	QVariantMap m;
+	m.insert(QStringLiteral("single_drive"),singleDrive);
+	QVariantList list;
+	list.reserve(TownsCmos::kDriveLetterCount);
+	for(int i=0; i<TownsCmos::kDriveLetterCount; ++i)
+	{
+		QVariantMap e;
+		e.insert(QStringLiteral("type"),static_cast<int>(letters[i].type));
+		e.insert(QStringLiteral("unit"),static_cast<int>(letters[i].unit));
+		list.push_back(e);
+	}
+	m.insert(QStringLiteral("letters"),list);
+	return m;
+}
+
+bool VariantListToDriveAssign(const QVariantList &letters,
+                              TownsCmos::DriveAssignEntry out[TownsCmos::kDriveLetterCount])
+{
+	for(int i=0; i<TownsCmos::kDriveLetterCount; ++i)
+	{
+		out[i].type=TownsCmos::kTypeUnassigned;
+		out[i].unit=TownsCmos::kTypeUnassigned;
+	}
+	const int n=std::min(static_cast<int>(letters.size()),TownsCmos::kDriveLetterCount);
+	for(int i=0; i<n; ++i)
+	{
+		const QVariantMap e=letters.at(i).toMap();
+		int type=e.value(QStringLiteral("type"),255).toInt();
+		int unit=e.value(QStringLiteral("unit"),255).toInt();
+		if(type<0 || type>255 || unit<0 || unit>255)
+		{
+			return false;
+		}
+		if(255!=type &&
+		   TownsCmos::kTypeFd!=type &&
+		   TownsCmos::kTypeScsi!=type &&
+		   TownsCmos::kTypeRom!=type)
+		{
+			return false;
+		}
+		out[i].type=static_cast<unsigned char>(type);
+		out[i].unit=static_cast<unsigned char>(unit);
+		if(TownsCmos::kTypeUnassigned==out[i].type)
+		{
+			out[i].unit=TownsCmos::kTypeUnassigned;
+		}
+	}
+	return true;
+}
+}
+
+QString EmulatorController::activeCmosFilePath() const
+{
+	if(true!=argv_.CMOSFName.empty())
+	{
+		return QString::fromStdString(argv_.CMOSFName);
+	}
+	return TownsQtPaths::cmosFilePath();
+}
+
+bool EmulatorController::readCmosBuffer(unsigned char *buf) const
+{
+	if(nullptr==buf)
+	{
+		return false;
+	}
+	if(nullptr!=towns_)
+	{
+		std::memcpy(buf,towns_->physMem.state.CMOSRAM,TOWNS_CMOS_SIZE);
+		return true;
+	}
+	QFile f(activeCmosFilePath());
+	if(!f.open(QIODevice::ReadOnly))
+	{
+		return false;
+	}
+	const QByteArray data=f.read(TOWNS_CMOS_SIZE);
+	if(data.size()!=TOWNS_CMOS_SIZE)
+	{
+		return false;
+	}
+	std::memcpy(buf,data.constData(),TOWNS_CMOS_SIZE);
+	return true;
+}
+
+bool EmulatorController::writeCmosBuffer(const unsigned char *buf)
+{
+	if(nullptr==buf)
+	{
+		return false;
+	}
+	if(nullptr!=towns_)
+	{
+		std::memcpy(towns_->physMem.state.CMOSRAM,buf,TOWNS_CMOS_SIZE);
+	}
+	const QString path=activeCmosFilePath();
+	if(path.isEmpty())
+	{
+		return nullptr!=towns_;
+	}
+	QSaveFile out(path);
+	if(!out.open(QIODevice::WriteOnly))
+	{
+		return false;
+	}
+	if(TOWNS_CMOS_SIZE!=out.write(reinterpret_cast<const char *>(buf),TOWNS_CMOS_SIZE))
+	{
+		return false;
+	}
+	return out.commit();
+}
+
+bool EmulatorController::QueryCmosSingleDrive(const FMTownsCommon *towns,const QString &cmosPath)
+{
+	const unsigned int cmos_index=CmosSingleDriveIndex();
+	if(cmos_index>=TOWNS_CMOS_SIZE)
+	{
+		return false;
+	}
+	if(nullptr!=towns)
+	{
+		return 0!=towns->physMem.state.CMOSRAM[cmos_index];
+	}
+	const QString path=cmosPath.isEmpty() ? TownsQtPaths::cmosFilePath() : cmosPath;
+	QFile cmos_file(path);
+	if(!cmos_file.open(QIODevice::ReadOnly))
+	{
+		return false;
+	}
+	const QByteArray cmos=cmos_file.read(static_cast<int>(cmos_index)+1);
+	if(cmos.size()<=static_cast<int>(cmos_index))
+	{
+		return false;
+	}
+	return 0!=static_cast<unsigned char>(cmos.at(static_cast<int>(cmos_index)));
+}
+
+bool EmulatorController::cmosSingleDrive() const
+{
+	if(nullptr!=towns_)
+	{
+		return QueryCmosSingleDrive(towns_);
+	}
+	if(true!=argv_.CMOSFName.empty())
+	{
+		return QueryCmosSingleDrive(nullptr,QString::fromStdString(argv_.CMOSFName));
+	}
+	return QueryCmosSingleDrive(nullptr);
+}
+
+QVariantMap EmulatorController::cmosDriveSettings() const
+{
+	unsigned char buf[TOWNS_CMOS_SIZE];
+	TownsCmos::DriveAssignEntry letters[TownsCmos::kDriveLetterCount];
+	if(true!=readCmosBuffer(buf))
+	{
+		for(int i=0; i<TownsCmos::kDriveLetterCount; ++i)
+		{
+			letters[i].type=TownsCmos::kTypeUnassigned;
+			letters[i].unit=TownsCmos::kTypeUnassigned;
+		}
+		return DriveSettingsToVariantMap(false,letters);
+	}
+	TownsCmos::GetDriveAssign(buf,letters);
+	return DriveSettingsToVariantMap(TownsCmos::GetSingleDriveMode(buf),letters);
+}
+
+bool EmulatorController::applyCmosDriveSettings(bool single_drive,const QVariantList &letters)
+{
+	TownsCmos::DriveAssignEntry assign[TownsCmos::kDriveLetterCount];
+	if(true!=VariantListToDriveAssign(letters,assign))
+	{
+		return false;
+	}
+	unsigned char buf[TOWNS_CMOS_SIZE];
+	if(true!=readCmosBuffer(buf))
+	{
+		// No CMOS yet: start from factory default image.
+		std::memcpy(buf,FMTownsCommon::defCMOS,TOWNS_CMOS_SIZE);
+	}
+	TownsCmos::ApplyDriveSettings(buf,single_drive,assign);
+	return writeCmosBuffer(buf);
+}
+
+void EmulatorController::PersistSingleDriveToCmosFile(bool enabled)
+{
+	// Best-effort file patch when called without a controller instance.
+	QFile f(TownsQtPaths::cmosFilePath());
+	if(!f.open(QIODevice::ReadWrite))
+	{
+		return;
+	}
+	QByteArray data=f.read(TOWNS_CMOS_SIZE);
+	if(data.size()!=TOWNS_CMOS_SIZE)
+	{
+		return;
+	}
+	auto *buf=reinterpret_cast<unsigned char *>(data.data());
+	TownsCmos::SetSingleDriveMode(buf,enabled);
+	if(!f.seek(0))
+	{
+		return;
+	}
+	(void)f.write(data);
+	f.flush();
+}
+
+void EmulatorController::applySingleDrive(bool enabled)
+{
+	unsigned char buf[TOWNS_CMOS_SIZE];
+	if(true!=readCmosBuffer(buf))
+	{
+		std::memcpy(buf,FMTownsCommon::defCMOS,TOWNS_CMOS_SIZE);
+	}
+	TownsCmos::SetSingleDriveMode(buf,enabled);
+	(void)writeCmosBuffer(buf);
 }
 
 void EmulatorController::setMidiMonitor(bool enabled)
@@ -2246,6 +2510,10 @@ QVariantMap EmulatorController::mouseCoordWriteScanState() const
 			{
 				result[QStringLiteral("prof_midi_board")]=p.machine.midiBoard;
 			}
+			if(true==p.machine.hasSingleDrive)
+			{
+				result[QStringLiteral("prof_single_drive")]=p.machine.singleDrive;
+			}
 			if(true==p.machine.hasFdImg[0])
 			{
 				result[QStringLiteral("prof_fd0")]=QString::fromStdString(p.machine.fdImg[0]);
@@ -2253,6 +2521,19 @@ QVariantMap EmulatorController::mouseCoordWriteScanState() const
 			if(true==p.machine.hasFdImg[1])
 			{
 				result[QStringLiteral("prof_fd1")]=QString::fromStdString(p.machine.fdImg[1]);
+			}
+			for(int hd=0; hd<MouseCoordWriteScan::MachineSettings::kHddImgCount; ++hd)
+			{
+				if(true==p.machine.hasHddImg[hd])
+				{
+					result[QStringLiteral("prof_hd%1").arg(hd)]=
+					    QString::fromStdString(p.machine.hddImg[hd]);
+				}
+			}
+			if(true==p.machine.hasBootKeyComb)
+			{
+				result[QStringLiteral("prof_boot_key")]=
+				    QString::fromStdString(TownsKeyCombToStr(p.machine.bootKeyComb));
 			}
 			if(true==p.machine.hasHighResCrtc)
 			{

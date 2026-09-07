@@ -117,6 +117,11 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "Changes take effect after the emulator is restarted.",
+      "translation": "変更はエミュレーター再起動後に反映されます。"
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "Path: %1\nLogical size: %2\nDisk usage: %3",
       "translation": "パス: %1\n論理サイズ: %2\n実ディスク使用量: %3"
     },
@@ -189,6 +194,16 @@
       "context": "MainWindow",
       "source": "Starting…",
       "translation": "起動中…"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to load CD image",
+      "translation": "Failed to load CD image"
+    },
+    {
+      "context": "MainWindow",
+      "source": "CD: %1",
+      "translation": "CD: %1"
     },
     {
       "context": "MainWindow",
@@ -322,43 +337,13 @@
     },
     {
       "context": "MainWindow",
-      "source": "&Save",
-      "translation": "保存(&S)"
-    },
-    {
-      "context": "MainWindow",
       "source": "Slot %1",
       "translation": "スロット %1"
     },
     {
       "context": "MainWindow",
-      "source": "Emulator is not running",
-      "translation": "エミュレーターは起動していません"
-    },
-    {
-      "context": "MainWindow",
-      "source": "State slot %1 loaded",
-      "translation": "ステートスロット %1 を読み込みました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Failed to load state slot %1",
-      "translation": "ステートスロット %1 の読み込みに失敗しました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "No resume state for the mounted CD (slot 0)",
-      "translation": "マウント中の CD のレジューム用ステート（スロット0）がありません"
-    },
-    {
-      "context": "MainWindow",
-      "source": "State slot %1 saved",
-      "translation": "ステートスロット %1 を保存しました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "Failed to save state slot %1",
-      "translation": "ステートスロット %1 の保存に失敗しました"
+      "source": "&Save",
+      "translation": "保存(&S)"
     },
     {
       "context": "MainWindow",
@@ -444,6 +429,21 @@
       "context": "MainWindow",
       "source": "Sprite transfer  %1",
       "translation": "スプライト転送  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Hard disk settings saved. They take effect after restart.",
+      "translation": "ハードディスク設定を保存しました。再起動後に反映されます。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Drive configuration",
+      "translation": "Drive configuration"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to update CMOS (file missing or not writable).",
+      "translation": "Failed to update CMOS (file missing or not writable)."
     },
     {
       "context": "MainWindow",
@@ -534,11 +534,6 @@
       "context": "MainWindow",
       "source": "CD ejected",
       "translation": "CDを取り出しました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "CD: %1",
-      "translation": "CD: %1"
     },
     {
       "context": "MainWindow",
@@ -691,6 +686,36 @@
       "translation": "ウィンドウ倍率（%1倍）"
     },
     {
+      "context": "MainWindow",
+      "source": "Emulator is not running",
+      "translation": "エミュレーターは起動していません"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to load state slot %1",
+      "translation": "ステートスロット %1 の読み込みに失敗しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 loaded",
+      "translation": "ステートスロット %1 を読み込みました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "No resume state for the mounted CD (slot 0)",
+      "translation": "マウント中の CD のレジューム用ステート（スロット0）がありません"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to save state slot %1",
+      "translation": "ステートスロット %1 の保存に失敗しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 saved",
+      "translation": "ステートスロット %1 を保存しました"
+    },
+    {
       "context": "MouseCoordProfilePage",
       "source": "Default",
       "translation": "規定"
@@ -814,6 +839,11 @@
       "context": "MouseCoordProfilePage",
       "source": "Invert",
       "translation": "反転"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes.",
+      "translation": "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes."
     },
     {
       "context": "MouseCoordProfilePage",
@@ -1067,26 +1097,6 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Basics",
-      "translation": "基本構成"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Mouse integration",
-      "translation": "マウス統合"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Video / Audio",
-      "translation": "映像／音声"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Features",
-      "translation": "機能"
-    },
-    {
-      "context": "SettingsDialog",
       "source": "BIOS",
       "translation": "BIOS"
     },
@@ -1149,6 +1159,16 @@
       "context": "SettingsDialog",
       "source": " MHz",
       "translation": " MHz"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Boot drive",
+      "translation": "Boot drive"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "CD-ROM",
+      "translation": "CD-ROM"
     },
     {
       "context": "SettingsDialog",
@@ -1232,8 +1252,28 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings.",
-      "translation": "基本構成の既定値（townsqt.conf）を編集中です。適用／OK でここに保存します。\nメモリとCPU忠実度の変更は再起動、ゲームポートは即時反映です。\nCDマウント中にディスクプロファイルを作成すると、ディスクごとの設定を保存できます。"
+      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
+      "translation": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin)."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Basics",
+      "translation": "基本構成"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
+      "translation": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot."
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Drive configuration",
+      "translation": "Drive configuration"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Mouse integration",
+      "translation": "マウス統合"
     },
     {
       "context": "SettingsDialog",
@@ -1357,6 +1397,11 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Video / Audio",
+      "translation": "映像／音声"
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Enable auto-resume",
       "translation": "オートレジューム有効"
     },
@@ -1364,16 +1409,6 @@
       "context": "SettingsDialog",
       "source": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded.",
       "translation": "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了・起動・CD 変更時に、\nディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n必要に応じて自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\nオフのときは、ステートセーブの自動保存・自動読み込みを行いません。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Inhibit display idle",
-      "translation": "ディスプレイのアイドルを抑制"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "Wayland セッションで画面の自動消灯や暗転を防ぎます。"
     },
     {
       "context": "SettingsDialog",
@@ -1402,6 +1437,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Inhibit display idle",
+      "translation": "ディスプレイのアイドルを抑制"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
+      "translation": "Wayland セッションで画面の自動消灯や暗転を防ぎます。"
+    },
+    {
+      "context": "SettingsDialog",
       "source": "MOS unused",
       "translation": "MOS未使用"
     },
@@ -1409,6 +1454,11 @@
       "context": "SettingsDialog",
       "source": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture.",
       "translation": "Mouse BIOS 動作中でも未使用ならマウス統合を終了し、マウスキャプチャへ切り替えます。"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "Features",
+      "translation": "機能"
     },
     {
       "context": "SettingsDialog",
@@ -1462,13 +1512,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, memory, ports, and options to the profile.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory and CPU fidelity changes restart the emulator.",
-      "translation": "ディスクプロファイル（fp_XXXXXXXX.ini、琥珀色の枠）を編集中です。\n適用／OK でクロック・メモリ・ポート・オプションをプロファイルへ保存します。\nCPUとモデルはグローバル（townsqt.conf）のままで、プロファイルには保存しません。\nメモリとCPU忠実度の変更は再起動します。"
+      "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
+      "translation": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator."
     },
     {
       "context": "SettingsDialog",
-      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-      "translation": "このCDのディスクプロファイルはまだありません。「プロファイル作成」でディスクごとの設定を保存できます。\n作成までは適用／OK で基本構成の既定値を townsqt.conf に保存します。\nメモリとCPU忠実度の変更は再起動、ゲームポートは即時反映です。"
+      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
+      "translation": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately."
     },
     {
       "context": "SettingsDialog",

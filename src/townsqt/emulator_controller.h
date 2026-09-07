@@ -99,6 +99,19 @@ public Q_SLOTS:
 	Q_INVOKABLE void applySpriteTransferModeLive(int spriteTransferMode);
 	void applyAudioVolumes(int fm_chip_volume,int pcm_chip_volume,int cdda_volume_percent,bool pcm_lpf_enabled,int pcm_lpf_cutoff_hz,bool pcm_resample_hq);
 	void applyMidiBoard(bool enabled);
+	/*! Towns CMOS single-drive flag (VM RAM, else active CMOS file). */
+	Q_INVOKABLE bool cmosSingleDrive() const;
+	/*! Drive-letter map + single-drive from live CMOSRAM or CMOS file. */
+	Q_INVOKABLE QVariantMap cmosDriveSettings() const;
+	/*! Rewrite DRIVE_ASSIGN + SINGLE_DRIVE in VM CMOSRAM (and flush CMOS file).
+	    letters: list of {type,unit} for A–P (type 0=FD,2=SCSI,5=ROM,255=unassigned). */
+	Q_INVOKABLE bool applyCmosDriveSettings(bool single_drive,const QVariantList &letters);
+	/*! Convenience: toggle single-drive, keep current drive letters; repairs checksum. */
+	Q_INVOKABLE void applySingleDrive(bool enabled);
+	/*! Write current single-drive into the active CMOS file (checksum-safe). */
+	static void PersistSingleDriveToCmosFile(bool enabled);
+	static bool QueryCmosSingleDrive(const FMTownsCommon *towns,
+	                                 const QString &cmosPath=QString());
 	void setMidiMonitor(bool enabled);
 	Q_INVOKABLE QStringList takeMidiMonitorLines();
 	void setCdromMonitor(bool enabled);
@@ -138,6 +151,8 @@ public Q_SLOTS:
 	Q_INVOKABLE bool saveStateSlot(int slot);
 	/*! Save state0_XXXXXXXX.TState when a disc profile is active (emulator thread only). */
 	Q_INVOKABLE bool saveDiscStateSaveIfProfiled(bool resume_run_after=true);
+	/*! When disc profiles are enabled and loaded, write HD0 path into fp_*.ini. */
+	Q_INVOKABLE bool persistHddMountsToDiscProfile(const QStringList &hdd_paths);
 
 Q_SIGNALS:
 	void frameReady();
@@ -190,4 +205,10 @@ private:
 	void runPendingStateSaveOnVmThread(FMTownsCommon &towns);
 	/*! When disc profiles are enabled and loaded, write current FD0/FD1 paths into fp_*.ini. */
 	void persistFdMountsToDiscProfile(void);
+	/*! Active CMOS path for this boot (profile or global). */
+	QString activeCmosFilePath() const;
+	/*! Copy CMOSRAM or file into buf[TOWNS_CMOS_SIZE]; false if unavailable. */
+	bool readCmosBuffer(unsigned char *buf) const;
+	/*! Write buf to active CMOS file (and live CMOSRAM when VM is up). */
+	bool writeCmosBuffer(const unsigned char *buf);
 };

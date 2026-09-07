@@ -144,6 +144,14 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("MainWindow", "Emulator restarted"): "エミュレーターを再起動しました",
     ("MainWindow", "&Restart"): "再起動(&R)",
     ("MainWindow", "Hard disk drive settings…"): "ハードディスク設定…",
+    (
+        "MainWindow",
+        "Hard disk settings saved. They take effect after restart.",
+    ): "ハードディスク設定を保存しました。再起動後に反映されます。",
+    (
+        "HddSettingsDialog",
+        "Changes take effect after the emulator is restarted.",
+    ): "変更はエミュレーター再起動後に反映されます。",
     ("MainWindow", "FPS display"): "FPS表示",
     (
         "MainWindow",

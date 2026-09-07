@@ -8,6 +8,7 @@
 #include "townsqt_rom_availability.h"
 #include "townsqt_cpu_profile.h"
 #include "townsqt_settings.h"
+#include "drive_config_page.h"
 
 class QGroupBox;
 class QButtonGroup;
@@ -39,6 +40,8 @@ public:
 		int cpuFrequencyMhz=33;
 		int cpuCustomFrequencyMhz=33;
 		bool cpuFastMode=true;
+		/*! Towns boot-key combination (BOOT_KEYCOMB_CD / F0 / F1 / H0). */
+		unsigned int bootKeyComb=BOOT_KEYCOMB_CD;
 		int memSizeInMB=4;
 		bool cpuHighFidelity=false;
 		bool pretend386DX=false;
@@ -46,6 +49,7 @@ public:
 		bool fastScsi=false;
 		bool fastFd=false;
 		bool midiBoard=false;
+		bool singleDrive=false;
 		bool highResCrtc=true;
 		bool highResPcm=true;
 		TownsQtCpuKind cpuKind=TownsQtCpuKind::I486DX;
@@ -100,6 +104,7 @@ public:
 		int profileCpuFrequencyMhz=33;
 		int profileCpuCustomFrequencyMhz=33;
 		bool profileCpuFastMode=true;
+		unsigned int profileBootKeyComb=BOOT_KEYCOMB_CD;
 		int profileMemSizeInMB=4;
 		unsigned int profileGamePort0=TOWNS_GAMEPORTEMU_PHYSICAL0;
 		unsigned int profileGamePort1=TOWNS_GAMEPORTEMU_MOUSE;
@@ -111,6 +116,7 @@ public:
 		bool profileFastScsi=false;
 		bool profileFastFd=false;
 		bool profileMidiBoard=false;
+		bool profileSingleDrive=false;
 		bool profileHasMouseIntegration=false;
 	};
 
@@ -142,6 +148,8 @@ public:
 	void focusMouseIntegrationTab(void);
 	void focusBasicsTab(void);
 	int mouseIntegrationTabIndex(void) const;
+	void setDriveConfig(const DriveConfigPage::Values &values);
+	DriveConfigPage::Values driveConfig(void) const;
 
 Q_SIGNALS:
 	void settingsApplied(const Values &values);
@@ -184,6 +192,8 @@ private:
 	int selectedCpuFrequencyMhz() const;
 	int selectedCpuCustomFrequencyMhz() const;
 	void setCpuFrequencyWidgets(bool fast_mode,int active_mhz,int custom_mhz);
+	unsigned int selectedBootKeyComb() const;
+	void setBootDriveWidget(unsigned int keyComb);
 	/*! True while a disc profile exists — Basics widgets edit that profile (not townsqt.conf). */
 	bool editingDiscProfile(void) const;
 	void applyProfileEditAppearance(void);
@@ -196,6 +206,7 @@ private:
 
 	Values values_;
 	Values default_values_;
+	DriveConfigPage::Values default_drive_config_;
 	QString rom_dir_;
 	bool marty_ex_rom_present_=false;
 	TownsQtSysRomProfile sys_rom_profile_=TownsQtSysRomProfile::Missing;
@@ -206,6 +217,8 @@ private:
 	bool loading_=false;
 
 	QWidget *machine_page_=nullptr;
+	QWidget *drive_config_page_host_=nullptr;
+	DriveConfigPage *drive_config_page_=nullptr;
 	QWidget *mouse_integration_page_=nullptr;
 	MouseCoordProfilePage *mouse_coord_profile_page_=nullptr;
 	QWidget *display_audio_page_=nullptr;
@@ -215,12 +228,12 @@ private:
 	QLabel *mem_label_=nullptr;
 	QComboBox *cpu_fidelity_=nullptr;
 	QButtonGroup *cpu_freq_group_=nullptr;
-	QRadioButton *cpu_freq_compat_=nullptr;
-	QRadioButton *cpu_freq_16_=nullptr;
-	QRadioButton *cpu_freq_20_=nullptr;
-	QRadioButton *cpu_freq_25_=nullptr;
+	QRadioButton *cpu_freq_preset_radio_=nullptr;
+	QComboBox *cpu_freq_preset_=nullptr;
 	QRadioButton *cpu_freq_custom_=nullptr;
 	QSpinBox *cpu_freq_custom_mhz_=nullptr;
+	QLabel *boot_drive_label_=nullptr;
+	QComboBox *boot_drive_=nullptr;
 	QWidget *opt_grid_widget_=nullptr;
 	QCheckBox *pretend_386_=nullptr;
 	QCheckBox *use_fpu_=nullptr;

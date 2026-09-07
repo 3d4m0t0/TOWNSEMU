@@ -21,8 +21,10 @@ public:
 		QString path;
 	};
 
+	/*! mountedCdImagePath: when set, HD0 Create defaults to that CD's basename + ".hd". */
 	explicit HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotCount],
-	                           QWidget *parent=nullptr);
+	                           QWidget *parent=nullptr,
+	                           const QString &mountedCdImagePath=QString());
 
 	void copySlotsTo(Slot out[TownsQtSettings::kHddSlotCount]) const;
 
@@ -49,4 +51,6 @@ private:
 	bool createBlankHddImage(const QString &path,int size_mb);
 
 	Row rows_[TownsQtSettings::kHddSlotCount];
+	/*! Basename (no extension) of the mounted CD, if any — used for HD0 Create default name. */
+	QString cd_image_base_name_;
 };

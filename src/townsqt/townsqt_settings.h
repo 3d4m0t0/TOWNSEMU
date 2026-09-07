@@ -73,6 +73,10 @@ void setCpuCustomFrequencyMhz(int mhz);
 bool cpuFastModeEnabled();
 void setCpuFastModeEnabled(bool enabled);
 
+/*! Boot-key combination (BOOT_KEYCOMB_CD / F0 / F1 / H0). Default CD. */
+unsigned int bootKeyComb();
+void setBootKeyComb(unsigned int keyComb);
+
 /*! CD speed multiplier; 0 = emulator default timing. */
 int cdSpeed();
 void setCdSpeed(int speed);
@@ -97,6 +101,10 @@ void setFastFd(bool enabled);
 
 bool midiBoard();
 void setMidiBoard(bool enabled);
+
+/*! Towns CMOS single-drive mode (FD1 unavailable when enabled). */
+bool singleDrive();
+void setSingleDrive(bool enabled);
 
 bool highResCrtc();
 void setHighResCrtc(bool enabled);
