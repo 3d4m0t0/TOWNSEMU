@@ -885,6 +885,10 @@ public:
 
 	bool FASTModeLamp(void) const;
 
+	/*! Compatible (初代ほか): main RAM 3WS / VRAM 6WS. */
+	void SetCompatibleMemoryWait(void);
+	/*! FAST: RAM 0WS; VRAM 3WS only for 16MHz FAST (CX), else 0WS. */
+	void SetFastModeMemoryWait(void);
 
 	/*! I/O access for internal devices. */
 	virtual void IOWriteByte(unsigned int ioport,unsigned int data);
@@ -914,7 +918,17 @@ public:
 	unsigned int GetEleVolPCMLeft(void) const;
 	unsigned int GetEleVolPCMRight(void) const;
 
-	/*! Adjust CPU frequency to simulate memory wait.
+	/*! Clocks charged by memory wait-states during the current instruction. */
+	mutable unsigned int pendingMemWaitClocks=0;
+
+	/*! Add wait-state clocks for one CPU memory bus transaction. */
+	inline void AddMemWaitClocks(unsigned int clocks) const
+	{
+		pendingMemWaitClocks+=clocks;
+	}
+
+	/*! Adjust CPU frequency / instruction timing for FAST vs Compatible.
+	    Wait register values also drive per-access memory wait clocks.
 	*/
 	void ApplySpriteTransferTime(void);
 	void AdjustMachineSpeedForMemoryWait(void);
@@ -1132,6 +1146,11 @@ public:
 	inline unsigned int RunOneInstruction(void)
 	{
 		auto clocksPassed=_cpu.RunOneInstruction(mem,io);
+		if(0!=pendingMemWaitClocks)
+		{
+			clocksPassed+=pendingMemWaitClocks;
+			pendingMemWaitClocks=0;
+		}
 		state.clockBalance+=clocksPassed*1000;
 
 		// Since last update, clockBalance*1000/freq nano seconds have passed.

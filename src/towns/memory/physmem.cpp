@@ -460,6 +460,32 @@ TownsPhysicalMemory::TownsPhysicalMemory(class FMTownsCommon *townsPtr,class Mem
 	state.Reset();
 }
 
+void TownsPhysicalMemory::ChargeMainRAMWait(void) const
+{
+	if(0!=memWaitSuppressCount)
+	{
+		return;
+	}
+	const auto wait=townsPtr->state.mainRAMWait;
+	if(0!=wait)
+	{
+		townsPtr->AddMemWaitClocks((unsigned int)wait);
+	}
+}
+
+void TownsPhysicalMemory::ChargeVRAMWait(void) const
+{
+	if(0!=memWaitSuppressCount)
+	{
+		return;
+	}
+	const auto wait=townsPtr->state.VRAMWait;
+	if(0!=wait)
+	{
+		townsPtr->AddMemWaitClocks((unsigned int)wait);
+	}
+}
+
 std::vector <unsigned char> TownsPhysicalMemory::LoadROMImage(std::string fName,bool verbose)
 {
 	if(true==verbose)

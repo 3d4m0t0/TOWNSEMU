@@ -56,6 +56,9 @@ public:
 	virtual void StoreWord(unsigned int physAddr,unsigned int data);
 	virtual void StoreDword(unsigned int physAddr,unsigned int data);
 
+	virtual unsigned int FetchByteDMA(unsigned int physAddr) const;
+	virtual void StoreByteDMA(unsigned int physAddr,unsigned char data);
+
 	virtual ConstMemoryWindow GetConstMemoryWindow(unsigned int physAddr) const;
 	virtual MemoryWindow GetMemoryWindow(unsigned int physAddr);
 };
@@ -88,6 +91,9 @@ public:
 	virtual void StoreByte(unsigned int physAddr,unsigned char data);
 	virtual void StoreWord(unsigned int physAddr,unsigned int data);
 	virtual void StoreDword(unsigned int physAddr,unsigned int data);
+
+	virtual unsigned int FetchByteDMA(unsigned int physAddr) const;
+	virtual void StoreByteDMA(unsigned int physAddr,unsigned char data);
 };
 
 class TownsMappedDICROMandCMOSRAMAccess : public TownsMemAccess
@@ -121,6 +127,9 @@ public:
 	virtual void StoreByte(unsigned int physAddr,unsigned char data);
 	virtual void StoreWord(unsigned int physAddr,unsigned int data);
 	virtual void StoreDword(unsigned int physAddr,unsigned int data);
+
+	virtual unsigned int FetchByteDMA(unsigned int physAddr) const;
+	virtual void StoreByteDMA(unsigned int physAddr,unsigned char data);
 };
 
 template <const uint32_t DISPLACEMENT>
@@ -160,6 +169,9 @@ public:
 	virtual void StoreByte(unsigned int physAddr,unsigned char data);
 	virtual void StoreWord(unsigned int physAddr,unsigned int data);
 	virtual void StoreDword(unsigned int physAddr,unsigned int data);
+
+	virtual unsigned int FetchByteDMA(unsigned int physAddr) const;
+	virtual void StoreByteDMA(unsigned int physAddr,unsigned char data);
 };
 
 template <const uint32_t DISPLACEMENT,class TRANSFORM>
@@ -399,6 +411,12 @@ public:
 
 	class FMTownsCommon *townsPtr;
 	State state;
+	/*! When non-zero, Charge*Wait skips charging (DMA Fetch/Store path). */
+	mutable unsigned int memWaitSuppressCount=0;
+
+	void ChargeMainRAMWait(void) const;
+	void ChargeVRAMWait(void) const;
+
 	std::vector <unsigned char> sysRom,dosRom,fontRom,font20Rom,dicRom;
 	std::vector <unsigned char> martyRom;
 	enum
@@ -576,38 +594,59 @@ public:
 template <const uint32_t DISPLACEMENT>
 unsigned int TownsVRAMAccessTemplate <DISPLACEMENT>::FetchByte(unsigned int physAddr) const
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	return state.VRAM[((physAddr+DISPLACEMENT)&TOWNSADDR_VRAM_AND)];
 }
 template <const uint32_t DISPLACEMENT>
 unsigned int TownsVRAMAccessTemplate <DISPLACEMENT>::FetchWord(unsigned int physAddr) const
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	return cpputil::GetWord(state.VRAM+((physAddr+DISPLACEMENT)&TOWNSADDR_VRAM_AND));
 }
 template <const uint32_t DISPLACEMENT>
 unsigned int TownsVRAMAccessTemplate <DISPLACEMENT>::FetchDword(unsigned int physAddr) const
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	return cpputil::GetDword(state.VRAM+((physAddr+DISPLACEMENT)&TOWNSADDR_VRAM_AND));
 }
 template <const uint32_t DISPLACEMENT>
 void TownsVRAMAccessTemplate <DISPLACEMENT>::StoreByte(unsigned int physAddr,unsigned char data)
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	state.VRAM[((physAddr+DISPLACEMENT)&TOWNSADDR_VRAM_AND)]=data;
 }
 template <const uint32_t DISPLACEMENT>
 void TownsVRAMAccessTemplate <DISPLACEMENT>::StoreWord(unsigned int physAddr,unsigned int data)
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	cpputil::PutWord(state.VRAM+((physAddr+DISPLACEMENT)&TOWNSADDR_VRAM_AND),(unsigned short)data);
 }
 template <const uint32_t DISPLACEMENT>
 void TownsVRAMAccessTemplate <DISPLACEMENT>::StoreDword(unsigned int physAddr,unsigned int data)
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	cpputil::PutDword(state.VRAM+((physAddr+DISPLACEMENT)&TOWNSADDR_VRAM_AND),data);
+}
+template <const uint32_t DISPLACEMENT>
+unsigned int TownsVRAMAccessTemplate <DISPLACEMENT>::FetchByteDMA(unsigned int physAddr) const
+{
+	++physMemPtr->memWaitSuppressCount;
+	const auto data=FetchByte(physAddr);
+	--physMemPtr->memWaitSuppressCount;
+	return data;
+}
+template <const uint32_t DISPLACEMENT>
+void TownsVRAMAccessTemplate <DISPLACEMENT>::StoreByteDMA(unsigned int physAddr,unsigned char data)
+{
+	++physMemPtr->memWaitSuppressCount;
+	StoreByte(physAddr,data);
+	--physMemPtr->memWaitSuppressCount;
 }
 
 
@@ -615,6 +654,7 @@ void TownsVRAMAccessTemplate <DISPLACEMENT>::StoreDword(unsigned int physAddr,un
 template <const uint32_t DISPLACEMENT>
 void TownsVRAMAccessWithMaskTemplate<DISPLACEMENT>::StoreByte(unsigned int physAddr,unsigned char data)
 {
+	this->physMemPtr->ChargeVRAMWait();
 	auto &state=this->physMemPtr->state;
 	unsigned char mask=state.nativeVRAMMask[physAddr&3];
 	unsigned char nega=~mask;
@@ -624,6 +664,7 @@ void TownsVRAMAccessWithMaskTemplate<DISPLACEMENT>::StoreByte(unsigned int physA
 template <const uint32_t DISPLACEMENT>
 void TownsVRAMAccessWithMaskTemplate<DISPLACEMENT>::StoreWord(unsigned int physAddr,unsigned int data)
 {
+	this->physMemPtr->ChargeVRAMWait();
 	auto &state=this->physMemPtr->state;
 	unsigned short mask=cpputil::GetWord(state.nativeVRAMMask+(physAddr&3));
 	unsigned short nega=~mask;
@@ -633,6 +674,7 @@ void TownsVRAMAccessWithMaskTemplate<DISPLACEMENT>::StoreWord(unsigned int physA
 template <const uint32_t DISPLACEMENT>
 void TownsVRAMAccessWithMaskTemplate<DISPLACEMENT>::StoreDword(unsigned int physAddr,unsigned int data)
 {
+	this->physMemPtr->ChargeVRAMWait();
 	auto &state=this->physMemPtr->state;
 	unsigned int mask=cpputil::GetDword(state.nativeVRAMMask+(physAddr&3));
 	unsigned int nega=~mask;
@@ -645,6 +687,7 @@ void TownsVRAMAccessWithMaskTemplate<DISPLACEMENT>::StoreDword(unsigned int phys
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 unsigned int TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::FetchByte(unsigned int physAddr) const
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	auto offset=this->SinglePageOffsetToLinearOffset(physAddr&TOWNSADDR_VRAM_AND);
 	return state.VRAM[offset];
@@ -652,6 +695,7 @@ unsigned int TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::FetchBy
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 unsigned int TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::FetchWord(unsigned int physAddr) const
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	auto offset=(physAddr&TOWNSADDR_VRAM_AND);
 	if(0==(offset&1))
@@ -666,6 +710,7 @@ unsigned int TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::FetchWo
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 unsigned int TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::FetchDword(unsigned int physAddr) const
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	auto offset=(physAddr&TOWNSADDR_VRAM_AND);
 	if(0==(offset&3))
@@ -682,6 +727,7 @@ unsigned int TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::FetchDw
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 void TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::StoreByte(unsigned int physAddr,unsigned char data)
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	auto offset=this->SinglePageOffsetToLinearOffset(physAddr&TOWNSADDR_VRAM_AND);
 	state.VRAM[offset]=data;
@@ -689,6 +735,7 @@ void TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::StoreByte(unsig
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 void TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::StoreWord(unsigned int physAddr,unsigned int data)
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	auto offset=(physAddr&TOWNSADDR_VRAM_AND);
 	if(0==(offset&1))
@@ -711,6 +758,7 @@ void TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::StoreWord(unsig
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 void TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::StoreDword(unsigned int physAddr,unsigned int data)
 {
+	physMemPtr->ChargeVRAMWait();
 	auto &state=physMemPtr->state;
 	auto offset=(physAddr&TOWNSADDR_VRAM_AND);
 	if(0==(offset&3))
@@ -734,12 +782,28 @@ void TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::StoreDword(unsi
 	#endif
 	}
 }
+template <const unsigned int DISPLACEMENT,class TRANSFORM>
+unsigned int TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::FetchByteDMA(unsigned int physAddr) const
+{
+	++physMemPtr->memWaitSuppressCount;
+	const auto data=FetchByte(physAddr);
+	--physMemPtr->memWaitSuppressCount;
+	return data;
+}
+template <const unsigned int DISPLACEMENT,class TRANSFORM>
+void TownsSinglePageVRAMAccessTemplate <DISPLACEMENT,TRANSFORM>::StoreByteDMA(unsigned int physAddr,unsigned char data)
+{
+	++physMemPtr->memWaitSuppressCount;
+	StoreByte(physAddr,data);
+	--physMemPtr->memWaitSuppressCount;
+}
 
 
 
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 void TownsSinglePageVRAMAccessWithMaskTemplate<DISPLACEMENT,TRANSFORM>::StoreByte(unsigned int physAddr,unsigned char data)
 {
+	this->physMemPtr->ChargeVRAMWait();
 	auto &state=this->physMemPtr->state;
 	auto offset=(physAddr&TOWNSADDR_VRAM_AND);
 	offset=this->SinglePageOffsetToLinearOffset(offset);
@@ -752,6 +816,7 @@ void TownsSinglePageVRAMAccessWithMaskTemplate<DISPLACEMENT,TRANSFORM>::StoreByt
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 void TownsSinglePageVRAMAccessWithMaskTemplate<DISPLACEMENT,TRANSFORM>::StoreWord(unsigned int physAddr,unsigned int data)
 {
+	this->physMemPtr->ChargeVRAMWait();
 	auto &state=this->physMemPtr->state;
 	auto offset=(physAddr&TOWNSADDR_VRAM_AND);
 	if(0==(offset&1))
@@ -774,6 +839,7 @@ void TownsSinglePageVRAMAccessWithMaskTemplate<DISPLACEMENT,TRANSFORM>::StoreWor
 template <const unsigned int DISPLACEMENT,class TRANSFORM>
 void TownsSinglePageVRAMAccessWithMaskTemplate<DISPLACEMENT,TRANSFORM>::StoreDword(unsigned int physAddr,unsigned int data)
 {
+	this->physMemPtr->ChargeVRAMWait();
 	auto &state=this->physMemPtr->state;
 	auto offset=(physAddr&TOWNSADDR_VRAM_AND);
 	if(0==(offset&3))

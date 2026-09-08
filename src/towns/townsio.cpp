@@ -153,13 +153,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 	case TOWNSIO_FASTMODE: //                0x5EC, // [2] pp.794
 		if(0!=(data&1))
 		{
-			state.mainRAMWait=0;
-			state.VRAMWait=0;
+			SetFastModeMemoryWait();
 		}
 		else
 		{
-			state.mainRAMWait=6;
-			state.VRAMWait=6;
+			SetCompatibleMemoryWait();
 		}
 		AdjustMachineSpeedForMemoryWait();
 		break;

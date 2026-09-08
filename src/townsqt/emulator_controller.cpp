@@ -1276,10 +1276,12 @@ void EmulatorController::applyCpuFrequencyMhzLive(int mhz)
 	if(nullptr!=towns_)
 	{
 		towns_->state.fastModeFreq=mhz;
-		if(true==TownsQtSettings::cpuFastModeEnabled())
+		// 16MHz FAST ↔ higher FAST switches VRAM 3WS ↔ 0WS.
+		if(true==towns_->FASTModeLamp())
 		{
-			towns_->state.currentFreq=mhz;
+			towns_->SetFastModeMemoryWait();
 		}
+		towns_->AdjustMachineSpeedForMemoryWait();
 	}
 }
 
@@ -1302,13 +1304,11 @@ void EmulatorController::applyCpuFastModeLive(bool enabled)
 	towns_->physMem.state.CMOSRAM[TOWNS_CMOSRAM_FASTMODE_FLAG]=enabled ? 1 : 0;
 	if(true==enabled)
 	{
-		towns_->state.mainRAMWait=0;
-		towns_->state.VRAMWait=0;
+		towns_->SetFastModeMemoryWait();
 	}
 	else
 	{
-		towns_->state.mainRAMWait=6;
-		towns_->state.VRAMWait=6;
+		towns_->SetCompatibleMemoryWait();
 	}
 	towns_->AdjustMachineSpeedForMemoryWait();
 }

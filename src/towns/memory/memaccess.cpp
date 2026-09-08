@@ -44,38 +44,55 @@ void TownsMemAccess::SetCPUPointer(class i486DXCommon *cpuPtr)
 
 /* virtual */ unsigned int TownsMainRAMAccess::FetchByte(unsigned int physAddr) const
 {
+	physMemPtr->ChargeMainRAMWait();
 	return physMemPtr->state.RAM[physAddr];
 }
 /* virtual */ unsigned int TownsMainRAMAccess::FetchWord(unsigned int physAddr) const
 {
+	physMemPtr->ChargeMainRAMWait();
 	auto &state=physMemPtr->state;
 	auto *RAMPtr=state.RAM.data()+physAddr;
 	return cpputil::GetWord(RAMPtr);
 }
 /* virtual */ unsigned int TownsMainRAMAccess::FetchDword(unsigned int physAddr) const
 {
+	physMemPtr->ChargeMainRAMWait();
 	auto &state=physMemPtr->state;
 	auto *RAMPtr=state.RAM.data()+physAddr;
 	return cpputil::GetDword(RAMPtr);
 }
 /* virtual */ void TownsMainRAMAccess::StoreByte(unsigned int physAddr,unsigned char data)
 {
+	physMemPtr->ChargeMainRAMWait();
 	physMemPtr->state.RAM[physAddr]=data;
 }
 /* virtual */ void TownsMainRAMAccess::StoreWord(unsigned int physAddr,unsigned int data)
 {
+	physMemPtr->ChargeMainRAMWait();
 	auto &state=physMemPtr->state;
 	auto *RAMPtr=state.RAM.data()+physAddr;
 	cpputil::PutWord(RAMPtr,(unsigned short)data);
 }
 /* virtual */ void TownsMainRAMAccess::StoreDword(unsigned int physAddr,unsigned int data)
 {
+	physMemPtr->ChargeMainRAMWait();
 	auto &state=physMemPtr->state;
 	auto *RAMPtr=state.RAM.data()+physAddr;
 	cpputil::PutDword(RAMPtr,data);
 }
+/* virtual */ unsigned int TownsMainRAMAccess::FetchByteDMA(unsigned int physAddr) const
+{
+	return physMemPtr->state.RAM[physAddr];
+}
+/* virtual */ void TownsMainRAMAccess::StoreByteDMA(unsigned int physAddr,unsigned char data)
+{
+	physMemPtr->state.RAM[physAddr]=data;
+}
 /* virtual */ MemoryAccess::ConstMemoryWindow TownsMainRAMAccess::GetConstMemoryWindow(unsigned int physAddr) const
 {
+	// Keep windows even when mainRAMWait!=0.  Charging wait on every
+	// instruction-fetch byte (no 386 prefetch) over-slows Compatible badly;
+	// windows approximate prefetch / amortize code and stack traffic.
 	MemoryAccess::ConstMemoryWindow memWin;
 	memWin.ptr=physMemPtr->state.RAM.data()+(physAddr&(~0xfff));
 	return memWin;
@@ -224,6 +241,7 @@ TownsFMRVRAMAccess::TownsFMRVRAMAccess()
 	}
 	else if(TOWNSADDR_FMR_VRAM_BASE<=physAddr && physAddr<TOWNSADDR_FMR_VRAM_END) /// FMR VRAM Plane Access
 	{
+		physMemPtr->ChargeVRAMWait();
 		const auto FMRAddr=physAddr-TOWNSADDR_FMR_VRAM_BASE;
 		const auto VRAMAddr=(FMRAddr<<2)+physMemPtr->state.FMRVRAMWriteOffset;
 		auto shift=(physMemPtr->state.FMRVRAMMask>>6)&3;
@@ -320,6 +338,7 @@ TownsFMRVRAMAccess::TownsFMRVRAMAccess()
 	const auto FMRAddr=physAddr-TOWNSADDR_FMR_VRAM_BASE;
 	if(FMRAddr<TOWNSADDR_FMR_VRAM_END-TOWNSADDR_FMR_VRAM_BASE)
 	{
+		physMemPtr->ChargeVRAMWait();
 		// Assume screen mode 1 and 2.
 		//   Logical Resolution 640x819
 		//   Visible Resolution 640x400 or 640x200
@@ -426,6 +445,19 @@ TownsFMRVRAMAccess::TownsFMRVRAMAccess()
 {
 	TownsMemAccess::StoreDword(physAddr,data);
 }
+/* virtual */ unsigned int TownsFMRVRAMAccess::FetchByteDMA(unsigned int physAddr) const
+{
+	++physMemPtr->memWaitSuppressCount;
+	const auto data=FetchByte(physAddr);
+	--physMemPtr->memWaitSuppressCount;
+	return data;
+}
+/* virtual */ void TownsFMRVRAMAccess::StoreByteDMA(unsigned int physAddr,unsigned char data)
+{
+	++physMemPtr->memWaitSuppressCount;
+	StoreByte(physAddr,data);
+	--physMemPtr->memWaitSuppressCount;
+}
 
 
 ////////////////////////////////////////////////////////////
@@ -488,6 +520,7 @@ TownsFMRVRAMAccess::TownsFMRVRAMAccess()
 /* virtual */ unsigned int TownsSpriteRAMAccess::FetchByte(unsigned int physAddr) const
 {
 	// 0x81000000,0x8101FFFF
+	// No VRAM wait: sprite transferTime already includes Compatible/FAST wait.
 	auto &state=physMemPtr->state;
 	return state.spriteRAM[physAddr&TOWNSADDR_SPRITERAM_AND];
 }

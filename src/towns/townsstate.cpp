@@ -243,6 +243,8 @@ void FMTownsCommon::LoadStatePostProcess(void)
 
 	crtc.RepairCorruptDisplayState();
 
+	AdjustMachineSpeedForMemoryWait();
+
 	var.justLoadedState=true;
 }
 

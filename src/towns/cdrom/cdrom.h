@@ -118,7 +118,7 @@ public:
 
 	enum
 	{
-		DELAYED_STATUS_IRQ_TIME=  50000,  // Tentatively  50us
+		DELAYED_STATUS_IRQ_TIME=  50000,  // Tentatively  50us (ordering also via completionSIRQSticky)
 		/*! Poll interval while async CDDA GetWave is BUSY (long tracks). 50us spam
 		    made DRY flicker ready and flooded Exec without completion status. */
 		CDDA_PREFETCH_POLL_TIME=1000000,  // 1ms
@@ -129,6 +129,8 @@ public:
 		SEEK_TIME=            100000000,  // Tentatively 100ms
 		LOSTDATA_TIMEOUT=     100000000,  // Tentatively 100ms. I don't think the CDC had a large FIFO buffer back in 1989. The real time-out should have been much shorter.
 		STATUS_CHECKBACK_TIME=  1000000,
+		/*! Max DEI+IRR holds before forcing Data Ready (100 x 1ms ≈ LOSTDATA window). */
+		STATUS_CHECKBACK_MAX=       100,
 		MAX_NUM_SECTORS=         350000,  // Max 700MB, 2KB per sector.
 
 		SECTOR_PER_SEC_1X=           75,
@@ -256,12 +258,17 @@ public:
 		// (2) Clear SIRQ and DEI, and then
 		// (3) Wait for SIRQ.
 		// It is a near coding error. (1) and (2) must happen in the reverse order.
-		// It was working only because SIRQ from (1) comes with a delay, and
-		// comes after (2).  If the CD-ROM drive had been much faster, the program
-		// won't run because SIRQ from (1) is cleared in (2), and (3) will wait
-		// for an IRQ forever.
-		// To emulate this, I need to introduce delayed status IRQ.
+		// Real hardware got away with it because CDC completion lagged after (2).
+		// Emulation still uses a short delayedSIRQ timer, but Compatible-mode i386DX
+		// clocks can advance townsTime so fast that completion SIRQ lands before (2).
+		// completionSIRQSticky makes that race timing-independent: SMIC cannot drop an
+		// unread completion IRQ (re-assert while status remains); status drain ends it.
 		bool delayedSIRQ=false;
+		/*! Unread command-completion SIRQ: survive premature SMIC (Fractal order). */
+		bool completionSIRQSticky=false;
+		bool smicWhileCompletionSticky=false;
+		/*! DEI+IRR Data-Ready checkbacks; escape to SetStatusDataReady after a bound. */
+		unsigned int dataReadyCheckbacks=0;
 		// Snapshot at ExecuteCDROMCommand: live paramQueue is freed for the next
 		// command while this one is still pending (avoids MODE params corrupting PLAY).
 		unsigned char delayedCmd=0;
@@ -535,7 +542,8 @@ private:
 	/* Turn on IRR flag if status queue is not empty.
 	*/
 	void SetSIRQ_IRR(void);
-
+	/*! Raise SIRQ and arm completion sticky when status bytes are unread. */
+	void RaiseSIRQFlag(void);
 
 	uint32_t SerializeVersion(void) const override;
 	void SpecificSerialize(std::vector <unsigned char> &data,std::string stateFName) const override;

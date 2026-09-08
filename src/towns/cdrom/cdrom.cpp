@@ -221,6 +221,8 @@ DiscImage &TownsCDROM::State::GetDisc(void)
 void TownsCDROM::State::ClearStatusQueue(void)
 {
 	statusQueue.clear();
+	completionSIRQSticky=false;
+	smicWhileCompletionSticky=false;
 }
 void TownsCDROM::State::PushStatusQueue(unsigned char d0,unsigned char d1,unsigned char d2,unsigned char d3)
 {
@@ -257,6 +259,7 @@ void TownsCDROM::State::Reset(void)
 	CDDAPrefetchWaitForMode=false;
 	modeDeferredSeekTime=0;
 	modeSectorEmptyRetries=0;
+	dataReadyCheckbacks=0;
 
 	lidClosed=true;
 	lidLocked=false;
@@ -356,6 +359,9 @@ void TownsCDROM::State::ResetMPU(void)
 	}
 	delayedCmd=0;
 	delayedSIRQ=false;
+	completionSIRQSticky=false;
+	smicWhileCompletionSticky=false;
+	dataReadyCheckbacks=0;
 	readingSectorHSG=0;
 	endSectorHSG=0;
 	headPositionHSG=0;
@@ -1006,6 +1012,17 @@ bool TownsCDROM::CanOpenCloseFromCommand(void) const
 			{
 				PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,false);
 			}
+			// Timing-independent Fractal fix: premature SMIC must not drop an unread
+			// command-completion IRQ. Re-assert while status bytes remain.
+			if(true==state.completionSIRQSticky && 0<state.statusQueue.size())
+			{
+				state.smicWhileCompletionSticky=true;
+				RaiseSIRQFlag();
+				if(true==state.enableSIRQ)
+				{
+					PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
+				}
+			}
 		}
 		if(0!=(data&0x40)) // DEIC: Clera DMA-End IRQ
 		{
@@ -1154,6 +1171,22 @@ bool TownsCDROM::CanOpenCloseFromCommand(void) const
 			if(0==(state.statusQueue.size()&3) && CMDFLAG_IRQ&state.cmd)
 			{
 				SetSIRQ_IRR();
+			}
+			// Guest consumed the last completion status after SMIC: drop sticky SIRQ
+			// so a normal IRQ handler does not re-enter with a phantom interrupt.
+			if(0==state.statusQueue.size() && true==state.completionSIRQSticky)
+			{
+				const bool clearAfterSmic=state.smicWhileCompletionSticky;
+				state.completionSIRQSticky=false;
+				state.smicWhileCompletionSticky=false;
+				if(true==clearAfterSmic)
+				{
+					state.SIRQ=false;
+					if(true!=state.DEI)
+					{
+						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,false);
+					}
+				}
 			}
 
 			return data;
@@ -1520,6 +1553,8 @@ void TownsCDROM::ExecuteCDROMCommand(void)
 	}
 	state.DRY=false;
 	state.delayedSIRQ=true;
+	state.completionSIRQSticky=false;
+	state.smicWhileCompletionSticky=false;
 	townsPtr->UnscheduleDeviceCallBack(*this);
 	townsPtr->ScheduleDeviceCallBack(*this,townsPtr->state.townsTime+DELAYED_STATUS_IRQ_TIME);
 }
@@ -1648,7 +1683,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 					if(0!=(CMDFLAG_IRQ&state.cmd))
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-						state.SIRQ=true;
+						RaiseSIRQFlag();
 					}
 				}
 			}
@@ -1720,10 +1755,15 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 
 			const bool invalidPlayRange=(true!=(msfBegin<msfEnd));
 
-			// PAUSED + zero/invalid MSF: BIOS quirk often appears after MODE while we keep
-			// host mix. Treating it as resume (PAUSED→PLAYING) desyncs the next-track PLAY
-			// (scene loses param6=01 on trk8). Ack status but stay PAUSED.
-			if(true==invalidPlayRange && CDDA_PAUSED==state.CDDAState)
+			// PAUSED + zero/invalid MSF is a common BIOS quirk after PAUSE+MODE while the
+			// host still has a mid-track wave.  Falling through to cacheContinue resumes
+			// PLAYING and keeps Start/End/Repeat (same as PLAYING+invalidMSF).
+			//
+			// If the wave is already exhausted, do NOT fake PLAYING: BIOS must retry a
+			// real PLAY (e.g. next track with param6=01).  Accepting NoError+PLAYING here
+			// previously skipped that PLAY and dropped repeat on trk8.
+			if(true==invalidPlayRange && CDDA_PAUSED==state.CDDAState &&
+			   true!=CacheWaveRemaining())
 			{
 				state.ClearStatusQueue();
 				state.DRY=true;
@@ -1739,7 +1779,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 							oss << ' ';
 						}
 					}
-					oss << " → invalidMSF ignored (stay PAUSED)"
+					oss << " → invalidMSF ignored (stay PAUSED, wave done)"
 					    << " param6=" << cpputil::Ubtox(state.paramQueue[6])
 					    << " int93AX=" << cpputil::Ustox(var.lastInt93AX);
 					LogMonitorLine(oss.str());
@@ -1747,19 +1787,19 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 				if(true==StatusRequestBit(state.cmd))
 				{
 					SetStatusDriveNotReadyOrDiscChangedOrNoError();
-					state.SIRQ=true;
+					RaiseSIRQFlag();
 					if(0!=(state.cmd&CMDFLAG_IRQ) && true==state.enableSIRQ)
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
 					}
 				}
-				disposition="PLAY invalidMSF ignored (stay PAUSED)";
+				disposition="PLAY invalidMSF ignored (stay PAUSED, wave done)";
 				playBusyWaitCount=0;
 				break;
 			}
 
 			// Evaluate invalid MSF before CacheSameTrack — underflowed MSF used to hang GetTrackFromMSF.
-			// invalidMSF while PLAYING: reuse existing wave (BIOS quirk resume after data read).
+			// invalidMSF with a usable wave: reuse it (BIOS quirk resume after data read).
 			const bool cacheContinue=
 			    (true==invalidPlayRange)
 			        ? (true==var.cddaCacheDuringDataRead && true!=state.CDDAWave.empty())
@@ -1871,7 +1911,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 				if(true==StatusRequestBit(state.cmd))
 				{
 					SetStatusDriveNotReadyOrDiscChangedOrNoError();
-					state.SIRQ=true;
+					RaiseSIRQFlag();
 					if(0!=(state.cmd&CMDFLAG_IRQ) && true==state.enableSIRQ)
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
@@ -1916,7 +1956,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 						if(true==StatusRequestBit(state.cmd))
 						{
 							SetStatusDriveNotReadyOrDiscChangedOrNoError();
-							state.SIRQ=true;
+							RaiseSIRQFlag();
 							if(0!=(state.cmd&CMDFLAG_IRQ) && true==state.enableSIRQ)
 							{
 								PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
@@ -1992,7 +2032,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 				if(true==StatusRequestBit(state.cmd))
 				{
 					SetStatusDriveNotReadyOrDiscChangedOrNoError();
-					state.SIRQ=true;
+					RaiseSIRQFlag();
 					if(0!=(state.cmd&CMDFLAG_IRQ) && true==state.enableSIRQ)
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
@@ -2149,7 +2189,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 					if(0!=(CMDFLAG_IRQ&state.cmd))
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-						state.SIRQ=true;
+						RaiseSIRQFlag();
 					}
 					break;
 				}
@@ -2161,7 +2201,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 					if(0!=(CMDFLAG_IRQ&state.cmd))
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-						state.SIRQ=true;
+						RaiseSIRQFlag();
 					}
 					break;
 				}
@@ -2179,7 +2219,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 					if(0!=(CMDFLAG_IRQ&state.cmd))
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-						state.SIRQ=true;
+						RaiseSIRQFlag();
 					}
 					break;
 				}
@@ -2212,7 +2252,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 					if(0!=(CMDFLAG_IRQ&state.cmd))
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-						state.SIRQ=true;
+						RaiseSIRQFlag();
 					}
 					break;
 				}
@@ -2235,7 +2275,7 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 					if(0!=(CMDFLAG_IRQ&state.cmd))
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-						state.SIRQ=true;
+						RaiseSIRQFlag();
 					}
 					break;
 				}
@@ -2422,7 +2462,7 @@ void TownsCDROM::StartModeSectorTransfer(uint64_t seekTime)
 	state.PushStatusQueue(0,0,0,0);
 	if(true==state.enableSIRQ)
 	{
-		state.SIRQ=true;
+		RaiseSIRQFlag();
 		PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
 	}
 	townsPtr->ScheduleDeviceCallBack(
@@ -2482,7 +2522,7 @@ void TownsCDROM::StartModeSectorTransfer(uint64_t seekTime)
 				if(0!=(CMDFLAG_IRQ&state.cmd))
 				{
 					PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-					state.SIRQ=true;
+					RaiseSIRQFlag();
 				}
 			}
 		}
@@ -2552,7 +2592,7 @@ void TownsCDROM::StartModeSectorTransfer(uint64_t seekTime)
 					if(true==StatusRequestBit(state.cmd) && 0!=(state.cmd&CMDFLAG_IRQ) && true==state.enableSIRQ)
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
-						state.SIRQ=true;
+						RaiseSIRQFlag();
 					}
 					state.DRY=true;
 					state.DEI=false;
@@ -2600,9 +2640,17 @@ void TownsCDROM::StartModeSectorTransfer(uint64_t seekTime)
 
 						// This check contradicted with Yumimi Mix.  Therefore, I made it so that it also checks
 						// true==state.DEI.  It clears Yumimi Mix.
-						townsPtr->ScheduleDeviceCallBack(*this,townsPtr->state.townsTime+STATUS_CHECKBACK_TIME);
-						return;
+						// Bound checkbacks so Compatible i386DX timing cannot leave DRY=0 forever.
+						if(state.dataReadyCheckbacks<STATUS_CHECKBACK_MAX)
+						{
+							++state.dataReadyCheckbacks;
+							townsPtr->ScheduleDeviceCallBack(*this,townsPtr->state.townsTime+STATUS_CHECKBACK_TIME);
+							return;
+						}
+						state.dataReadyCheckbacks=0;
 					}
+
+					state.dataReadyCheckbacks=0;
 
 					// Linux CD-ROM driver is expecting to receive 00 00 00 00 before 22 00 00 00.
 					// However, static int cdrom_read(u_int start, u_int end, u_char *buf) function is waiting
@@ -2626,7 +2674,7 @@ void TownsCDROM::StartModeSectorTransfer(uint64_t seekTime)
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
 					}
 
-					state.SIRQ=true;
+					RaiseSIRQFlag();
 					state.DEI=false;
 					state.DTSF=false;
 
@@ -2732,7 +2780,7 @@ void TownsCDROM::StartModeSectorTransfer(uint64_t seekTime)
 
 				if(true==StatusRequestBit(doneCmd))
 				{
-					state.SIRQ=true;
+					RaiseSIRQFlag();
 					if(0!=(doneCmd&CMDFLAG_IRQ) && true==state.enableSIRQ)
 					{
 						PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
@@ -3041,11 +3089,24 @@ void TownsCDROM::StopCDDA(void)
 	}
 }
 
+void TownsCDROM::RaiseSIRQFlag(void)
+{
+	state.SIRQ=true;
+	if(0<state.statusQueue.size())
+	{
+		if(true!=state.completionSIRQSticky)
+		{
+			state.smicWhileCompletionSticky=false;
+		}
+		state.completionSIRQSticky=true;
+	}
+}
+
 void TownsCDROM::SetSIRQ_IRR(void)
 {
 	if(0<state.statusQueue.size())
 	{
-		state.SIRQ=true;
+		RaiseSIRQFlag();
 		if(true==state.enableSIRQ)  // ChaseHQ will crash without this condition.
 		{
 			PICPtr->SetInterruptRequestBit(TOWNSIRQ_CDROM,true);
@@ -3304,6 +3365,11 @@ void TownsCDROM::SetSIRQ_IRR(void)
 		state.CDDAAudioOutput=(CDDA_PLAYING==state.CDDAState || CDDA_STOPPING==state.CDDAState);
 		state.CDDAWaveBaseTime=state.CDDAStartTime;
 	}
+
+	// Host-only handshake flags (not in save); drop stale session state.
+	state.completionSIRQSticky=false;
+	state.smicWhileCompletionSticky=false;
+	state.dataReadyCheckbacks=0;
 
 	return true;
 }
