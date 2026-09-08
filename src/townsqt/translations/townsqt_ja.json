@@ -51,6 +51,61 @@
       "translation": "CDDAキャッシュ"
     },
     {
+      "context": "CpuDebugWindow",
+      "source": "CPU / CS:EIP history",
+      "translation": "CPU / CS:EIP 履歴"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Address",
+      "translation": "アドレス"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "CS:EIP / 4000:187B / L:0004187B",
+      "translation": "CS:EIP / 4000:187B / L:0004187B"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Bytes",
+      "translation": "バイト数"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Dump",
+      "translation": "ダンプ"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Memory dump appears here. Prefer VM Stop first for a stable view.",
+      "translation": "メモリダンプはここに表示されます。安定した表示のため、先に VM 停止を推奨します。"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Enter an address (e.g. 4000:187B or L:0004187B).",
+      "translation": "アドレスを入力してください（例: 4000:187B または L:0004187B）。"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Resume VM",
+      "translation": "VM 再開"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Resume the emulator (click again to stop).",
+      "translation": "エミュレータを再開します（再クリックで停止）。"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Stop VM",
+      "translation": "VM 停止"
+    },
+    {
+      "context": "CpuDebugWindow",
+      "source": "Pause the emulator so registers and dumps stay stable.",
+      "translation": "レジスタとダンプを安定させるため、エミュレータを一時停止します。"
+    },
+    {
       "context": "DebugTextWindow",
       "source": "Clear",
       "translation": "クリア"
@@ -409,6 +464,16 @@
       "context": "MainWindow",
       "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
       "translation": "レジスタ・現在の命令・CS:EIP 履歴・コールスタックを表示します。開いている間はコアのデバッガを有効にします。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "VM paused (CPU debug)",
+      "translation": "VM を一時停止しました（CPU デバッグ）"
+    },
+    {
+      "context": "MainWindow",
+      "source": "VM resumed",
+      "translation": "VM を再開しました"
     },
     {
       "context": "MainWindow",

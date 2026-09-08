@@ -906,9 +906,9 @@ void SettingsDialog::buildUi()
 		connect(midi_board_,&QCheckBox::toggled,this,&SettingsDialog::updateAudioTabMidiSection);
 		checks->addWidget(pretend_386_,0,0,Qt::AlignLeft|Qt::AlignVCenter);
 		checks->addWidget(use_fpu_,0,1,Qt::AlignLeft|Qt::AlignVCenter);
-		checks->addWidget(midi_board_,0,2,Qt::AlignLeft|Qt::AlignVCenter);
 		checks->addWidget(fast_scsi_,1,0,Qt::AlignLeft|Qt::AlignVCenter);
 		checks->addWidget(fast_fd_,1,1,Qt::AlignLeft|Qt::AlignVCenter);
+		checks->addWidget(midi_board_,1,2,Qt::AlignLeft|Qt::AlignVCenter);
 		opt_top->addLayout(checks,1);
 
 		auto *opt_sep=new QFrame(opt_grid_widget_);

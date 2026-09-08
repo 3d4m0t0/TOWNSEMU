@@ -1038,6 +1038,10 @@ public:
 		    main-loop reads.  Best-effort/bounded; drift is self-corrected at HLT. */
 		unsigned int inInterruptDepth=0;
 
+		/*! When true, INST_CLOCKS() selects i386DX weights instead of i486DX.
+		    Compatible (non-FAST) mode forces this on; FAST mode clears it. */
+		bool instructionTimingI386DX=false;
+
 		// [1] pp.26-211 in the description of the MOV instruction
 		// "Loading to SS register inhibits all interrupts until after the execution of the next instruction"
 		bool holdIRQ;

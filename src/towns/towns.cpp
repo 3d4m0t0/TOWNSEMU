@@ -377,6 +377,8 @@ void FMTownsCommon::State::PowerOn(void)
 	std::cout << "Loaded ROM Images.\n";
 
 	towns.Reset();
+	// Compatible (non-FAST) uses i386DX instruction weights; FAST uses i486DX.
+	towns.CPU().state.instructionTimingI386DX=(true!=towns.FASTModeLamp());
 	towns.physMem.takeJISCodeLog=false;
 
 	std::cout << "Virtual Machine Reset.\n";
@@ -1497,10 +1499,13 @@ void FMTownsCommon::AdjustMachineSpeedForMemoryWait(void)
 	if(true==fast_mode)
 	{
 		state.currentFreq=state.fastModeFreq;
+		CPU().state.instructionTimingI386DX=false;
 	}
 	else
 	{
+		// Compatible mode: slow clock + i386DX instruction weights.
 		state.currentFreq=var.slowModeFreq;
+		CPU().state.instructionTimingI386DX=true;
 	}
 	ApplySpriteTransferTime();
 

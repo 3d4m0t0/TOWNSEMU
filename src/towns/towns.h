@@ -82,7 +82,7 @@ public:
 	enum
 	{
 		FREQUENCY_DEFAULT=25,                // MHz
-		FREQUENCY_SLOWMODE_DEFAULT=10,       // MHz
+		FREQUENCY_SLOWMODE_DEFAULT=16,       // MHz (Compatible / non-FAST mode)
 		FAST_DEVICE_POLLING_INTERVAL=10000,  // Nano-seconds
 		DEVICE_POLLING_INTERVAL=   8000000,  // 8ms
 

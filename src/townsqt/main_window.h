@@ -22,6 +22,7 @@ class EmulatorController;
 class QLabel;
 class QMenu;
 class DebugTextWindow;
+class CpuDebugWindow;
 class CdromMonitorWindow;
 class MouseCoordScanWindow;
 class AudioMixerDialog;
@@ -255,7 +256,7 @@ private:
 	DebugTextWindow *midi_monitor_window_=nullptr;
 	CdromMonitorWindow *cdrom_monitor_window_=nullptr;
 	DebugTextWindow *app_monitor_window_=nullptr;
-	DebugTextWindow *cpu_debug_window_=nullptr;
+	CpuDebugWindow *cpu_debug_window_=nullptr;
 	AudioMixerDialog *audio_mixer_dialog_=nullptr;
 
 	bool fullscreen_=false;

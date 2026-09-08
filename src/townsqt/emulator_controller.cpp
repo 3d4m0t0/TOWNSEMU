@@ -17,6 +17,8 @@
 #include "townsdef.h"
 #include "townsthread.h"
 #include "townscmos_util.h"
+#include "townscommandutil.h"
+#include "miscutil.h"
 
 #include "fssimplewindow_connection.h"
 #include "cpputil.h"
@@ -1071,6 +1073,65 @@ void EmulatorController::setCpuDebugMonitor(bool enabled)
 	{
 		towns_->DisableDebugger();
 	}
+}
+
+void EmulatorController::setVmPaused(bool paused)
+{
+	if(true==paused)
+	{
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_PAUSE);
+	}
+	else if(TownsThread::RUNMODE_PAUSE==impl_->townsThread.GetRunMode())
+	{
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+		if(nullptr!=towns_)
+		{
+			towns_->SetDebugBreakFlag(false);
+		}
+	}
+}
+
+bool EmulatorController::vmPaused() const
+{
+	return TownsThread::RUNMODE_PAUSE==impl_->townsThread.GetRunMode();
+}
+
+QString EmulatorController::dumpGuestMemory(const QString &addrSpec,unsigned int length) const
+{
+	QString out;
+	if(nullptr==towns_ || addrSpec.trimmed().isEmpty())
+	{
+		return out;
+	}
+	length=std::clamp(length,1u,4096u);
+
+	try
+	{
+		auto &cpu=towns_->CPU();
+		auto farPtr=cmdutil::MakeFarPointer(addrSpec.trimmed().toStdString(),cpu);
+		if(i486DXCommon::FarPointer::NO_SEG==farPtr.SEG)
+		{
+			// Bare hex → linear address (common for physical-looking dumps).
+			farPtr.SEG=i486DXCommon::FarPointer::LINEAR_ADDR;
+		}
+		out+=QStringLiteral("Dump %1  length=%2\n")
+		         .arg(addrSpec.trimmed())
+		         .arg(length);
+		for(const auto &line : miscutil::MakeMemDump(cpu,towns_->mem,farPtr,length,/*shiftJIS=*/false))
+		{
+			out+=QString::fromStdString(line);
+			out+=QLatin1Char('\n');
+		}
+	}
+	catch(const std::exception &e)
+	{
+		out=QStringLiteral("Dump failed: %1").arg(QString::fromUtf8(e.what()));
+	}
+	catch(...)
+	{
+		out=QStringLiteral("Dump failed.");
+	}
+	return out;
 }
 
 QString EmulatorController::cpuDebugSnapshot() const

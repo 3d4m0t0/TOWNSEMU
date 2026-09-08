@@ -1,6 +1,7 @@
 #include "main_window.h"
 
 #include "debug_text_window.h"
+#include "cpu_debug_window.h"
 #include "cdrom_monitor_window.h"
 #include "mouse_coord_scan_window.h"
 #include "mouse_coord_profile_page.h"
@@ -4439,9 +4440,19 @@ void MainWindow::ensureCpuDebugWindow()
 	{
 		return;
 	}
-	cpu_debug_window_=new DebugTextWindow(tr("CPU / CS:EIP history"),this);
-	cpu_debug_window_->resize(820,560);
+	cpu_debug_window_=new CpuDebugWindow(this);
 	connect(cpu_debug_window_,&DebugTextWindow::windowClosed,this,[this](){
+		// Don't leave the VM paused if the user closed this window after Stop.
+		if(nullptr!=cpu_debug_window_ && cpu_debug_window_->vmPaused() &&
+		   nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setVmPaused",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,false));
+			cpu_debug_window_->setVmPaused(false);
+		}
 		TownsQtSettings::setShowCpuDebug(false);
 		if(nullptr!=controller_)
 		{
@@ -4452,6 +4463,46 @@ void MainWindow::ensureCpuDebugWindow()
 			    Q_ARG(bool,false));
 		}
 		applyCpuDebugVisibility();
+	});
+	connect(cpu_debug_window_,&CpuDebugWindow::pauseToggled,this,[this](bool pause){
+		if(nullptr==controller_ || nullptr==emu_thread_ || !emu_thread_->isRunning())
+		{
+			return;
+		}
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "setVmPaused",
+		    Qt::QueuedConnection,
+		    Q_ARG(bool,pause));
+		if(nullptr!=cpu_debug_window_)
+		{
+			cpu_debug_window_->setVmPaused(pause);
+		}
+		if(pause)
+		{
+			statusBar()->showMessage(tr("VM paused (CPU debug)"),3000);
+		}
+		else
+		{
+			statusBar()->showMessage(tr("VM resumed"),3000);
+		}
+	});
+	connect(cpu_debug_window_,&CpuDebugWindow::dumpRequested,this,
+	        [this](const QString &addrSpec,unsigned int length){
+		if(nullptr==controller_ || nullptr==emu_thread_ || !emu_thread_->isRunning() ||
+		   nullptr==cpu_debug_window_)
+		{
+			return;
+		}
+		QString text;
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "dumpGuestMemory",
+		    Qt::BlockingQueuedConnection,
+		    Q_RETURN_ARG(QString,text),
+		    Q_ARG(QString,addrSpec),
+		    Q_ARG(unsigned int,length));
+		cpu_debug_window_->setDumpText(text);
 	});
 }
 
@@ -4510,6 +4561,14 @@ void MainWindow::updateCpuDebugDisplay()
 	    Qt::BlockingQueuedConnection,
 	    Q_RETURN_ARG(QString,text));
 	cpu_debug_window_->setLiveText(text);
+
+	bool paused=false;
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "vmPaused",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(bool,paused));
+	cpu_debug_window_->setVmPaused(paused);
 }
 
 void MainWindow::onFrameReady()

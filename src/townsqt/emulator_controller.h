@@ -119,6 +119,10 @@ public Q_SLOTS:
 	Q_INVOKABLE QStringList takeAppMonitorLines();
 	void setCpuDebugMonitor(bool enabled);
 	Q_INVOKABLE QString cpuDebugSnapshot() const;
+	Q_INVOKABLE void setVmPaused(bool paused);
+	Q_INVOKABLE bool vmPaused() const;
+	/*! Dump guest memory. addrSpec: CS:EIP, 4000:187B, L:linear, P:phys, etc. */
+	Q_INVOKABLE QString dumpGuestMemory(const QString &addrSpec,unsigned int length) const;
 	void restartAudioOutput(void);
 	void applyPeripheralSettings(unsigned int game_port0,
 	                             unsigned int game_port1,

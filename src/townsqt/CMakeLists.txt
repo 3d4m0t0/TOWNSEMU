@@ -52,6 +52,8 @@ add_executable(${TARGET_NAME}
 	emu_gl_view.cpp
 	debug_text_window.h
 	debug_text_window.cpp
+	cpu_debug_window.h
+	cpu_debug_window.cpp
 	cdrom_monitor_window.h
 	cdrom_monitor_window.cpp
 	mouse_coord_scan_window.h

@@ -1632,6 +1632,10 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 {
 	FIDELITY fidelity;
 
+	/*! Select instruction clocks: (i386DX, i486DX).
+	    Values follow Intel PRM-style weights (no cache/bus modeling). */
+	#define INST_CLOCKS(c386,c486) (true==state.instructionTimingI386DX ? (unsigned int)(c386) : (unsigned int)(c486))
+
 	// Considered to make it state.EIP=((state.EIP+offset)&operandSizeMask[inst.operandSize>>3]);
 	// and delete EIPIncrement=0;  This will save one add and one mov instructions per jump.
 	// However, this change may break backward jump to offset 0000H, when operandSize=16.
@@ -1646,12 +1650,12 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			{\
 				state.EIP&=0xFFFF;\
 			}\
-			clocksPassed=3; \
+			clocksPassed=INST_CLOCKS(7,3); \
 			EIPIncrement=0; \
 		} \
 		else \
 		{ \
-			clocksPassed=1; \
+			clocksPassed=INST_CLOCKS(3,1); \
 		} \
 	}
 
@@ -1671,12 +1675,12 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				auto destin=state.EIP+offset+inst.numBytes; \
 				state.EIP=destin; \
 			} \
-			clocksPassed=3; \
+			clocksPassed=INST_CLOCKS(7,3); \
 			EIPIncrement=0; \
 		} \
 		else \
 		{ \
-			clocksPassed=1; \
+			clocksPassed=INST_CLOCKS(3,1); \
 		} \
 	}
 
@@ -1686,12 +1690,12 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		if(true==(cond)) \
 		{ \
 			value.MakeByte(1); \
-			clocksPassed=4; \
+			clocksPassed=INST_CLOCKS(4,4); \
 		} \
 		else \
 		{ \
 			value.MakeByte(0); \
-			clocksPassed=3; \
+			clocksPassed=INST_CLOCKS(3,3); \
 		} \
 		StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value); \
 	}
@@ -1700,11 +1704,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	{ \
 		if(op2.operandType==OPER_ADDR) \
 		{ \
-			clocksPassed=(clock_for_addr); \
+			clocksPassed=INST_CLOCKS(6,(clock_for_addr)); \
 		} \
 		else \
 		{ \
-			clocksPassed=1; \
+			clocksPassed=INST_CLOCKS(2,1); \
 		} \
 		auto regNum=inst.GetREG(); \
 		if(16==inst.operandSize) \
@@ -1743,11 +1747,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	{ \
 		if(op1.operandType==OPER_ADDR || op2.operandType==OPER_ADDR) \
 		{ \
-			clocksPassed=(clock_for_addr); \
+			clocksPassed=INST_CLOCKS(7,(clock_for_addr)); \
 		} \
 		else \
 		{ \
-			clocksPassed=1; \
+			clocksPassed=INST_CLOCKS(2,1); \
 		} \
 		auto regNum=inst.GetREG(); \
 		if(16==inst.operandSize)\
@@ -1838,11 +1842,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	{ \
 		if(op1.operandType==OPER_ADDR || op2.operandType==OPER_ADDR) \
 		{ \
-			clocksPassed=(clock_for_addr); \
+			clocksPassed=INST_CLOCKS(7,(clock_for_addr)); \
 		} \
 		else \
 		{ \
-			clocksPassed=1; \
+			clocksPassed=INST_CLOCKS(2,1); \
 		} \
 		unsigned int reg=REG_AL+inst.GetREG(); \
 		auto operPtr=GetOperandPointer8(mem,inst.addressSize,inst.segOverride,op1,update); \
@@ -1887,11 +1891,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	{ \
 		if(op1.operandType==OPER_ADDR || op2.operandType==OPER_ADDR) \
 		{ \
-			clocksPassed=(clock_for_addr); \
+			clocksPassed=INST_CLOCKS(6,(clock_for_addr)); \
 		} \
 		else \
 		{ \
-			clocksPassed=1; \
+			clocksPassed=INST_CLOCKS(2,1); \
 		} \
 		unsigned int reg=REG_AL+inst.GetREG(); \
 		auto value1=GetRegisterValue8(reg); \
@@ -1910,7 +1914,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	#define BINARYOP_AL_I8(func,update) \
 	{ \
-		clocksPassed=1; \
+		clocksPassed=INST_CLOCKS(2,1); \
 		auto al=GetAL(); \
 		auto v=inst.EvalUimm8(); \
 		(func)(al,v); \
@@ -1922,7 +1926,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	#define BINARYOP_xAX_I(func16,func32,update) \
 	{ \
-		clocksPassed=1; \
+		clocksPassed=INST_CLOCKS(2,1); \
 		if(16==inst.operandSize) \
 		{ \
 			auto ax=GetAX(); \
@@ -1958,35 +1962,35 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				{ \
 				case 0: \
 					RolByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 1: \
 					RorByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 2: \
 					RclByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 					break; \
 				case 3: \
 					RcrByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 					break; \
 				case 4: \
 					ShlByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 5: \
 					ShrByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 6: \
 					Abort("Undefined REG for "+cpputil::Ustox(inst.RealOpCode())); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					return 0; \
 				case 7: \
 					SarByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				default: \
 					std_unreachable; \
@@ -2002,35 +2006,35 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				{ \
 				case 0: \
 					RolByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 1: \
 					RorByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 2: \
 					RclByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 					break; \
 				case 3: \
 					RcrByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 					break; \
 				case 4: \
 					ShlByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 5: \
 					ShrByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				case 6: \
 					Abort("Undefined REG for "+cpputil::Ustox(inst.RealOpCode())); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					return 0; \
 				case 7: \
 					SarByte(i,ctr); \
-					clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+					clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 					break; \
 				default: \
 					std_unreachable; \
@@ -2056,35 +2060,35 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					{ \
 					case 0: \
 						RolWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 1: \
 						RorWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 2: \
 						RclWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						break; \
 					case 3: \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						RcrWord(i,ctr); \
 						break; \
 					case 4: \
 						ShlWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 5: \
 						ShrWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 6: \
 						Abort("Undefined REG for "+cpputil::Ustox(inst.RealOpCode())); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						return 0; \
 					case 7: \
 						SarWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					default: \
 						std_unreachable; \
@@ -2102,35 +2106,35 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					{ \
 					case 0: \
 						RolWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 1: \
 						RorWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 2: \
 						RclWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						break; \
 					case 3: \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						RcrWord(i,ctr); \
 						break; \
 					case 4: \
 						ShlWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 5: \
 						ShrWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 6: \
 						Abort("Undefined REG for "+cpputil::Ustox(inst.RealOpCode())); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						return 0; \
 					case 7: \
 						SarWord(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					default: \
 						std_unreachable; \
@@ -2153,35 +2157,35 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					{ \
 					case 0: \
 						RolDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 1: \
 						RorDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 2: \
 						RclDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						break; \
 					case 3: \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						RcrDword(i,ctr); \
 						break; \
 					case 4: \
 						ShlDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 5: \
 						ShrDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 6: \
 						Abort("Undefined REG for "+cpputil::Ustox(inst.RealOpCode())); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						return 0; \
 					case 7: \
 						SarDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					default: \
 						std_unreachable; \
@@ -2199,35 +2203,35 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					{ \
 					case 0: \
 						RolDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 1: \
 						RorDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 2: \
 						RclDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						break; \
 					case 3: \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 10 : 11); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(10,10) : INST_CLOCKS(9,11)); \
 						RcrDword(i,ctr); \
 						break; \
 					case 4: \
 						ShlDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 5: \
 						ShrDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					case 6: \
 						Abort("Undefined REG for "+cpputil::Ustox(inst.RealOpCode())); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						return 0; \
 					case 7: \
 						SarDword(i,ctr); \
-						clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2); \
+						clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2)); \
 						break; \
 					default: \
 						std_unreachable; \
@@ -2239,7 +2243,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}\
 		if(true==fidelity.HandleExceptionIfAny(*this,mem,inst.numBytes)) \
 		{ \
-			clocksPassed=35; \
+			clocksPassed=INST_CLOCKS(52,35); \
 			EIPIncrement=0; \
 			break; \
 		} \
@@ -2249,7 +2253,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	#define LOAD_FAR_POINTER(SEGREG) \
 		if(OPER_ADDR==op2.operandType) \
 		{ \
-			clocksPassed=9; \
+			clocksPassed=INST_CLOCKS(7,9); \
 			auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,(inst.operandSize+16)/8); \
 			if(true!=state.exception) \
 			{ \
@@ -2286,7 +2290,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			{\
 				state.NULL_and_reg32[REG]=inst.EvalUimm32();\
 			}\
-			clocksPassed=1; \
+			clocksPassed=INST_CLOCKS(2,1); \
 		}
 
 	#define HANDLE_EXCEPTION_IF_ANY \
@@ -2403,7 +2407,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	}
 
 	int EIPIncrement=inst.numBytes;
-	unsigned int clocksPassed=0;
+	unsigned int clocksPassed=INST_CLOCKS(0,0);
 
 	switch(opCodeRenumberTable[inst.opCode])
 	{
@@ -2421,7 +2425,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		Interrupt(INT_INVALID_OPCODE,mem,0,0,false);
 		EIPIncrement=0;
 		clocksPassed=ClocksForHandlingException();
-		// clocksPassed=0; // Uncomment this line to abort on undefined instruction.
+		// clocksPassed=INST_CLOCKS(0,0); // Uncomment this line to abort on undefined instruction.
 		break;
 
 
@@ -2450,7 +2454,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 		case 0: // TEST
 			{
-				clocksPassed=(OPER_ADDR==op1.operandType ? 2 : 1);
+				clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(4,2) : INST_CLOCKS(2,1));
 				uint32_t byte=EvaluateOperandRegOrMem8(mem,inst.addressSize,inst.segOverride,op1);
 				HANDLE_EXCEPTION_IF_ANY;
 				AndByte(byte,inst.EvalUimm8());
@@ -2483,7 +2487,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 3: // NEG
 			{
-				clocksPassed = (OPER_ADDR == op1.operandType ? 3 : 1);
+				clocksPassed = (OPER_ADDR == op1.operandType ? INST_CLOCKS(7,3) : INST_CLOCKS(2,1));
 				auto operPtr=GetOperandPointer8(mem, inst.addressSize, inst.segOverride, op1,true);
 				if(nullptr!=operPtr)
 				{
@@ -2504,7 +2508,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 4: // MUL
 			{
-				clocksPassed=(OPER_ADDR==op1.operandType ? 18 : 13);
+				clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(28,18) : INST_CLOCKS(20,13));
 				uint8_t value=EvaluateOperandRegOrMem8(mem,inst.addressSize,inst.segOverride,op1);
 				HANDLE_EXCEPTION_IF_ANY;
 				auto mul=GetAL()*value;
@@ -2525,7 +2529,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 5: // IMUL R/M8
 			{
-				clocksPassed=(OPER_ADDR==op1.operandType ? 18 : 13);
+				clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(28,18) : INST_CLOCKS(20,13));
 				int OP=cpputil::ByteToSigned32(EvaluateOperandRegOrMem8(mem,inst.addressSize,inst.segOverride,op1));
 				HANDLE_EXCEPTION_IF_ANY;
 				if(true!=state.exception)
@@ -2550,7 +2554,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 6: // DIV
 			{
-				clocksPassed=16;
+				clocksPassed=INST_CLOCKS(24,16);
 				uint16_t value=EvaluateOperandRegOrMem8(mem,inst.addressSize,inst.segOverride,op1);
 				HANDLE_EXCEPTION_IF_ANY;
 				if(0==value)
@@ -2572,7 +2576,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 7: // IDIV
 			{
-				clocksPassed=20;
+				clocksPassed=INST_CLOCKS(30,20);
 				auto value=EvaluateOperandRegOrMem8(mem,inst.addressSize,inst.segOverride,op1);
 				HANDLE_EXCEPTION_IF_ANY;
 				if(0==value)
@@ -2606,7 +2610,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				Abort(msg);
 				return 0;
 			}
-			clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2);
+			clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2));
 			break;
 		default:
 			std_unreachable;
@@ -2616,7 +2620,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		switch(inst.GetREG())
 		{
 		case 0: // TEST
-			clocksPassed=(OPER_ADDR==op1.operandType ? 2 : 1);
+			clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(4,2) : INST_CLOCKS(2,1));
 			if(16==inst.operandSize)
 			{
 				uint32_t value1=EvaluateOperandRegOrMem16(mem,inst.addressSize,inst.segOverride,op1);
@@ -2638,7 +2642,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 2: // NOT
 			{
-				clocksPassed=(OPER_ADDR==op1.operandType ? 2 : 1);
+				clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(4,2) : INST_CLOCKS(2,1));
 				auto operPtr=GetOperandPointer16or32(mem,inst.addressSize,inst.segOverride,op1,true);
 				if(nullptr!=operPtr)
 				{
@@ -2665,7 +2669,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 3: // NEG
 			{
-				clocksPassed = (OPER_ADDR == op1.operandType ? 3 : 1);
+				clocksPassed = (OPER_ADDR == op1.operandType ? INST_CLOCKS(7,3) : INST_CLOCKS(2,1));
 				auto operPtr=GetOperandPointer16or32(mem, inst.addressSize, inst.segOverride, op1,true);
 				if(nullptr!=operPtr)
 				{
@@ -2750,7 +2754,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					int multiplicand=value.GetAsSignedDword();
 					if(16==inst.operandSize)
 					{
-						clocksPassed=20; // 13-26.  I don't know exactly how to calculate it.
+						clocksPassed=INST_CLOCKS(30,20); // 13-26.  I don't know exactly how to calculate it.
 						int DXAX=cpputil::WordToSigned32(GetAX());
 						DXAX*=multiplicand;
 
@@ -2773,7 +2777,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					}
 					else
 					{
-						clocksPassed=30; // 13-42.  I don't know exactly how to calculate it.
+						clocksPassed=INST_CLOCKS(45,30); // 13-42.  I don't know exactly how to calculate it.
 						int64_t EDXEAX=cpputil::DwordToSigned64(GetEAX());
 						EDXEAX*=(int64_t)multiplicand;
 
@@ -2803,13 +2807,13 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				unsigned int denom=value.GetAsDword();
 				if(true==state.exception)
 				{
-					clocksPassed=40;
+					clocksPassed=INST_CLOCKS(60,40);
 					EIPIncrement=0;
 					HANDLE_EXCEPTION_IF_ANY;
 				}
 				else if(0==denom)
 				{
-					clocksPassed=40;
+					clocksPassed=INST_CLOCKS(60,40);
 					Interrupt(0,mem,0,0,false); // [1] pp.26-28
 					EIPIncrement=0;
 					// I don't think INT 0 was issued unless division by zero.
@@ -2817,7 +2821,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				}
 				else if(16==inst.operandSize)
 				{
-					clocksPassed=24;
+					clocksPassed=INST_CLOCKS(36,24);
 					unsigned int DXAX=cpputil::WordPairToUnsigned32(GetAX(),GetDX());
 					unsigned int quo=DXAX/denom;
 					unsigned int rem=DXAX%denom;
@@ -2826,7 +2830,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				}
 				else if(32==inst.operandSize)
 				{
-					clocksPassed=40;
+					clocksPassed=INST_CLOCKS(60,40);
 					unsigned long long int EDXEAX=cpputil::DwordPairToUnsigned64(GetEAX(),GetEDX());
 					unsigned int quo=(unsigned int)(EDXEAX/denom);
 					unsigned int rem=(unsigned int)(EDXEAX%denom);
@@ -2841,13 +2845,13 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				int denom=value.GetAsSignedDword();
 				if(true==state.exception)
 				{
-					clocksPassed=40;
+					clocksPassed=INST_CLOCKS(60,40);
 					EIPIncrement=0;
 					HANDLE_EXCEPTION_IF_ANY;
 				}
 				else if(0==denom)
 				{
-					clocksPassed=40;
+					clocksPassed=INST_CLOCKS(60,40);
 					Interrupt(0,mem,0,0,false); // [1] pp.26-28
 					EIPIncrement=0;
 					// I don't think INT 0 was issued unless division by zero.
@@ -2855,7 +2859,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				}
 				else if(16==inst.operandSize)
 				{
-					clocksPassed=24;
+					clocksPassed=INST_CLOCKS(36,24);
 
 					int32_t DXAX=cpputil::WordPairToSigned32(GetAX(),GetDX());
 					// INT32_MIN / -1 overflows signed 32-bit and SIGFPEs on host idiv.
@@ -2875,7 +2879,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				}
 				else if(32==inst.operandSize)
 				{
-					clocksPassed=40;
+					clocksPassed=INST_CLOCKS(60,40);
 
 					int64_t EDXEAX=cpputil::DwordPairToSigned64(GetEAX(),GetEDX());
 					// INT64_MIN / -1 overflows signed 64-bit and SIGFPEs on host idiv.
@@ -2897,7 +2901,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 1:
 			Abort("Undefined REG for "+cpputil::Ubtox(inst.opCode));
-			clocksPassed=(OPER_ADDR==op1.operandType ? 4 : 2);
+			clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(7,4) : INST_CLOCKS(3,2));
 			return 0;
 		default:
 			std_unreachable;
@@ -3068,7 +3072,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_AAA: // 0x37
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		if(9<(GetAL()&0x0f) || true==GetAF())
 		{
 			auto AL=((GetAL()+6)&0x0F);
@@ -3087,7 +3091,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	case I486_RENUMBER_AAD://    0xD5,
 		{
-			clocksPassed=14;
+			clocksPassed=INST_CLOCKS(12,14);
 			auto AL=GetAH()*inst.EvalUimm8()+GetAL();
 			SetAL(AL);
 			SetAH(0);
@@ -3098,7 +3102,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_AAM://    0xD4,
 		{
-			clocksPassed=15;
+			clocksPassed=INST_CLOCKS(23,15);
 			auto AL=GetAL();
 			auto base=inst.EvalUimm8();
 			// AAM with base 0 raises #DE on real hardware; without this guard the
@@ -3123,7 +3127,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	case I486_RENUMBER_AAS:
 		{ // BP 000C:0371
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto AL=GetAL();
 			if((AL&0x0F)>9 || true==GetAF())
 			{
@@ -3143,7 +3147,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	case I486_RENUMBER_ARPL://       0x63,
 		{
-			clocksPassed=9;
+			clocksPassed=INST_CLOCKS(7,9);
 			if(0!=(state.EFLAGS&EFLAGS_VIRTUAL86))
 			{
 				RaiseException(EXCEPTION_UD,0);
@@ -3175,7 +3179,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	case I486_RENUMBER_BOUND: // 0x62
 		{
-			clocksPassed=7;
+			clocksPassed=INST_CLOCKS(12,7);
 			if(OPER_ADDR==op2.operandType)
 			{
 				unsigned int offset;
@@ -3347,7 +3351,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_BTS_RM_R://   0x0FAB,
 		if(OPER_ADDR!=op1.operandType)
 		{
-			clocksPassed=6;
+			clocksPassed=INST_CLOCKS(10,6);
 			auto value1=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op1,inst.operandSize/8);
 			auto value2=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,inst.operandSize/8);
 			if(true!=state.exception)
@@ -3385,7 +3389,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		else // if(OPER_ADDR==op1.operandType)
 		{
-			clocksPassed=13;
+			clocksPassed=INST_CLOCKS(20,13);
 			auto value2=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,inst.operandSize/8);
 			unsigned bitCount=value2.GetAsDword();
 
@@ -3508,7 +3512,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			{
 				SetZF(false);
 			}
-			clocksPassed=16;
+			clocksPassed=INST_CLOCKS(24,16);
 		}
 		break;
 
@@ -3517,11 +3521,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			if(true==IsInRealMode())
 			{
-				clocksPassed=18;
+				clocksPassed=INST_CLOCKS(28,18);
 			}
 			else
 			{
-				clocksPassed=20;
+				clocksPassed=INST_CLOCKS(30,20);
 			}
 
 			SAVE_ESP_BEFORE_PUSH_POP;
@@ -3533,7 +3537,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_CALL_REL://   0xE8,
 		{
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 
 			SAVE_ESP_BEFORE_PUSH_POP;
 			uint32_t destin;
@@ -3568,7 +3572,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_JMP_REL://          0xE9,   // cw or cd
 		{
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 
 			if(16==inst.operandSize)
 			{
@@ -3587,7 +3591,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_CBW_CWDE://        0x98,
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		if(16==inst.operandSize) // Sign Extend AL to AX
 		{
 			unsigned int AL=GetAL();
@@ -3608,7 +3612,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_CWD_CDQ://         0x99,
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		if(16==inst.operandSize) // CWD AX->DX:AX
 		{
 			SetDX(0!=(GetAX()&0x8000) ? 0xFFFF : 0);
@@ -3620,25 +3624,25 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_CLC:
 		state.EFLAGS&=(~EFLAGS_CARRY);
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 	case I486_RENUMBER_CLD:
 		state.EFLAGS&=(~EFLAGS_DIRECTION);
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 	case I486_RENUMBER_CLI:
 		if(true==fidelity.IOPLException(*this,EXCEPTION_GP,mem,inst.numBytes))
 		{
 			EIPIncrement=0;
-			clocksPassed=2;
+			clocksPassed=INST_CLOCKS(4,2);
 			break;
 		}
 		state.EFLAGS&=(~EFLAGS_INT_ENABLE);
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 	case I486_RENUMBER_CLTS:
 		{
-			clocksPassed=7;
+			clocksPassed=INST_CLOCKS(12,7);
 			auto CR0=state.GetCR(0);
 			CR0&=(~CR0_TASK_SWITCHED);
 			SetCR(0,CR0);
@@ -3648,7 +3652,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	case I486_RENUMBER_CMC://        0xF5,
 		SetCF(GetCF()==true ? false : true);
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 
 
@@ -3669,7 +3673,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					{\
 						SubByte(data1,data2);\
 						UpdateESIandEDIAfterStringOpO8A##addrSize();\
-						clocksPassed+=4;\
+						clocksPassed+=INST_CLOCKS(7,4);\
 						if(true==REPEorNECheck(inst.instPrefix))\
 						{\
 							EIPIncrement=0;\
@@ -3719,7 +3723,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					{\
 						Sub##wordOrDword(data1,data2);\
 						updateFunc();\
-						clocksPassed+=4;\
+						clocksPassed+=INST_CLOCKS(7,4);\
 						if(true==REPEorNECheck(inst.instPrefix))\
 						{\
 							EIPIncrement=0;\
@@ -3768,7 +3772,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_DAA://             0x27,
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		if(true==GetAF() || 9<(GetAL()&0x0F))
 		{
 			SetAL(GetAL()+6);
@@ -3793,7 +3797,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 
 	case I486_RENUMBER_DAS://             0x2F,
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		if(true==GetAF() || 9<(GetAL()&0x0F))
 		{
 			SetAL(GetAL()-6);
@@ -3825,7 +3829,8 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			unsigned int frameSize=cpputil::GetWord(inst.operand);
 			unsigned int level=inst.operand[2]&0x1F;
 
-			clocksPassed=14+level*3;
+			// 386: ~10+4*level; 486: 14+3*level (approx; no m-factor)
+			clocksPassed=INST_CLOCKS(10+4*level,14+3*level);
 
 			Push(mem,inst.operandSize,state.EBP());
 			HANDLE_EXCEPTION_ENTER;
@@ -3888,7 +3893,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			EIPIncrement=0;
 		}
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		break;
 
 	case I486_RENUMBER_FPU_D8: // 0xD8
@@ -4033,7 +4038,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		else if(0xD0==inst.operand[0])
 		{
-			clocksPassed=3; // FNOP
+			clocksPassed=INST_CLOCKS(7,3); // FNOP
 		}
 		else if(0xE0==inst.operand[0])
 		{
@@ -4186,7 +4191,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					state.fpuState.GetSTAsFloat(*this,value);
 					StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
 					HANDLE_EXCEPTION_IF_ANY;
-					clocksPassed=7;
+					clocksPassed=INST_CLOCKS(12,7);
 				}
 				break;
 			case 3: // FSTP m32real
@@ -4197,7 +4202,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
 					HANDLE_EXCEPTION_IF_ANY;
 					state.fpuState.Pop(*this);
-					clocksPassed=7;
+					clocksPassed=INST_CLOCKS(12,7);
 				}
 				break;
 			case 4: // "FLDENV"
@@ -4242,7 +4247,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				{
 					unsigned int offset;
 					auto segPtr=ExtractSegmentAndOffset(offset,op1,inst.segOverride);
-					clocksPassed=67;
+					clocksPassed=INST_CLOCKS(100,67);
 					auto data=state.fpuState.FNSTENV(*this,inst.operandSize);
 					for(auto b : data)
 					{
@@ -4259,7 +4264,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					OperandValue value;
 					value.MakeWord(state.fpuState.GetControlWord());
 					StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
-					clocksPassed=3;
+					clocksPassed=INST_CLOCKS(7,3);
 				}
 				break;
 			}
@@ -4395,7 +4400,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		else if(0xE4==inst.operand[0])
 		{
-			clocksPassed=1; // FSETPM does nothing in 80386 and later.
+			clocksPassed=INST_CLOCKS(2,1); // FSETPM does nothing in 80386 and later.
 		}
 		else if(0xE3==inst.operand[0])
 		{
@@ -4404,13 +4409,13 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				FPU_TRAP;
 			}
 			state.fpuState.FNINIT();
-			clocksPassed=17;
+			clocksPassed=INST_CLOCKS(26,17);
 		}
 		else if(0xE0==inst.operand[0] || // FNENI
 		        0xE1==inst.operand[0])   // FNDISI
 		{
 			// Apparently legacy instruction from 8087 and no effect in 80386 and later.  (Maybe 80286 and later)
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 		}
 		else
 		{
@@ -4435,7 +4440,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					state.fpuState.GetSTAsSignedInt(*this, value);
 					value.numBytes = 4;
 					StoreOperandValue(op1, mem, inst.addressSize, inst.segOverride, value);
-					clocksPassed = 32;
+					clocksPassed = INST_CLOCKS(48,32);
 				}
 				break;
 			case 3: // FISTP m32int
@@ -4446,7 +4451,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					state.fpuState.Pop(*this);
 					value.numBytes=4;
 					StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
-					clocksPassed=33;
+					clocksPassed=INST_CLOCKS(50,33);
 				}
 				break;
 			case 5: // FLD m80real
@@ -4463,7 +4468,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					i486DXCommon::FPUState::DoubleTo80Bit(value,state.fpuState.ST(*this).value);
 					state.fpuState.Pop(*this);
 					StoreOperandValue80(op1,mem,inst.addressSize,inst.segOverride,value);
-					clocksPassed=6;
+					clocksPassed=INST_CLOCKS(10,6);
 				}
 				break;
 			}
@@ -4643,7 +4648,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 						state.fpuState.GetSTAsDouble(*this,value);
 						StoreOperandValue64(op1,mem,inst.addressSize,inst.segOverride,value);
 						HANDLE_EXCEPTION_IF_ANY;
-						clocksPassed=8;
+						clocksPassed=INST_CLOCKS(14,8);
 					}
 					break;
 				case 3: // FSTP m64real
@@ -4654,7 +4659,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 						state.fpuState.Pop(*this);
 						StoreOperandValue64(op1,mem,inst.addressSize,inst.segOverride,value);
 						HANDLE_EXCEPTION_IF_ANY;
-						clocksPassed=8;
+						clocksPassed=INST_CLOCKS(14,8);
 					}
 					break;
 				case 4: // FRSTOR m94/108byte
@@ -4681,7 +4686,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				case 6: // FSAVE m94/108byte
 					FPU_TRAP;
 					{
-						clocksPassed=154;
+						clocksPassed=INST_CLOCKS(231,154);
 
 						unsigned int offset;
 						auto segPtr=ExtractSegmentAndOffset(offset,op1,inst.segOverride);
@@ -4703,7 +4708,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 						FPU_TRAP;
 					}
 					{
-						clocksPassed=3;
+						clocksPassed=INST_CLOCKS(7,3);
 						OperandValue value;
 						value.MakeWord(state.fpuState.GetStatusWord());
 						StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
@@ -4827,7 +4832,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				FPU_TRAP;
 			}
 			SetAX(state.fpuState.GetStatusWord());
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 		}
 		else if(0xE8==(inst.operand[0]&0xF8))
 		{
@@ -4855,7 +4860,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					state.fpuState.GetSTAsSignedInt(*this,value);
 					value.numBytes=2;
 					StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
-					clocksPassed=33;
+					clocksPassed=INST_CLOCKS(50,33);
 				}
 				break;
 			case 3: // FISTP m16int
@@ -4866,7 +4871,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					state.fpuState.Pop(*this);
 					value.numBytes=2;
 					StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
-					clocksPassed=33;
+					clocksPassed=INST_CLOCKS(50,33);
 				}
 				break;
 			case 4:
@@ -4890,7 +4895,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					state.fpuState.GetSTAs80BitBCD(*this,value);
 					state.fpuState.Pop(*this);
 					StoreOperandValue80(op1,mem,inst.addressSize,inst.segOverride,value);
-					clocksPassed=175;
+					clocksPassed=INST_CLOCKS(262,175);
 				}
 				break;
 			case 7: // FISTP m64int
@@ -4900,7 +4905,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					state.fpuState.GetSTAsSignedInt(*this,value);
 					state.fpuState.Pop(*this);
 					StoreOperandValue64(op1,mem,inst.addressSize,inst.segOverride,value);
-					clocksPassed=33;
+					clocksPassed=INST_CLOCKS(50,33);
 				}
 				break;
 			}
@@ -4909,7 +4914,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_DEC_EAX:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetAX();
@@ -4922,7 +4927,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_DEC_ECX:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetCX();
@@ -4935,7 +4940,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_DEC_EDX:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetDX();
@@ -4948,7 +4953,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_DEC_EBX:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetBX();
@@ -4961,7 +4966,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_DEC_ESP:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetSP();
@@ -4974,7 +4979,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_DEC_EBP:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetBP();
@@ -4987,7 +4992,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_DEC_ESI:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetSI();
@@ -5000,7 +5005,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_DEC_EDI:
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			auto value=GetDI();
@@ -5019,7 +5024,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			auto prefix=REPNEtoREP(inst.instPrefix);
 			if(true==REPCheck(clocksPassed,prefix,inst.addressSize))
 			{
-				clocksPassed+=(IsInRealMode() ? 17 : 10); // Protected Mode 32 if CPL>IOPL
+				clocksPassed+=(IsInRealMode() ? INST_CLOCKS(26,17) : INST_CLOCKS(15,10)); // Protected Mode 32 if CPL>IOPL
 				if(true==fidelity.TakeIOReadException(*this,GetDX(),1,mem,inst.numBytes))
 				{
 					EIPIncrement=0;
@@ -5040,7 +5045,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			auto prefix=REPNEtoREP(inst.instPrefix);
 			if(true==REPCheck(clocksPassed,prefix,inst.addressSize))
 			{
-				clocksPassed+=(IsInRealMode() ? 17 : 10); // Protected Mode 32 if CPL>IOPL
+				clocksPassed+=(IsInRealMode() ? INST_CLOCKS(26,17) : INST_CLOCKS(15,10)); // Protected Mode 32 if CPL>IOPL
 				if(true==fidelity.TakeIOReadException(*this,GetDX(),1,mem,inst.numBytes))
 				{
 					EIPIncrement=0;
@@ -5069,11 +5074,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_IN_AL_I8://=        0xE4,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=14;
+			clocksPassed=INST_CLOCKS(12,14);
 		}
 		else
 		{
-			clocksPassed=8; // 28 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(14,8); // 28 if CPL>IOPL
 		}
 		if(true==fidelity.TakeIOReadException(*this,inst.EvalUimm8(),1,mem,inst.numBytes))
 		{
@@ -5091,11 +5096,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_IN_A_I8://=         0xE5,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=14;
+			clocksPassed=INST_CLOCKS(12,14);
 		}
 		else
 		{
-			clocksPassed=8; // 28 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(14,8); // 28 if CPL>IOPL
 		}
 		if(true==fidelity.TakeIOReadException(*this,inst.EvalUimm8(),inst.operandSize>>3,mem,inst.numBytes))
 		{
@@ -5122,11 +5127,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_IN_AL_DX://=        0xEC,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=14;
+			clocksPassed=INST_CLOCKS(12,14);
 		}
 		else
 		{
-			clocksPassed=8; // 28 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(14,8); // 28 if CPL>IOPL
 		}
 		if(true==fidelity.TakeIOReadException(*this,GetDX(),1,mem,inst.numBytes))
 		{
@@ -5144,11 +5149,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_IN_A_DX://=         0xED,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=14;
+			clocksPassed=INST_CLOCKS(12,14);
 		}
 		else
 		{
-			clocksPassed=8; // 28 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(14,8); // 28 if CPL>IOPL
 		}
 		if(true==fidelity.TakeIOReadException(*this,GetDX(),inst.operandSize>>3,mem,inst.numBytes))
 		{
@@ -5182,7 +5187,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			// or 13-42 (I486_OPCODE_IMUL_R_RM_IMM).
 			// I don't know how it should be calculated.
 			// I just make it 20 clocks.
-			clocksPassed=20;
+			clocksPassed=INST_CLOCKS(30,20);
 			auto value1=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op1,inst.operandSize/8);
 			auto value2=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,inst.operandSize/8);
 			if(true!=state.exception)
@@ -5248,7 +5253,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 
-			clocksPassed=5;
+			clocksPassed=INST_CLOCKS(8,5);
 			if(16==GetStackAddressingSize())
 			{
 				SetSP(state.BP());
@@ -5277,7 +5282,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		if(true==fidelity.IOPLException(*this,EXCEPTION_GP,mem,inst.numBytes))
 		{
 			EIPIncrement=0;
-			clocksPassed=2;
+			clocksPassed=INST_CLOCKS(4,2);
 			break;
 		}
 		if(0==(state.EFLAGS&EFLAGS_VIRTUAL86))
@@ -5293,7 +5298,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			HandleException(false,mem,inst.numBytes);
 			EIPIncrement=0;
 		}
-		clocksPassed=4;
+		clocksPassed=INST_CLOCKS(7,4);
 		break;
 
 
@@ -5301,11 +5306,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			if(op1.operandType==OPER_ADDR)
 			{
-				clocksPassed=3;
+				clocksPassed=INST_CLOCKS(7,3);
 			}
 			else
 			{
-				clocksPassed=1;
+				clocksPassed=INST_CLOCKS(2,1);
 			}
 
 			uint32_t i;
@@ -5359,11 +5364,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			case 0: // INC
 				if(op1.operandType==OPER_ADDR)
 				{
-					clocksPassed=3;
+					clocksPassed=INST_CLOCKS(7,3);
 				}
 				else
 				{
-					clocksPassed=1;
+					clocksPassed=INST_CLOCKS(2,1);
 				}
 				if(16==inst.operandSize)
 				{
@@ -5423,11 +5428,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			case 1: // DEC
 				if(op1.operandType==OPER_ADDR)
 				{
-					clocksPassed=3;
+					clocksPassed=INST_CLOCKS(7,3);
 				}
 				else
 				{
-					clocksPassed=1;
+					clocksPassed=INST_CLOCKS(2,1);
 				}
 				if(16==inst.operandSize)
 				{
@@ -5486,7 +5491,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				break;
 			case 2: // CALL Indirect
 				{
-					clocksPassed=5;  // Same for CALL Indirect and JMP Indirect.
+					clocksPassed=INST_CLOCKS(8,5);  // Same for CALL Indirect and JMP Indirect.
 					auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op1,inst.operandSize/8);
 					HANDLE_EXCEPTION_IF_ANY;
 					if(true!=state.exception)
@@ -5514,7 +5519,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				break;
 			case 4: // JMP Indirect
 				{
-					clocksPassed=5;  // Same for CALL Indirect and JMP Indirect.
+					clocksPassed=INST_CLOCKS(8,5);  // Same for CALL Indirect and JMP Indirect.
 					auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op1,inst.operandSize/8);
 					HANDLE_EXCEPTION_IF_ANY;
 					if(true!=state.exception)
@@ -5532,11 +5537,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				{
 					if(true==IsInRealMode())
 					{
-						clocksPassed=17;
+						clocksPassed=INST_CLOCKS(26,17);
 					}
 					else
 					{
-						clocksPassed=20;
+						clocksPassed=INST_CLOCKS(30,20);
 					}
 
 					EIPIncrement=0;
@@ -5576,11 +5581,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				{
 					if(op1.operandType==OPER_ADDR)
 					{
-						clocksPassed=3;
+						clocksPassed=INST_CLOCKS(7,3);
 					}
 					else
 					{
-						clocksPassed=1;
+						clocksPassed=INST_CLOCKS(2,1);
 					}
 					EIPIncrement=0;
 
@@ -5591,7 +5596,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				break;
 			case 6: // PUSH
 				{
-					clocksPassed=4;
+					clocksPassed=INST_CLOCKS(7,4);
 					SAVE_ESP_BEFORE_PUSH_POP;
 					auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op1,inst.operandSize/8);
 					HANDLE_EXCEPTION_PUSH_POP;
@@ -5608,7 +5613,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_EAX://    0x40, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetAX();
@@ -5621,7 +5626,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_ECX://    0x41, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetCX();
@@ -5634,7 +5639,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_EDX://    0x42, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetDX();
@@ -5647,7 +5652,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_EBX://    0x43, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetBX();
@@ -5660,7 +5665,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_ESP://    0x44, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetSP();
@@ -5673,7 +5678,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_EBP://    0x45, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetBP();
@@ -5686,7 +5691,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_ESI://    0x46, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetSI();
@@ -5699,7 +5704,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_INC_EDI://    0x47, // 16/32 depends on OPSIZE_OVERRIDE
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(16==inst.operandSize)
 		{
 			uint32_t value=GetDI();
@@ -5716,7 +5721,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_INT3://       0xCC,
 		Interrupt(3,mem,1,1,true);
 		EIPIncrement=0;
-		clocksPassed=26;
+		clocksPassed=INST_CLOCKS(39,26);
 		break;
 	case I486_RENUMBER_INT://        0xCD,
 		clocksPassed=(IsInRealMode() ? 30 : 44);
@@ -5739,7 +5744,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		else
 		{
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 		}
 		break;
 
@@ -5747,7 +5752,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_JMP_REL8://         0xEB,   // cb
 		{
 			auto offset=inst.EvalSimm8();
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			EIPIncrement=0;
 			state.EIP=state.EIP+offset+inst.numBytes;
 			if(16==inst.operandSize)
@@ -5928,21 +5933,21 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			case 16:
 				if(true==IsInRealMode())
 				{
-					clocksPassed=17;
+					clocksPassed=INST_CLOCKS(26,17);
 				}
 				else
 				{
-					clocksPassed=19;
+					clocksPassed=INST_CLOCKS(28,19);
 				}
 				break;
 			case 32:
 				if(true==IsInRealMode())
 				{
-					clocksPassed=13;
+					clocksPassed=INST_CLOCKS(20,13);
 				}
 				else
 				{
-					clocksPassed=18;
+					clocksPassed=INST_CLOCKS(28,18);
 				}
 				break;
 			}
@@ -5959,11 +5964,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			if(op1.operandType==OPER_ADDR || op2.operandType==OPER_ADDR)
 			{
-				clocksPassed=3;
+				clocksPassed=INST_CLOCKS(7,3);
 			}
 			else
 			{
-				clocksPassed=1;
+				clocksPassed=INST_CLOCKS(2,1);
 			}
 			auto REG=inst.GetREG();
 
@@ -6037,11 +6042,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			if(op1.operandType==OPER_ADDR || op2.operandType==OPER_ADDR)
 			{
-				clocksPassed=3;
+				clocksPassed=INST_CLOCKS(7,3);
 			}
 			else
 			{
-				clocksPassed=1;
+				clocksPassed=INST_CLOCKS(2,1);
 			}
 
 			auto REG=inst.GetREG();
@@ -6187,12 +6192,12 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	case I486_RENUMBER_LAHF://=             0x9F,
 		SetAH(state.EFLAGS&0xFF);
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 
 
 	case I486_RENUMBER_LEA://=              0x8D,
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		if(OPER_ADDR==op2.operandType)
 		{
 			unsigned int offset=
@@ -6279,7 +6284,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					LoadSegmentRegister(state.SS(),seg,mem);
 				}
 			}
-			clocksPassed=9;  // It is described as 6/12, but what makes it 6 clocks or 12 clocks is not given.  Quaaaaack!!!!
+			clocksPassed=INST_CLOCKS(7,9);  // It is described as 6/12, but what makes it 6 clocks or 12 clocks is not given.  Quaaaaack!!!!
 		}
 		else
 		{
@@ -6316,7 +6321,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					HandleException(true,mem,inst.numBytes);
 					EIPIncrement=0;
 				}
-				clocksPassed+=5;
+				clocksPassed+=INST_CLOCKS(8,5);
 				ECX=state.ECX();
 			}
 		}
@@ -6351,7 +6356,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					HandleException(true,mem,inst.numBytes);
 					EIPIncrement=0;
 				}
-				clocksPassed+=5;
+				clocksPassed+=INST_CLOCKS(8,5);
 				ECX=state.ECX();
 			}
 		}
@@ -6363,7 +6368,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 		case 2: // LGDT
 		case 3: // LIDT
-			clocksPassed=11;
+			clocksPassed=INST_CLOCKS(17,11);
 			if(OPER_ADDR==op1.operandType)
 			{
 				// If operand size==16, take first 3 bytes of linear-base address.
@@ -6397,7 +6402,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 0: // SGDT
 		case 1: // SIDT
-			clocksPassed=11;
+			clocksPassed=INST_CLOCKS(17,11);
 			if(OPER_ADDR==op1.operandType)
 			{
 				auto numBytes=(16==inst.operandSize ? 5 : 6);;
@@ -6429,7 +6434,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			}
 			break;
 		case 4: // SMSW
-			clocksPassed=(OPER_ADDR==op1.operandType ? 3 : 2);
+			clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(6,3) : INST_CLOCKS(2,2));
 			{
 				OperandValue value;
 				value.MakeDword(state.GetCR(0));
@@ -6437,7 +6442,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			}
 			break;
 		case 6: // LMSW
-			clocksPassed=13;
+			clocksPassed=INST_CLOCKS(20,13);
 			{
 				auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op1,2);
 				auto i=value.GetAsDword();
@@ -6449,7 +6454,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			}
 			break;
 		case 7: // INVLPG
-			clocksPassed=11;
+			clocksPassed=INST_CLOCKS(17,11);
 			if(IsInRealMode())
 			{
 				RaiseException(EXCEPTION_UD,0);
@@ -6490,7 +6495,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_LSL://              0x0F03,
-		clocksPassed=10;
+		clocksPassed=INST_CLOCKS(16,10);
 		if(MODE_NATIVE==state.mode) // <-> (true!=IsInRealMode() && true!=GetVM())
 		{
 			auto selectorValue=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,inst.operandSize/8); // What to do with high 16 bits?
@@ -6589,7 +6594,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_MOV_FROM_SEG: //     0x8C,
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		{
 			auto seg=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,2);
 			HANDLE_EXCEPTION_IF_ANY;
@@ -6602,11 +6607,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_MOV_TO_SEG: //       0x8E,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 		}
 		else
 		{
-			clocksPassed=9;
+			clocksPassed=INST_CLOCKS(7,9);
 		}
 
 		// I don't think it was the reason why Windows 3.1 stops while booting, but MOV CS,r_m apparently causes UD exception.
@@ -6624,7 +6629,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOV_M_TO_AL: //      0xA0,
 		{
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			auto &seg=SegmentOverrideDefaultDS(inst.segOverride);
 			auto byteData=FetchByte(inst.addressSize,seg,inst.EvalUimm32(),mem);
 			HANDLE_EXCEPTION_IF_ANY;
@@ -6633,7 +6638,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOV_M_TO_EAX: //     0xA1, // 16/32 depends on OPSIZE_OVERRIDE
 		{
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			auto &seg=SegmentOverrideDefaultDS(inst.segOverride);
 			if(16==inst.operandSize)
 			{
@@ -6651,7 +6656,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOV_M_FROM_AL: //    0xA2,
 		{
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			auto &seg=SegmentOverrideDefaultDS(inst.segOverride);
 			StoreByte(mem,inst.addressSize,seg,inst.EvalUimm32(),GetAL());
 			if(true==fidelity.HandleExceptionIfAny(*this,mem,inst.numBytes))
@@ -6663,7 +6668,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOV_M_FROM_EAX: //   0xA3, // 16/32 depends on OPSIZE_OVERRIDE
 		{
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			auto &seg=SegmentOverrideDefaultDS(inst.segOverride);
 			StoreWordOrDword(mem,inst.operandSize,inst.addressSize,seg,inst.EvalUimm32(),GetEAX());
 			if(true==fidelity.HandleExceptionIfAny(*this,mem,inst.numBytes))
@@ -6678,7 +6683,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			OperandValue src;
 			src.MakeByte(inst.EvalUimm8());
 			StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,src);
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			if(true==fidelity.HandleExceptionIfAny(*this,mem,inst.numBytes))
 			{
 				EIPIncrement=0;
@@ -6698,7 +6703,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				src.MakeDword(inst.EvalUimm32());
 			}
 			StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,src);
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			if(true==fidelity.HandleExceptionIfAny(*this,mem,inst.numBytes))
 			{
 				EIPIncrement=0;
@@ -6720,7 +6725,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				uint32_t value=state.reg32()[regNum];
 				StoreOperandValueRegOrMem32(op1,mem,inst.addressSize,inst.segOverride,value);
 			}
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			if(true==state.exception)
 			{
 				HandleException(true,mem,inst.numBytes);
@@ -6758,7 +6763,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					EIPIncrement=0;
 				}
 			}
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 		}
 		break;
 
@@ -6771,7 +6776,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			unsigned int value=(255&(state.reg32()[regNum&3]>>reg8Shift[regNum]));
 		#endif
 			StoreOperandValueRegOrMem8(op1,mem,inst.addressSize,inst.segOverride,cpputil::LowByte(value));
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			HANDLE_EXCEPTION_IF_ANY;
 		}
 		break;
@@ -6793,42 +6798,42 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				HandleException(true,mem,inst.numBytes);
 				EIPIncrement=0;
 			}
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 		}
 		break;
 
 	case I486_RENUMBER_MOV_I8_TO_AL: //     0xB0,
 		SetAL(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 	case I486_RENUMBER_MOV_I8_TO_CL: //     0xB1,
 		SetCL(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 	case I486_RENUMBER_MOV_I8_TO_DL: //     0xB2,
 		SetDL(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 	case I486_RENUMBER_MOV_I8_TO_BL: //     0xB3,
 		SetBL(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 
 	case I486_RENUMBER_MOV_I8_TO_AH: //     0xB4,
 		SetAH(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 	case I486_RENUMBER_MOV_I8_TO_CH: //     0xB5,
 		SetCH(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 	case I486_RENUMBER_MOV_I8_TO_DH: //     0xB6,
 		SetDH(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 	case I486_RENUMBER_MOV_I8_TO_BH: //     0xB7,
 		SetBH(inst.EvalUimm8());
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 
 	case I486_RENUMBER_MOV_I_TO_EAX: //     0xB8, // 16/32 depends on OPSIZE_OVERRIDE
@@ -6872,7 +6877,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			HandleException(false,mem,inst.numBytes);
 			EIPIncrement=0;
 		}
-		clocksPassed=16;
+		clocksPassed=INST_CLOCKS(24,16);
 		break;
 	case I486_RENUMBER_MOV_FROM_CR://      0x0F20,
 		if(0==(state.EFLAGS&EFLAGS_VIRTUAL86))
@@ -6889,11 +6894,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			HandleException(false,mem,inst.numBytes);
 			EIPIncrement=0;
 		}
-		clocksPassed=4;
+		clocksPassed=INST_CLOCKS(7,4);
 		break;
 	case I486_RENUMBER_MOV_FROM_DR://      0x0F21,
 		// Used to be Move(mem,inst.addressSize,inst.segOverride,op1,op2);
-		clocksPassed=10;
+		clocksPassed=INST_CLOCKS(16,10);
 		{
 			auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,op1.GetSize());
 			HANDLE_EXCEPTION_IF_ANY;
@@ -6903,7 +6908,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOV_TO_DR://        0x0F23,
 		// Used to be Move(mem,inst.addressSize,inst.segOverride,op1,op2);
-		clocksPassed=11;
+		clocksPassed=INST_CLOCKS(17,11);
 		{
 			auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,op1.GetSize());
 			HANDLE_EXCEPTION_IF_ANY;
@@ -6913,7 +6918,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOV_FROM_TR://      0x0F24,
 		// Used to be Move(mem,inst.addressSize,inst.segOverride,op1,op2);
-		clocksPassed=4;  // 3 for TR3 strictly speaking.
+		clocksPassed=INST_CLOCKS(7,4);  // 3 for TR3 strictly speaking.
 		{
 			auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,op1.GetSize());
 			HANDLE_EXCEPTION_IF_ANY;
@@ -6923,7 +6928,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOV_TO_TR://        0x0F26,
 		// Used to be Move(mem,inst.addressSize,inst.segOverride,op1,op2);
-		clocksPassed=4;  // 6 for TR6 strictly speaking.
+		clocksPassed=INST_CLOCKS(7,4);  // 6 for TR6 strictly speaking.
 		{
 			auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,op1.GetSize());
 			HANDLE_EXCEPTION_IF_ANY;
@@ -6936,7 +6941,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_MOVSB://            0xA4,
 		// REP/REPE/REPNE CX or ECX is chosen based on addressSize.
 		{
-			clocksPassed=7;
+			clocksPassed=INST_CLOCKS(12,7);
 			auto ECX=state.ECX();
 			auto prefix=REPNEtoREP(inst.instPrefix);
 			auto &seg=SegmentOverrideDefaultDS(inst.segOverride);
@@ -7014,7 +7019,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					EIPIncrement=0;\
 				}
 
-			clocksPassed=7;
+			clocksPassed=INST_CLOCKS(12,7);
 			auto ECX=state.ECX();
 			auto prefix=REPNEtoREP(inst.instPrefix);
 			auto &seg=SegmentOverrideDefaultDS(inst.segOverride);
@@ -7047,7 +7052,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_MOVSX_R_RM8://=      0x0FBE,
 	case I486_RENUMBER_MOVZX_R_RM8://=      0x0FB6, 8bit to 16or32bit
 		{
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			uint32_t value=EvaluateOperandRegOrMem8(mem,inst.addressSize,inst.segOverride,op2);
 			if(true!=state.exception)
 			{
@@ -7080,7 +7085,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOVSX_R32_RM16://=   0x0FBF,
 		{
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,2);
 			if(true!=state.exception)
 			{
@@ -7105,7 +7110,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 	case I486_RENUMBER_MOVZX_R32_RM16://=   0x0FB7, 16bit to 32bit
 		{
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op2,2);
 			if(true!=state.exception)
 			{
@@ -7123,18 +7128,18 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_NOP://              0x90,
-		clocksPassed=1;
+		clocksPassed=INST_CLOCKS(2,1);
 		break;
 
 
 	case I486_RENUMBER_OUT_I8_AL: //        0xE6,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=16;
+			clocksPassed=INST_CLOCKS(24,16);
 		}
 		else
 		{
-			clocksPassed=11; // 31 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(17,11); // 31 if CPL>IOPL
 			if(true==fidelity.TakeIOWriteException(*this,inst.EvalUimm8(),1,mem,inst.numBytes))
 			{
 				EIPIncrement=0;
@@ -7146,11 +7151,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_OUT_I8_A: //         0xE7,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=16;
+			clocksPassed=INST_CLOCKS(24,16);
 		}
 		else
 		{
-			clocksPassed=11; // 31 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(17,11); // 31 if CPL>IOPL
 			if(true==fidelity.TakeIOWriteException(*this,inst.EvalUimm8(),inst.operandSize>>3,mem,inst.numBytes))
 			{
 				EIPIncrement=0;
@@ -7169,11 +7174,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_OUT_DX_AL: //        0xEE,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=16;
+			clocksPassed=INST_CLOCKS(24,16);
 		}
 		else
 		{
-			clocksPassed=10; // 30 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(16,10); // 30 if CPL>IOPL
 			if(true==fidelity.TakeIOWriteException(*this,GetDX(),1,mem,inst.numBytes))
 			{
 				EIPIncrement=0;
@@ -7185,11 +7190,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_OUT_DX_A: //         0xEF,
 		if(true==IsInRealMode())
 		{
-			clocksPassed=16;
+			clocksPassed=INST_CLOCKS(24,16);
 		}
 		else
 		{
-			clocksPassed=10; // 30 if CPL>IOPL
+			clocksPassed=INST_CLOCKS(16,10); // 30 if CPL>IOPL
 			if(true==fidelity.TakeIOWriteException(*this,GetDX(),inst.operandSize>>3,mem,inst.numBytes))
 			{
 				EIPIncrement=0;
@@ -7213,7 +7218,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			auto prefix=REPNEtoREP(inst.instPrefix);
 			if(true==REPCheck(clocksPassed,prefix,inst.addressSize))
 			{
-				clocksPassed+=(IsInRealMode() ? 17 : 10); // Protected Mode 32 if CPL>IOPL
+				clocksPassed+=(IsInRealMode() ? INST_CLOCKS(26,17) : INST_CLOCKS(15,10)); // Protected Mode 32 if CPL>IOPL
 				if(true==fidelity.TakeIOWriteException(*this,GetDX(),1,mem,inst.numBytes))
 				{
 					EIPIncrement=0;
@@ -7234,7 +7239,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			auto prefix=REPNEtoREP(inst.instPrefix);
 			if(true==REPCheck(clocksPassed,prefix,inst.addressSize))
 			{
-				clocksPassed+=(IsInRealMode() ? 17 : 10); // Protected Mode 32 if CPL>IOPL
+				clocksPassed+=(IsInRealMode() ? INST_CLOCKS(26,17) : INST_CLOCKS(15,10)); // Protected Mode 32 if CPL>IOPL
 				if(true==fidelity.TakeIOWriteException(*this,GetDX(),inst.operandSize>>3,mem,inst.numBytes))
 				{
 					EIPIncrement=0;
@@ -7260,7 +7265,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_PUSHA://            0x60,
-		clocksPassed=11;
+		clocksPassed=INST_CLOCKS(17,11);
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			auto temp=state.ESP();
@@ -7271,7 +7276,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_PUSHF://            0x9C,
-		clocksPassed=4; // If running as 386 and in protected mode, 3 clocks.
+		clocksPassed=INST_CLOCKS(7,4); // If running as 386 and in protected mode, 3 clocks.
 		if(true==fidelity.IOPLExceptionInVM86Mode(*this,EXCEPTION_GP,mem,inst.numBytes))
 		{
 			EIPIncrement=0;
@@ -7288,7 +7293,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_EAX://         0x50,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetEAX());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7296,7 +7301,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_ECX://         0x51,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetECX());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7304,7 +7309,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_EDX://         0x52,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetEDX());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7312,7 +7317,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_EBX://         0x53,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetEBX());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7320,7 +7325,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_ESP://         0x54,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetESP());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7328,7 +7333,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_EBP://         0x55,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetEBP());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7336,7 +7341,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_ESI://         0x56,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetESI());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7344,7 +7349,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_EDI://         0x57,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,GetEDI());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7352,7 +7357,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_I8://          0x6A,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,inst.EvalSimm8());
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7360,7 +7365,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_PUSH_I://           0x68,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 			Push(mem,inst.operandSize,inst.EvalSimm16or32(inst.operandSize));
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
@@ -7369,7 +7374,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			Push(mem,inst.operandSize,state.CS().value);
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
 		break;
@@ -7377,7 +7382,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			Push(mem,inst.operandSize,state.SS().value);
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
 		break;
@@ -7385,7 +7390,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			Push(mem,inst.operandSize,state.DS().value);
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
 		break;
@@ -7393,7 +7398,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			Push(mem,inst.operandSize,state.ES().value);
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
 		break;
@@ -7401,7 +7406,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			Push(mem,inst.operandSize,state.FS().value);
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
 		break;
@@ -7409,14 +7414,14 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			Push(mem,inst.operandSize,state.GS().value);
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			HANDLE_EXCEPTION_PUSH_POP;
 		}
 		break;
 
 
 	case I486_RENUMBER_POP_M://            0x8F,
-		clocksPassed=6;
+		clocksPassed=INST_CLOCKS(10,6);
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			OperandValue value;
@@ -7431,7 +7436,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_EAX://          0x58,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7450,7 +7455,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_ECX://          0x59,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7469,7 +7474,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_EDX://          0x5A,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7488,7 +7493,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_EBX://          0x5B,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7507,7 +7512,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_ESP://          0x5C,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7526,7 +7531,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_EBP://          0x5D,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7545,7 +7550,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_ESI://          0x5E,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7564,7 +7569,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_EDI://          0x5F,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=4;
+			clocksPassed=INST_CLOCKS(7,4);
 			if(16==inst.operandSize)
 			{
 				auto pop=Pop16(mem);
@@ -7585,7 +7590,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_SS://           0x17,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto selector=Pop(mem,inst.operandSize);
 			HANDLE_EXCEPTION_PUSH_POP;
 			LoadSegmentRegister(state.SS(),selector,mem);
@@ -7595,7 +7600,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_DS://           0x1F,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto selector=Pop(mem,inst.operandSize);
 			HANDLE_EXCEPTION_PUSH_POP;
 			LoadSegmentRegister(state.DS(),selector,mem);
@@ -7605,7 +7610,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_ES://           0x07,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto selector=Pop(mem,inst.operandSize);
 			HANDLE_EXCEPTION_PUSH_POP;
 			LoadSegmentRegister(state.ES(),selector,mem);
@@ -7615,7 +7620,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_FS://           0x0FA1,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto selector=Pop(mem,inst.operandSize);
 			HANDLE_EXCEPTION_PUSH_POP;
 			LoadSegmentRegister(state.FS(),selector,mem);
@@ -7625,7 +7630,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_POP_GS://           0x0FA9,
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
-			clocksPassed=3;
+			clocksPassed=INST_CLOCKS(7,3);
 			auto selector=Pop(mem,inst.operandSize);
 			HANDLE_EXCEPTION_PUSH_POP;
 			LoadSegmentRegister(state.GS(),selector,mem);
@@ -7634,7 +7639,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 
 	case I486_RENUMBER_POPA://             0x61,
-		clocksPassed=9;
+		clocksPassed=INST_CLOCKS(7,9);
 		if(16==inst.operandSize)
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
@@ -7739,7 +7744,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_RET://              0xC3,
-		clocksPassed=5;
+		clocksPassed=INST_CLOCKS(8,5);
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			if(16==inst.operandSize)
@@ -7769,7 +7774,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			}
 			if(true==IsInRealMode())
 			{
-				clocksPassed=15;
+				clocksPassed=INST_CLOCKS(23,15);
 
 				uint32_t eip,cs,eflags;
 				Pop(eip,cs,eflags,mem,inst.operandSize);
@@ -7805,7 +7810,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			}
 			else
 			{
-				clocksPassed=36;
+				clocksPassed=INST_CLOCKS(54,36);
 				if(true==fidelity.IOPLExceptionInVM86Mode(*this,EXCEPTION_GP,mem,inst.numBytes))
 				{
 					EIPIncrement=0;
@@ -7967,11 +7972,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			if(true==IsInRealMode())
 			{
-				clocksPassed=13;
+				clocksPassed=INST_CLOCKS(20,13);
 			}
 			else
 			{
-				clocksPassed=18;
+				clocksPassed=INST_CLOCKS(28,18);
 			}
 			auto prevDPL=state.CS().DPL;
 			auto prevCSEIP=FIDELITY::SaveCSEIP(*this);
@@ -8007,7 +8012,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_RET_I16://          0xC2,
-		clocksPassed=5;
+		clocksPassed=INST_CLOCKS(8,5);
 		{
 			SAVE_ESP_BEFORE_PUSH_POP;
 			auto EIP=Pop(mem,inst.operandSize);
@@ -8025,11 +8030,11 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 			if(true==IsInRealMode())
 			{
-				clocksPassed=14;
+				clocksPassed=INST_CLOCKS(12,14);
 			}
 			else
 			{
-				clocksPassed=17;
+				clocksPassed=INST_CLOCKS(26,17);
 			}
 			auto prevDPL=state.CS().DPL;
 			auto prevCSEIP=FIDELITY::SaveCSEIP(*this);
@@ -8081,7 +8086,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			state.EFLAGS&=(~0b11010101); // b7, b6, b4, b2, b0 only.
 			state.EFLAGS|=(GetAH()&0b11010101);
 		}
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 
 
@@ -8094,12 +8099,12 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			if(I486_OPCODE_SHLD_RM_CL==inst.opCode ||
 			   I486_OPCODE_SHRD_RM_CL==inst.opCode)
 			{
-				clocksPassed=3;
+				clocksPassed=INST_CLOCKS(7,3);
 				count=GetCL()&0x1F;
 			}
 			else
 			{
-				clocksPassed=2;
+				clocksPassed=INST_CLOCKS(4,2);
 				count=inst.EvalUimm8()&0x1F;
 			}
 			if(OPER_ADDR==op1.operandType)
@@ -8248,7 +8253,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				    true==REPCheckA##addrSize(clocksPassed,inst.instPrefix); \
 				    ++ctr) \
 				{ \
-					clocksPassed+=2; \
+					clocksPassed+=INST_CLOCKS(4,2); \
 					auto data=FetchByte(addrSize,state.ES(),state.EDI(),mem); \
 					HANDLE_EXCEPTION_STRINGOP; \
 					auto AL=GetAL(); \
@@ -8291,7 +8296,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 					auto EAX=GetEAX();\
 					Sub##WordOrDword(EAX,data);\
 					UpdateFunc();\
-					clocksPassed+=2;\
+					clocksPassed+=INST_CLOCKS(4,2);\
 					if(true==REPEorNECheck(inst.instPrefix))\
 					{\
 						EIPIncrement=0;\
@@ -8405,7 +8410,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		{
 		case 0: // "SLDT"
 			{
-				clocksPassed=(OPER_ADDR==op1.operandType ? 3 : 2);
+				clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(6,3) : INST_CLOCKS(2,2));
 				OperandValue value;
 				value.MakeWord(state.LDTR.selector);
 				StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
@@ -8413,7 +8418,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 1: // "STR"
 			{
-				clocksPassed=(OPER_ADDR==op1.operandType ? 3 : 2);
+				clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(6,3) : INST_CLOCKS(2,2));
 				OperandValue value;
 				value.MakeWord(state.TR.value);
 				StoreOperandValue(op1,mem,inst.addressSize,inst.segOverride,value);
@@ -8421,7 +8426,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 2: // "LLDT"
 			{
-				clocksPassed=11;
+				clocksPassed=INST_CLOCKS(17,11);
 				auto value=EvaluateOperand(mem,inst.addressSize,inst.segOverride,op1,inst.operandSize/8);
 				if(true!=state.exception)
 				{
@@ -8476,12 +8481,12 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 				LoadTaskRegister(selector,mem);
 
-				clocksPassed=20;
+				clocksPassed=INST_CLOCKS(30,20);
 			}
 			break;
 		case 4: // "VERR"
 			{
-				clocksPassed=11;
+				clocksPassed=INST_CLOCKS(17,11);
 				if(true==IsInRealMode())
 				{
 					Interrupt(6,mem,0,0,false);
@@ -8534,7 +8539,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			break;
 		case 5: // "VERW"
 			{
-				clocksPassed=11;
+				clocksPassed=INST_CLOCKS(17,11);
 				if(true==IsInRealMode())
 				{
 					Interrupt(6,mem,0,0,false);
@@ -8584,14 +8589,14 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 	case I486_RENUMBER_STC://              0xFB,
 		SetCF(true);
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 	case I486_RENUMBER_STD://              0xFD,
 		SetDF(true);
-		clocksPassed=2;
+		clocksPassed=INST_CLOCKS(4,2);
 		break;
 	case I486_RENUMBER_STI://              0xFB,
-		clocksPassed=5;
+		clocksPassed=INST_CLOCKS(8,5);
 		if(true==fidelity.IOPLException(*this,EXCEPTION_GP,mem,inst.numBytes))
 		{
 			EIPIncrement=0;
@@ -8620,7 +8625,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				    ++ctr)\
 				{\
 					StoreByte(mem,addrSize,state.ES(),state.EDI(),GetAL());\
-					clocksPassed+=1;\
+					clocksPassed+=INST_CLOCKS(2,1);\
 					if(true!=state.exception)\
 					{\
 						UpdateDIorEDIAfterStringOpO8A##addrSize();\
@@ -8663,7 +8668,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				    ++ctr) \
 				{ \
 					(StoreFunc)(mem,(addrSize),state.ES(),state.EDI(),GetEAX()); \
-					clocksPassed+=1; \
+					clocksPassed+=INST_CLOCKS(2,1); \
 					if(true!=state.exception) \
 					{ \
 						(UpdateFunc)(); \
@@ -8722,7 +8727,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 	case I486_RENUMBER_XCHG_EAX_EBP://     0x95,
 	case I486_RENUMBER_XCHG_EAX_ESI://     0x96,
 	case I486_RENUMBER_XCHG_EAX_EDI://     0x97,
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		if(16==inst.operandSize)
 		{
 			auto op1=GetAX();
@@ -8739,7 +8744,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_XCHG_RM8_R8://           0x86,
-		clocksPassed=(OPER_ADDR==op1.operandType ? 5 : 3);
+		clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(8,5) : INST_CLOCKS(7,3));
 		{
 			auto operPtr=GetOperandPointer8(mem,inst.addressSize,inst.segOverride,op1,true);
 			HANDLE_EXCEPTION_IF_ANY;
@@ -8777,7 +8782,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_XCHG_RM_R://             0x87,
-		clocksPassed=(OPER_ADDR==op1.operandType ? 5 : 3);
+		clocksPassed=(OPER_ADDR==op1.operandType ? INST_CLOCKS(8,5) : INST_CLOCKS(7,3));
 		{
 			auto operPtr=GetOperandPointer16or32(mem,inst.addressSize,inst.segOverride,op1,true);
 			HANDLE_EXCEPTION_IF_ANY;
@@ -8840,7 +8845,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 
 
 	case I486_RENUMBER_XLAT://             0xD7,
-		clocksPassed=4;
+		clocksPassed=INST_CLOCKS(7,4);
 		{
  			SegmentRegister seg=SegmentOverrideDefaultDS(inst.segOverride);
 			unsigned int offset=GetAL();
@@ -8881,12 +8886,12 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 			uint8_t *bytes=(uint8_t *)&reg;
 			std::swap(bytes[0],bytes[3]);
 			std::swap(bytes[1],bytes[2]);
-			clocksPassed=1;
+			clocksPassed=INST_CLOCKS(2,1);
 		}
 		break;
 
 	case I486_RENUMBER_CMPXCHG_RM8_R8:
-		clocksPassed=6;
+		clocksPassed=INST_CLOCKS(10,6);
 		{
 			// op2 is a register.
 			uint32_t RM=EvaluateOperandRegOrMem8(mem,inst.addressSize,inst.segOverride,op1);
@@ -8910,7 +8915,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_CMPXCHG_RM_R:
-		clocksPassed=6;
+		clocksPassed=INST_CLOCKS(10,6);
 		if(16==inst.operandSize)
 		{
 			// op2 is a register.
@@ -8957,7 +8962,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_XADD_RM8_R8:
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		{
 			// Based on the description in http://asm.inightmare.org/opcodelst/index.php?op=XADD
 			// op2 is a register.
@@ -8978,7 +8983,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		}
 		break;
 	case I486_RENUMBER_XADD_RM_R:
-		clocksPassed=3;
+		clocksPassed=INST_CLOCKS(7,3);
 		if(16==inst.operandSize)
 		{
 			// op2 is a register.
@@ -9018,7 +9023,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 		break;
 
 	case I486_RENUMBER_CPUID:
-		clocksPassed=9;
+		clocksPassed=INST_CLOCKS(7,9);
 		switch(GetEAX())
 		{
 		case 0:
@@ -9039,7 +9044,7 @@ unsigned int i486DXFidelityLayer<FIDELITY>::RunOneInstruction(Memory &mem,InOut 
 				state.NULL_and_reg32[REG_EDX]=0;
 			}
 			state.NULL_and_reg32[REG_ECX]=0;
-			clocksPassed=14;
+			clocksPassed=INST_CLOCKS(12,14);
 			break;
 		default:
 			state.NULL_and_reg32[REG_EAX]=0;
