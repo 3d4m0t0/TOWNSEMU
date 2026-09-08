@@ -215,6 +215,10 @@ void FMTownsCommon::LoadStatePostProcess(void)
 		}
 	}
 
+	// Drop previous-session host CDDA wave + bridge/grace flags, then rebuild from
+	// the restored guest position if PLAYING/PAUSED. Must not call DiscardCDDAWaveCache
+	// here: that would wipe play pointer / base time restored by SpecificDeserialize.
+	cdrom.DiscardHostCDDACacheForStateLoad();
 	cdrom.ResumeCDDAAfterRestore();
 	scsi.ResumeCDDAAfterRestore();
 

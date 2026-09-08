@@ -411,6 +411,23 @@ void TownsCDROM::DiscardCDDAWaveCache(void)
 	WaitUntilAsyncWaveReaderFinished();
 }
 
+void TownsCDROM::DiscardHostCDDACacheForStateLoad(void)
+{
+	// Keep CDDAState / CDDAPlayPointer / CDDAWaveBaseTime / CDDAAudioOutput:
+	// SpecificDeserialize already restored them; ResumeCDDAAfterRestore needs them.
+	state.CDDAWave.clear();
+	state.CDDAWaveBaseTrack=0;
+	state.CDDAHostSamplesMixed=0;
+	state.CDDACacheStopAfterHostSamples=0;
+	state.CDDACacheHostStoppedByGrace=false;
+	state.CDDACacheBridgingDataRead=false;
+	state.CDDAStateBeforeDataRead=CDDA_IDLE;
+	state.CDDAPrefetchWaitForMode=false;
+	state.modeDeferredSeekTime=0;
+	state.modeSectorEmptyRetries=0;
+	WaitUntilAsyncWaveReaderFinished();
+}
+
 void TownsCDROM::DiscardCacheOnAppExit(const char *reason)
 {
 	if(true!=var.cddaCacheDuringDataRead)

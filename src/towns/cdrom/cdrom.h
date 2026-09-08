@@ -448,6 +448,10 @@ public:
 
 	bool CDDAAudioShouldOutput(void) const;
 	void DiscardCDDAWaveCache(void);
+	/*! After SpecificDeserialize, before ResumeCDDAAfterRestore: drop the previous
+	    session's host wave and bridge/grace flags. Leaves play pointer / base time /
+	    CDDAAudioOutput / CDDAState from the state file intact for Resume. */
+	void DiscardHostCDDACacheForStateLoad(void);
 	/*! App→TOS/TMENU or top-level AH=4CH: discard host CDDA wave so MODE cannot
 	    resurrect BGM without a new PLAY install. Guest CDDAState / pause SubQ stay. */
 	void DiscardCacheOnAppExit(const char *reason);

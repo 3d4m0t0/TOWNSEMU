@@ -1660,7 +1660,13 @@ void TownsSCSI::ResumeCDDAAfterRestore(void)
 {
 	for(auto &d : state.dev)
 	{
-		if(SCSIDEVICE_CDROM==d.devType && (CDDA_PLAYING==d.CDDAState || CDDA_PAUSED==d.CDDAState))
+		if(SCSIDEVICE_CDROM!=d.devType)
+		{
+			continue;
+		}
+		// Drop previous-session host wave; rebuild only when the state is playing/paused.
+		d.CDDAWave.clear();
+		if(CDDA_PLAYING==d.CDDAState || CDDA_PAUSED==d.CDDAState)
 		{
 			d.CDDAWave=d.discImg.GetWave(d.CDDABeginTime,d.CDDAEndTime);
 			// state.CDDAPlayPointer should have already been set.
