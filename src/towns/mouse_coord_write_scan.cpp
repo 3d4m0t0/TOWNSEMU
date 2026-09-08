@@ -2636,11 +2636,19 @@ void MouseCoordWriteScan::PushActiveAppExecParentLocked(void)
 
 void MouseCoordWriteScan::EndActiveAppExecLocked(const char *reason)
 {
+	const bool hadApp=true==activeAppExecValid || true==activeAppPayloadValid;
+	const bool topLevelExit=true==appExecParents.empty();
 	const std::string endedName=activeAppExecName;
 	const unsigned int endedHash=activeAppExecHash32;
 	ClearActiveAppExecLocked(reason);
 	if(true==appExecParents.empty())
 	{
+		// Top-level app ended (AH=4CH → TMENU). Also covers cases where the
+		// desktop CRTC heuristic does not fire; discard stale CDDA host cache.
+		if(true==hadApp && true==topLevelExit && nullptr!=townsPtr)
+		{
+			townsPtr->cdrom.DiscardCacheOnAppExit("terminate");
+		}
 		return;
 	}
 	const AppExecFrame frame=appExecParents.back();

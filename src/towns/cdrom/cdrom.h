@@ -119,6 +119,9 @@ public:
 	enum
 	{
 		DELAYED_STATUS_IRQ_TIME=  50000,  // Tentatively  50us
+		/*! Poll interval while async CDDA GetWave is BUSY (long tracks). 50us spam
+		    made DRY flicker ready and flooded Exec without completion status. */
+		CDDA_PREFETCH_POLL_TIME=1000000,  // 1ms
 		DEFAULT_READ_SECTOR_TIME=5000000, // Tentatively   5ms  1X CD-ROM should be 1second/75frames=13.3ms per sector
 		DEFAULT_SEEK_TIME=            0,
 		NOTIFICATION_TIME=      1000000,  // Tentatively   1ms
@@ -271,9 +274,10 @@ public:
 		//    IDLE, PLAYING, STOPPING
 		// while stopping, the virtual CD-ROM pretends that CDDA is playing the last frame.
 
-		// BIOS disassembly suggests that command A0H should return status:
+		// BIOS disassembly: A0H after natural CDDA end returns
 		//   00 00 00 00 07 00 00 00
-		// once CDDA play ended.  For this purpose, the CDDA must have an additional state ENDED.
+		// (No-Error then CDDA Done). Some titles omit CDC repeat and re-PLAY
+		// after BIOS sees Done. PushStatusCDDAPlayEnded on GETSTATE when ENDED.
 		unsigned int CDDAState=CDDA_IDLE;
 		long long int nextCDDAPollingTime=0;
 		DiscImage::MinSecFrm CDDAStartTime,CDDAEndTime;
@@ -283,15 +287,22 @@ public:
 		unsigned int CDDAPlayPointer=0;
 
 		DiscImage::MinSecFrm CDDAWaveBaseTime;
+		/*! TOC audio track (1-based) for CDDAWaveBaseTime; 0 if unknown. */
+		unsigned int CDDAWaveBaseTrack=0;
 		bool CDDAAudioOutput=false;  // Host mix only; never affects GETSTATE / StatusSecondByte
+		/*! Guest-visible disc HSG frozen at PAUSE (host mix may still advance CDDAPlayPointer). */
+		unsigned int CDDAPauseDiscHSG=0;
+		bool CDDAPauseDiscValid=false;
 
-		// After MODE bridge: grace (sample-based) mutes host if no PLAY/RESUME.
+		// After MODE bridge: sample grace may mute host if guest is idle/ended
+		// (STOP+MODE wait for PLAY). Do not mute while PLAYING or PAUSED.
 		// Once muted by grace, further MODE must not re-bridge until PLAY/RESUME.
+		// App→TMENU discards the wave (DiscardCacheOnAppExit); guest CDDAState stays.
 		uint64_t CDDAHostSamplesMixed=0;
 		uint64_t CDDACacheStopAfterHostSamples=0; // 0=inactive; else mute host when HostSamplesMixed reaches this
 		bool CDDACacheHostStoppedByGrace=false;
 		bool CDDACacheBridgingDataRead=false;
-		unsigned int CDDAStateBeforeDataRead=CDDA_IDLE;
+		unsigned int CDDAStateBeforeDataRead=CDDA_IDLE; // burst snapshot for logs / grace only
 
 		// MODE1/2/RAW sector transfer in progress (protect schedule from GETSTATE).
 		bool dataTransferActive=false;
@@ -326,6 +337,10 @@ public:
 		// For debugging purposes
 		i486DXCommon::FarPointer lastCmdIssuedAt;
 		i486DXCommon::FarPointer lastParamWrittenAt;
+		unsigned int lastCmdAX=0; // CPU AX when CDC command I/O was written
+		/*! Most recent INT 93H before CDC traffic (caller CS:EIP of INT, AX=BIOS function). */
+		unsigned int lastInt93AX=0;
+		i486DXCommon::FarPointer lastInt93From;
 
 		bool virtuallyRemoved=false; // If true, ready signal (b0 of I/O 4C0H) is kept low.
 
@@ -354,6 +369,15 @@ public:
 
 	State state;
 	Variables var;
+
+	/*! Audio TOC spans rebuilt on disc load (start/end HSG, 1-based track). */
+	struct AudioTrackSpan
+	{
+		unsigned int track=0;
+		unsigned int startHSG=0;
+		unsigned int endHSG=0;
+	};
+	std::vector <AudioTrackSpan> audioTrackTable;
 
 	std::vector <std::string> searchPaths;
 
@@ -396,7 +420,10 @@ public:
 	}
 private:
 	void UpdateCDDAStateInternal(long long int townsTime);
-	bool CacheSameTrack(DiscImage::MinSecFrm msfBegin) const;
+	void RebuildAudioTrackTable(void);
+	/*! TOC audio track (1-based) containing disc-time MSF, or 0 if none/not audio. */
+	unsigned int CacheAudioTrackFromMSF(DiscImage::MinSecFrm msf) const;
+	bool CacheSameTrack(DiscImage::MinSecFrm msfBegin,DiscImage::MinSecFrm msfEnd) const;
 	bool CacheWaveRemaining(void) const;
 	bool CacheHostMixAfterDataRead(void);
 	void CacheClearStopDeadline(void);
@@ -406,6 +433,9 @@ private:
 	void PushGetStateStatus(void);
 	bool TryHandleGetStateWithoutStealingSchedule(unsigned char newCmdByte,unsigned char keepCmd);
 	void LogMonitorLine(const std::string &line);
+	/*! Monitor: one line per CDC command phase with → disposition (how it was handled). */
+	void LogCmdEvent(const char phase[],const std::string &disposition);
+	std::string FormatStatusQueueTail(unsigned maxPairs=2) const;
 
 	std::mutex monitorMutex;
 	std::deque <std::string> monitorLines;
@@ -418,6 +448,9 @@ public:
 
 	bool CDDAAudioShouldOutput(void) const;
 	void DiscardCDDAWaveCache(void);
+	/*! App→TOS/TMENU or top-level AH=4CH: discard host CDDA wave so MODE cannot
+	    resurrect BGM without a new PLAY install. Guest CDDAState / pause SubQ stay. */
+	void DiscardCacheOnAppExit(const char *reason);
 	std::vector <std::string> TakeMonitorLines(void);
 
 	inline bool DiscLoadedAndLidClosed(void) const

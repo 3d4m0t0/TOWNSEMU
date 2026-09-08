@@ -1446,6 +1446,13 @@ void FMTownsCommon::ProcessSound(Outside_World *outside_world)
 	}
 }
 
+/* virtual */ void FMTownsCommon::InterceptINT93H(unsigned int AX,unsigned int fromCS,unsigned int fromEIP)
+{
+	cdrom.var.lastInt93AX=AX;
+	cdrom.var.lastInt93From.SEG=fromCS;
+	cdrom.var.lastInt93From.OFFSET=fromEIP;
+}
+
 void FMTownsCommon::RunFastDevicePollingInternal(void)
 {
 	timer.TimerPolling(state.townsTime);

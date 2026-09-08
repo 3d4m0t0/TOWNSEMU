@@ -1348,6 +1348,13 @@ public:
 	{
 	public:
 		virtual void InterceptINT21H(unsigned int AX,const std::string fName)=0;
+		/*! Optional: Disk BIOS (INT 93H) — used to attribute CDC CDDA PLAY to BIOS AH. */
+		virtual void InterceptINT93H(unsigned int AX,unsigned int fromCS,unsigned int fromEIP)
+		{
+			(void)AX;
+			(void)fromCS;
+			(void)fromEIP;
+		}
 	};
 	INT21HInterceptor *int21HInterceptorPtr=nullptr;
 
@@ -1677,6 +1684,8 @@ public:
 
 	/*! Always-on INT 21H notify (Load/Exec path etc.).  Independent of enableCallStack. */
 	void NotifyINT21HIfNeeded(unsigned int INTNum,const Memory &mem);
+	/*! Always-on INT 93H (Disk/CD BIOS) notify for CDDA attribution. */
+	void NotifyINT93HIfNeeded(unsigned int INTNum);
 
 	/*! Attaches a debugger.
 	*/

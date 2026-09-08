@@ -804,6 +804,8 @@ public:
 	/*! This function will be called from the CPU in PushCallStack in response to INT 21H.
 	*/
 	virtual void InterceptINT21H(unsigned int AX,const std::string fName);
+	/*! Record last INT 93H (Disk/CD BIOS) for CDDA invalid-MSF attribution. */
+	virtual void InterceptINT93H(unsigned int AX,unsigned int fromCS,unsigned int fromEIP);
 
 	/*! Run scheduled tasks.
 	*/

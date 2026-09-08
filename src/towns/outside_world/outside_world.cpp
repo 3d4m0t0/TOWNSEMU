@@ -1447,14 +1447,18 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 		spriteOffsetSeenInExoticMode_=true;
 		mouseDesktopSnapshotValid_=true;
 	}
+	const bool tosMouseReady=
+	    (0!=towns.state.TBIOS_mouseInfoOffset) ||
+	    (0!=towns.state.MOS_work_physicalAddr);
 	const bool quietDesktop=
 	    true==standardDesktop &&
 	    true==towns.state.mouseBIOSActive &&
 	    // Event scenes can look desktop-like with MOS blips but TBIOS soft is gone (TB:0).
-	    // Real TOS/TMENU return has a resolvable soft-cursor / mouse-info block.
+	    // Real TOS/TMENU return has TBIOS mapped.  V1.1 L10–L30 has no mouseInfoOffset
+	    // (FindTBIOSMouseInfoOffset only fills V2.1 L35); MOS work is the V1.1 signal.
 	    0!=towns.state.tbiosVersion &&
 	    0!=towns.state.TBIOS_physicalAddr &&
-	    0!=towns.state.TBIOS_mouseInfoOffset;
+	    true==tosMouseReady;
 	const bool desktopReturn=
 	    (true==spriteOffsetSeenInExoticMode_ && true==quietDesktop) ||
 	    (true==mosReinit && true==quietDesktop);
@@ -1741,6 +1745,10 @@ void Outside_World::HandleAppToDesktopReturn(class FMTownsCommon &towns)
 	mouseDesktopSnapApplied_=true;
 	ResetSnapMouseWarmup();
 	spriteOffsetSeenInExoticMode_=false;
+
+	// Stale PAUSED host cache would keep mixing through TMENU / next-app MODE
+	// without a new PLAY install. Discard wave; guest CDDAState stays for GETSTATE.
+	towns.cdrom.DiscardCacheOnAppExit("desktop");
 }
 
 void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns)

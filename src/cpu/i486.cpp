@@ -2332,6 +2332,17 @@ void i486DXCommon::NotifyINT21HIfNeeded(unsigned int INTNum,const Memory &mem)
 	}
 	int21HInterceptorPtr->InterceptINT21H(AX,fName);
 }
+void i486DXCommon::NotifyINT93HIfNeeded(unsigned int INTNum)
+{
+	if(0x93!=INTNum || nullptr==int21HInterceptorPtr)
+	{
+		return;
+	}
+	int21HInterceptorPtr->InterceptINT93H(
+	    GetAX(),
+	    state.CS().value,
+	    state.EIP);
+}
 void i486DXCommon::PopCallStack(unsigned int CS,unsigned int EIP)
 {
 	if(true!=callStack.empty())
