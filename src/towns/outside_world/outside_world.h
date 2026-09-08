@@ -61,21 +61,23 @@ public:
 	bool mouseIntegrationActive=false;
 	int lastMx,lastMy,mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 	/*! User preference while Mouse BIOS (TBIOS/MOS) is active. Absolute/snap when false.
-	    Toggled at runtime by middle mouse button (not a persistent settings checkbox). */
+	    Legacy middle-button toggle; Default mode no longer flips this for priority. */
 	bool differentialMouseIntegration=false;
 	/*! When MOS is active but unused (Default mode only), automatically switch to
-	    mouse capture.  Explicit MOS / app-specific profiles ignore this.
-	    Mouse-BIOS-stop → capture is always on. */
-	bool autoDifferentialOnMosUnused=true;
+	    mouse capture.  Disabled by redesign: Default keeps MOS while BIOS is alive. */
+	bool autoDifferentialOnMosUnused=false;
 	/*! Runtime path actually used for ProcessMouse vs ProcessMouseDifferential. */
 	bool effectiveDifferentialMouseIntegration=false;
-	/*! False after middle-button release with MOS down; click resumes. */
+	/*! False after middle-button release with MOS down; middle button resumes (not click). */
 	bool mouseFeedingEnabled_=true;
 	/*! After abs↔diff / apply / capture path change: next ProcessMouse* forces buttons up
 	    so a stale host lastKnownMouse cannot re-stick the guest gameport buttons. */
 	bool mouseButtonsForceRelease_=false;
-	/*! Middle-button released capture while MOS inactive (host cursor shown). */
+	/*! Middle-button released capture while differential (host cursor shown). */
 	bool mouseCaptureReleased_=false;
+	/*! Middle-button temporary override: force mouse capture while MOS/app absolute
+	    would otherwise apply.  Middle again clears this and restores absolute. */
+	bool middleForceCapture_=false;
 	/*! GUI/core failsafe: force host cursor visible (e.g. VM appear hung). */
 	bool mouseFailsafeShowHostCursor_=false;
 	/*! Saw MOS AH=00 at least once (debug / legacy). */
@@ -83,7 +85,7 @@ public:
 	/*! No MOS → differential-only (unless app-specific hold). Cleared while MOS active. */
 	bool mouseBIOSStoppedForcedDiff_=false;
 	/*! Auto-forced differential begins with capture released; set once per force episode
-	    so the user starts capture by clicking the screen (not grabbed automatically). */
+	    so the user starts capture with the middle button (not grabbed automatically). */
 	bool forcedDiffReleaseApplied_=false;
 	/*! MOS still active, but guest never reads MOS/TBIOS coords and only uses gameport. */
 	bool mosUnusedForcedDiff_=false;
@@ -338,7 +340,7 @@ public:
 	void UpdateMosUsageObservation(class FMTownsCommon &towns);
 	/*! Middle button: MOS up → toggle preference; MOS down → release capture (show host cursor). */
 	void HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns);
-	/*! Picture click: resume feeding after middle-button release (MOS inactive). */
+	/*! Picture middle-button: resume feeding after capture release. */
 	void ResumeMouseCapture(class FMTownsCommon &towns);
 	/*! Release differential capture (show host cursor). Same as middle-button release. */
 	void ReleaseMouseCapture(class FMTownsCommon &towns);

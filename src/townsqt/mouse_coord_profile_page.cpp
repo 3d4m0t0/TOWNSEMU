@@ -111,17 +111,12 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 	mode_combo_=new QComboBox(this);
 	mode_combo_->addItem(tr("Default"),MouseCoordWriteScan::INTEGRATION_AUTO);
 	mode_combo_->addItem(tr("Mouse capture"),MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL);
-	mode_combo_->addItem(tr("Mouse integration (Mouse BIOS)"),MouseCoordWriteScan::INTEGRATION_MOS);
-	// Memory write and game-port share one UI entry; memory_write_ chooses DW vs GF.
-	mode_combo_->addItem(tr("Mouse integration (app-specific settings)"),MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK);
 	mode_combo_->setSizePolicy(QSizePolicy::Maximum,QSizePolicy::Fixed);
 	{
 		const QFontMetrics fm(font());
 		const int w=std::max({
 		    fm.horizontalAdvance(tr("Default")),
 		    fm.horizontalAdvance(tr("Mouse capture")),
-		    fm.horizontalAdvance(tr("Mouse integration (Mouse BIOS)")),
-		    fm.horizontalAdvance(tr("Mouse integration (app-specific settings)")),
 		})+48;
 		mode_combo_->setMinimumWidth(w);
 	}
@@ -154,18 +149,7 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 			const QVariant data=mode_combo_->itemData(mode_combo_->currentIndex());
 			if(true==data.isValid())
 			{
-				const int raw=data.toInt();
-				if(MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==raw)
-				{
-					integration_mode_=
-					    (nullptr!=memory_write_ && true==memory_write_->isChecked())
-					        ? MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE
-					        : MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK;
-				}
-				else
-				{
-					integration_mode_=raw;
-				}
+				integration_mode_=data.toInt();
 			}
 		}
 		updateModeNotes();
@@ -499,10 +483,11 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 	if(nullptr!=memory_write_)
 	{
 		connect(memory_write_,&QCheckBox::toggled,this,[this](bool on){
-			if(MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==
-			       mode_combo_->itemData(mode_combo_->currentIndex()).toInt() ||
-			   MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==integration_mode_ ||
-			   MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==integration_mode_)
+			const int comboMode=
+			    (nullptr!=mode_combo_ && 0<=mode_combo_->currentIndex())
+			        ? mode_combo_->itemData(mode_combo_->currentIndex()).toInt()
+			        : MouseCoordWriteScan::INTEGRATION_AUTO;
+			if(MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL!=comboMode)
 			{
 				integration_mode_=on
 				    ? MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE
@@ -531,10 +516,10 @@ void MouseCoordProfilePage::setEditorEnabled(bool enabled)
 		mode_combo_->setEnabled(enabled);
 	}
 	const int mode=selectedMode();
-	const bool gamePhys=
-	    MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==mode ||
-	    MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==mode;
-	const bool memWrite=MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==mode;
+	const bool captureOnly=MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL==mode;
+	const bool gamePhys=true!=captureOnly; // Default: Phys/Bind editable
+	const bool memWrite=MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==mode ||
+	    (true==gamePhys && nullptr!=memory_write_ && true==memory_write_->isChecked());
 	auto setOn=[&](QWidget *w,bool on)
 	{
 		if(nullptr!=w)
@@ -577,10 +562,10 @@ void MouseCoordProfilePage::setEditorEnabled(bool enabled)
 void MouseCoordProfilePage::updateModeNotes(void)
 {
 	const int mode=selectedMode();
-	const bool gamePhys=
-	    MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==mode ||
-	    MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==mode;
-	const bool memWrite=MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==mode;
+	const bool captureOnly=MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL==mode;
+	const bool gamePhys=true!=captureOnly; // Default: Phys/Bind editable
+	const bool memWrite=MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==mode ||
+	    (true==gamePhys && nullptr!=memory_write_ && true==memory_write_->isChecked());
 	const bool pageOn=isEnabled() && (nullptr==mode_combo_ || mode_combo_->isEnabled());
 	auto setWidgetsEnabled=[&](const std::initializer_list<QWidget*> &widgets,bool on)
 	{
@@ -633,31 +618,20 @@ void MouseCoordProfilePage::updateModeNotes(void)
 	switch(mode)
 	{
 	case MouseCoordWriteScan::INTEGRATION_AUTO:
-		mode_note_->setText(
-		    tr("Default: automatically switches between mouse integration (Mouse BIOS) "
-		       "and mouse capture to match Mouse BIOS. "
-		       "Titles without Mouse BIOS cannot use mouse integration."));
-		break;
-	case MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL:
-		mode_note_->setText(
-		    tr("Mouse capture: always uses mouse capture. "
-		       "Mouse integration is not performed."));
-		break;
 	case MouseCoordWriteScan::INTEGRATION_MOS:
-		mode_note_->setText(
-		    mouse_bios_active_
-		        ? tr("Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. "
-		             "Titles without Mouse BIOS cannot use mouse integration.")
-		        : tr("Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor "
-		             "cannot be resolved."));
-		break;
 	case MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE:
 	case MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK:
 		mode_note_->setText(
-		    tr("Mouse integration (app-specific settings): follows Default until a bound EXP starts, "
-		       "then applies per-app Phys settings. Use Phys search to identify and set phys "
-		       "addresses for reading and writing the in-game cursor. "
-		       "“Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport."));
+		    tr("Default (priority): app-specific Phys when set and bound → "
+		       "Mouse BIOS (MOS) while alive → mouse capture otherwise. "
+		       "Middle button toggles mouse capture on/off (no click-to-capture). "
+		       "Set Game Phys / Bind for app-specific integration."));
+		break;
+	case MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL:
+		mode_note_->setText(
+		    tr("Mouse capture (failsafe): always uses mouse capture. "
+		       "Middle button enables or releases capture. "
+		       "Mouse integration is not performed."));
 		break;
 	default:
 		mode_note_->setText(QString());
@@ -754,23 +728,6 @@ void MouseCoordProfilePage::clearAppSpecificFields(void)
 
 void MouseCoordProfilePage::applyMosAvailability(void)
 {
-	if(nullptr==mode_combo_)
-	{
-		return;
-	}
-	const int mosIdx=mode_combo_->findData(MouseCoordWriteScan::INTEGRATION_MOS);
-	if(0<=mosIdx)
-	{
-		if(auto *model=qobject_cast<QStandardItemModel*>(mode_combo_->model()))
-		{
-			if(auto *item=model->item(mosIdx))
-			{
-				item->setEnabled(mouse_bios_active_);
-			}
-		}
-		// Do not rewrite the saved mode when MOS is temporarily unavailable —
-		// keep the selection and show the unavailable note in updateModeNotes().
-	}
 	updateModeNotes();
 }
 
@@ -788,13 +745,21 @@ int MouseCoordProfilePage::selectedMode(void) const
 		if(true==data.isValid())
 		{
 			const int raw=data.toInt();
-			if(MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==raw)
+			if(MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL==raw)
+			{
+				return MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL;
+			}
+			// Default: promote to app Phys when Game Phys is filled.
+			const bool hasPhys=
+			    (nullptr!=game_phys_x_ && !game_phys_x_->text().trimmed().isEmpty() &&
+			     nullptr!=game_phys_y_ && !game_phys_y_->text().trimmed().isEmpty());
+			if(true==hasPhys)
 			{
 				return (nullptr!=memory_write_ && true==memory_write_->isChecked())
 				    ? MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE
 				    : MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK;
 			}
-			return raw;
+			return MouseCoordWriteScan::INTEGRATION_AUTO;
 		}
 	}
 	return integration_mode_;
@@ -805,6 +770,8 @@ void MouseCoordProfilePage::setSelectedMode(int mode)
 	switch(mode)
 	{
 	case MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL:
+		integration_mode_=MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL;
+		break;
 	case MouseCoordWriteScan::INTEGRATION_MOS:
 	case MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE:
 	case MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK:
@@ -819,18 +786,17 @@ void MouseCoordProfilePage::setSelectedMode(int mode)
 	{
 		return;
 	}
-	const bool gamePhys=
-	    MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==integration_mode_ ||
-	    MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK==integration_mode_;
 	if(nullptr!=memory_write_)
 	{
 		QSignalBlocker blocker(memory_write_);
 		memory_write_->setChecked(
 		    MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE==integration_mode_);
 	}
-	const int comboData=true==gamePhys
-	    ? MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK
-	    : integration_mode_;
+	// UI only offers Default / Mouse capture; app Phys and legacy MOS map to Default.
+	const int comboData=
+	    (MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL==integration_mode_)
+	        ? MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL
+	        : MouseCoordWriteScan::INTEGRATION_AUTO;
 	const int idx=mode_combo_->findData(comboData);
 	if(0<=idx && mode_combo_->currentIndex()!=idx)
 	{

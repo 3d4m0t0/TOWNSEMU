@@ -348,7 +348,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.maxButtonHoldTimeMs1=0;
 	v.mouseIntegrationSpeed=256;
 	v.considerVRAMOffsetInMouseIntegration=true;
-	v.autoDifferentialOnMosUnused=true;
+	v.autoDifferentialOnMosUnused=false;
 	v.snapMouseIntegration=false;
 	v.snapMouseWarmupFrames=10;
 	v.cddaCacheDuringDataRead=true;
@@ -1277,13 +1277,6 @@ void SettingsDialog::buildUi()
 		v->addWidget(MakeIndentedNote(
 		    page,
 		    tr("Prevents automatic screen blanking/dimming on Wayland sessions.")));
-
-		auto_diff_on_mos_unused_=new QCheckBox(tr("MOS unused"),page);
-		v->addWidget(auto_diff_on_mos_unused_);
-		v->addWidget(MakeIndentedNote(
-		    page,
-		    tr("Even while Mouse BIOS is running, if it is unused, end mouse integration\n"
-		       "and switch to mouse capture.")));
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,

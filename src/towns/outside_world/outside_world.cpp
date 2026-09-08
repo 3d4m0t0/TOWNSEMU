@@ -1370,13 +1370,13 @@ void ClearStaleSpriteOffsetIfNeeded(FMTownsCommon &towns,bool force);
 
 /*! Decide when the host must use mouse capture (relative gameport deltas).
 
-    Mode summary (non-desktop):
-      Default:           no MOS → capture; MOS → MOS; MOS unused → capture.
-      MOS profile:       no MOS → capture; MOS → MOS; no unused detection.
-      App-specific:      no MOS → capture; MOS → MOS; bound EXE/EXP start → phys
-                         (unused does not switch; MOS+phys may both update).
-      Capture profile:   always capture.
-    Capture is exclusive with MOS absolute and with app-specific apply. */
+    Default priority (highest first):
+      1. App-specific Phys apply (bound EXE) → absolute
+      2. Mouse BIOS alive → MOS absolute
+      3. Else → mouse capture
+    Mouse capture (profile): always capture.
+    Middle button: MOS/app ↔ temporary capture; natural capture arms/disarms.
+    Capture never starts from a screen click. */
 bool MouseCoordForcesDifferential(const FMTownsCommon &towns,bool standardDesktop)
 {
 	if(true==towns.var.mouseCoordWriteScanEnabled ||
@@ -1388,8 +1388,6 @@ bool MouseCoordForcesDifferential(const FMTownsCommon &towns,bool standardDeskto
 	{
 		return true;
 	}
-	// MOS alive: stay on mouse integration.  Unused → capture (Default only) is
-	// decided elsewhere (mosUnusedForcedDiff_ / mouseCoordProfileApply).
 	if(true==towns.state.mouseBIOSActive)
 	{
 		return false;
@@ -1402,8 +1400,7 @@ bool MouseCoordForcesDifferential(const FMTownsCommon &towns,bool standardDeskto
 		{
 			return true!=standardDesktop;
 		}
-		// Mouse BIOS down: direct-write / game-cursor feedback still supply absolute
-		// once app-specific apply is armed (Outside_World), not merely by profile.
+		// App Phys / MOS profile: absolute while MOS or apply path owns the cursor.
 		if(true==p.verified && true!=standardDesktop &&
 		   (true==p.HasDirectWriteTarget() || true==p.HasGameFeedbackTarget()))
 		{
@@ -1571,17 +1568,17 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 		mouseBIOSStoppedForcedDiff_=allowForced;
 	}
 
-	const bool autoForcedDiff=
-	    (true==mosActive && true==mosUnusedForcedDiff_) ||
-	    (true!=mosActive && true==mouseBIOSStoppedForcedDiff_);
-
 	// Decide differential vs absolute/snap first. Capture on/off applies only to
 	// differential; absolute/snap always feeds while the host window is focused.
-	// Operation mode from the disc profile wins over the MOS-usage heuristic.
+	// Default priority: app Phys apply → MOS (if alive) → capture.
 	bool nextDiffWanted=false;
 	if(true==calibrating ||
 	   true==towns.var.mouseCoordWriteScanEnabled ||
 	   true==towns.var.mouseCoordForceCapture)
+	{
+		nextDiffWanted=true;
+	}
+	else if(true==middleForceCapture_)
 	{
 		nextDiffWanted=true;
 	}
@@ -1591,72 +1588,62 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 	}
 	else if(true==towns.var.mouseCoordProfileApply || true==profileKeepAbs)
 	{
-		// App / new / MOS absolute for this disc.
+		// App Phys / explicit MOS absolute for this disc.
 		differentialMouseIntegration=false;
 		nextDiffWanted=false;
 	}
-	else if(true==mouseCoordForcedDiff)
+	else if(true==mosActive)
 	{
-		nextDiffWanted=true;
+		// Mouse BIOS alive → MOS integration (no unused→capture).
+		differentialMouseIntegration=false;
+		mosUnusedForcedDiff_=false;
+		nextDiffWanted=false;
 	}
-	else if(true==mosActive && true!=mosUnusedForcedDiff_)
+	else if(true==mouseCoordForcedDiff || true==mouseBIOSStoppedForcedDiff_)
 	{
-		// MOS alive and used, no absolute profile → Features preference.
-		nextDiffWanted=differentialMouseIntegration;
-	}
-	else if(true!=mosActive)
-	{
-		nextDiffWanted=mouseBIOSStoppedForcedDiff_;
-	}
-	else if(true==mosUnusedForcedDiff_)
-	{
-		// MOS active but unused, and no profile absolute → mouse capture.
 		nextDiffWanted=true;
 	}
 	else
 	{
-		nextDiffWanted=differentialMouseIntegration;
+		nextDiffWanted=true!=standardDesktop;
 	}
 
 	if(true==nextDiffWanted)
 	{
-		// Auto-engaged differential must not grab the host mouse on its own: begin with
-		// capture released so the user starts capture by clicking (ResumeMouseCapture).
-		// Applied once per force episode so a later click-to-capture is not overridden.
-		// Calibration: keep feeding (do not release capture every frame).
+		// Differential must not grab the host mouse on its own: begin with
+		// capture released so the user arms capture with the middle button.
+		// Calibration / memory-scan / force-capture keep feeding.
 		if(true==calibrating ||
 		   true==towns.var.mouseCoordWriteScanEnabled ||
-		   true==towns.var.mouseCoordForceCapture)
+		   true==towns.var.mouseCoordForceCapture ||
+		   true==middleForceCapture_)
 		{
 			forcedDiffReleaseApplied_=false;
-			mouseCaptureReleased_=false;
-		}
-		else if(true==autoForcedDiff || true==mouseCoordForcedDiff)
-		{
-			if(true!=forcedDiffReleaseApplied_)
+			if(true==middleForceCapture_)
 			{
-				forcedDiffReleaseApplied_=true;
-				mouseCaptureReleased_=true;
+				mouseCaptureReleased_=false;
 			}
-			// Do not clear mouseCaptureReleased_ here — middle button / click own it.
 		}
-		else
+		else if(true!=forcedDiffReleaseApplied_)
 		{
-			forcedDiffReleaseApplied_=false;
+			forcedDiffReleaseApplied_=true;
+			mouseCaptureReleased_=true;
 		}
+		// Do not clear mouseCaptureReleased_ here — middle button owns it.
 	}
 	else
 	{
 		// Absolute/snap integration: never keep a stale differential capture-off.
 		forcedDiffReleaseApplied_=false;
 		mouseCaptureReleased_=false;
+		middleForceCapture_=false;
 	}
 
 	bool nextDiff=nextDiffWanted;
 	bool feeding=true;
 	if(true==nextDiffWanted && true==mouseCaptureReleased_)
 	{
-		// Differential with capture released: stop feeding until click/middle resume.
+		// Differential with capture released: stop feeding until middle resume.
 		// Report diff=false so the absolute polling path is idle; UI keys off capture_released.
 		feeding=false;
 		nextDiff=false;
@@ -1735,6 +1722,7 @@ void Outside_World::HandleAppToDesktopReturn(class FMTownsCommon &towns)
 	towns.SyncMouseInfoPrevDrawToCurrent();
 	differentialMouseIntegration=false;
 	mouseCaptureReleased_=false;
+	middleForceCapture_=false;
 	forcedDiffReleaseApplied_=false;
 	mouseIntegrationActive=false;
 	mouseStationaryCount=MOUSE_STATIONARY_COUNT;
@@ -1753,48 +1741,35 @@ void Outside_World::HandleAppToDesktopReturn(class FMTownsCommon &towns)
 
 void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &towns)
 {
-	// Differential capture-released: middle button resumes capture (same as a screen click).
+	// Temporary MOS/app → capture override: middle restores absolute.
+	if(true==middleForceCapture_)
+	{
+		middleForceCapture_=false;
+		forcedDiffReleaseApplied_=false;
+		mouseCaptureReleased_=false;
+		UpdateEffectiveDifferentialMouseIntegration(towns);
+		return;
+	}
+
+	// Natural differential with capture released: middle arms capture.
 	if(true==mouseCaptureReleased_)
 	{
 		ResumeMouseCapture(towns);
 		return;
 	}
 
-	// CD mouse-coord profile locks absolute while profile apply is active.
-	// Do not let the middle button flip the differential preference / spam toggle logs.
-	if(true==towns.var.mouseCoordProfileApply)
+	// Armed mouse capture: middle disarms (host cursor).
+	if(true==effectiveDifferentialMouseIntegration)
 	{
-		if(true==differentialMouseIntegration || true==mouseCaptureReleased_)
-		{
-			differentialMouseIntegration=false;
-			mouseCaptureReleased_=false;
-			UpdateEffectiveDifferentialMouseIntegration(towns);
-		}
-		return;
-	}
-
-	const bool mosActive=towns.state.mouseBIOSActive;
-	const bool autoForcedDiff=
-	    (true==mosActive && true==mosUnusedForcedDiff_) ||
-	    (true!=mosActive && true==mouseBIOSStoppedForcedDiff_);
-	const bool standardDesktop=IsStandardDesktopCrtc(towns);
-	const bool mouseCoordForcedDiff=MouseCoordForcesDifferential(towns,standardDesktop);
-
-	if(true==mosActive && true!=autoForcedDiff && true!=mouseCoordForcedDiff)
-	{
-		// MOS active and user-controlled: toggle absolute/snap <-> differential.
-		// Absolute/snap has no capture on/off — only differential does.
-		differentialMouseIntegration=(true!=differentialMouseIntegration);
-		if(true!=differentialMouseIntegration)
-		{
-			mouseCaptureReleased_=false;
-		}
+		mouseCaptureReleased_=true;
 		UpdateEffectiveDifferentialMouseIntegration(towns);
 		return;
 	}
 
-	// Differential (MOS off, auto-forced, or mouse-coord forced): middle = capture off.
-	mouseCaptureReleased_=true;
+	// Absolute (MOS / app Phys): middle switches to temporary mouse capture.
+	middleForceCapture_=true;
+	mouseCaptureReleased_=false;
+	forcedDiffReleaseApplied_=false;
 	UpdateEffectiveDifferentialMouseIntegration(towns);
 }
 

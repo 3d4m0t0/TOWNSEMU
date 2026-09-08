@@ -1390,26 +1390,15 @@ void TownsQtSettings::setDifferentialMouseIntegration(bool enabled)
 
 bool TownsQtSettings::autoDifferentialOnMosUnused()
 {
-	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	if(settings.contains(QString::fromLatin1(kAutoDiffOnMosUnusedKey)))
-	{
-		return settings.value(QString::fromLatin1(kAutoDiffOnMosUnusedKey),true).toBool();
-	}
-	// Legacy key (was mislabeled as Mouse-BIOS-stop; same checkbox).
-	if(settings.contains(QString::fromLatin1(kAutoDiffOnMosUnusedLegacyKey)))
-	{
-		const bool v=settings.value(QString::fromLatin1(kAutoDiffOnMosUnusedLegacyKey),true).toBool();
-		setAutoDifferentialOnMosUnused(v);
-		return v;
-	}
-	setAutoDifferentialOnMosUnused(true);
-	return true;
+	// Retired: Default keeps MOS while Mouse BIOS is alive (no unused→capture).
+	return false;
 }
 
 void TownsQtSettings::setAutoDifferentialOnMosUnused(bool enabled)
 {
+	Q_UNUSED(enabled);
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	settings.setValue(QString::fromLatin1(kAutoDiffOnMosUnusedKey),enabled);
+	settings.setValue(QString::fromLatin1(kAutoDiffOnMosUnusedKey),false);
 	settings.sync();
 }
 

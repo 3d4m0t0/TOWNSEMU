@@ -732,13 +732,13 @@
     },
     {
       "context": "MainWindow",
-      "source": "Click to capture",
-      "translation": "クリックでキャプチャ"
+      "source": "Middle button to capture",
+      "translation": "中ボタンでキャプチャ"
     },
     {
       "context": "MainWindow",
-      "source": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it.",
-      "translation": "マウスキャプチャ解除中。画面をクリックで開始、中ボタンで解除します。"
+      "source": "Mouse capture released. Press the middle mouse button to start capture; press it again to release.",
+      "translation": "マウスキャプチャ解除中。中ボタンでキャプチャ開始、もう一度で解除。"
     },
     {
       "context": "MainWindow",
@@ -987,13 +987,13 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
-      "translation": "規定: マウスBIOSの動作に合わせ、マウス統合(マウスBIOS)とマウスキャプチャを自動で切り替えます。マウスBIOS非対応タイトルではマウス統合できません。"
+      "source": "Default (priority): app-specific Phys when set and bound → Mouse BIOS (MOS) while alive → mouse capture otherwise. Middle button toggles mouse capture on/off (no click-to-capture). Set Game Phys / Bind for app-specific integration.",
+      "translation": "規定（優先順）: Game Phys＋Bind があればアプリ別 → Mouse BIOS 生存中は MOS 統合 → どちらもなければマウスキャプチャ。中ボタンでキャプチャ切替（画面クリックでは開始しない）。アプリ別は Game Phys / Bind を設定。"
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Mouse capture: always uses mouse capture. Mouse integration is not performed.",
-      "translation": "マウスキャプチャ: 常にマウスキャプチャで動作します。マウス統合は行いません。"
+      "source": "Mouse capture (failsafe): always uses mouse capture. Middle button enables or releases capture. Mouse integration is not performed.",
+      "translation": "マウスキャプチャ（フェイルセーフ）: 常にマウスキャプチャ。中ボタンで有効／解除。マウス統合は行いません。"
     },
     {
       "context": "MouseCoordProfilePage",

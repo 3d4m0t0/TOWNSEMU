@@ -745,12 +745,14 @@ void EmuView::mousePressEvent(QMouseEvent *event)
 		}
 		if(0!=btn)
 		{
-			// A click while capture is released only resumes capture (below); don't pass it to
-			// the guest, or it would register as a stray in-game click.  Remember the button so
-			// its release is swallowed too.
-			const bool resumeClick=
-			    true==mouse_capture_released_ && true==isPointOnEmuPicture(view_pos);
-			if(true==resumeClick)
+			// Capture is armed only by the middle button. While released, swallow
+			// L/R picture clicks so they do not become stray guest clicks — but
+			// always forward middle so HandleMouseIntegrationMiddleButton can arm.
+			const bool swallowIdleClick=
+			    true==mouse_capture_released_ &&
+			    true==isPointOnEmuPicture(view_pos) &&
+			    QtInputQueue::MOUSE_BTN_MIDDLE!=btn;
+			if(true==swallowIdleClick)
 			{
 				suppressed_guest_buttons_|=btn;
 			}
@@ -792,7 +794,7 @@ void EmuView::mouseReleaseEvent(QMouseEvent *event)
 		{
 			if(0!=(suppressed_guest_buttons_&btn))
 			{
-				// Matching release of a click that only resumed capture — swallow it too.
+				// Matching release of a swallowed idle L/R click.
 				suppressed_guest_buttons_&=~btn;
 			}
 			else

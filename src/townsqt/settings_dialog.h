@@ -81,7 +81,7 @@ public:
 		int maxButtonHoldTimeMs1=0;
 		int mouseIntegrationSpeed=256;
 		bool considerVRAMOffsetInMouseIntegration=true;
-		bool autoDifferentialOnMosUnused=true;
+		bool autoDifferentialOnMosUnused=false;
 		bool snapMouseIntegration=false;
 		int snapMouseWarmupFrames=10;
 		bool cddaCacheDuringDataRead=true;

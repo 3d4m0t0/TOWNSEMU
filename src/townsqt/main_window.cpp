@@ -5247,13 +5247,14 @@ void MainWindow::updateMouseModeIndicator()
 		case MouseCoordWriteScan::INTEGRATION_DIRECT_WRITE:
 		case MouseCoordWriteScan::INTEGRATION_GAME_FEEDBACK:
 			text=tr("Mouse integration (app-specific settings)");
-			tip=tr("Mouse integration (app-specific settings): follows Default until a bound EXP starts, "
-			       "then applies per-app Phys settings for the in-game cursor.");
+			tip=tr("App-specific Phys integration is active. "
+			       "Middle button switches to mouse capture; middle again restores.");
 			break;
 		case MouseCoordWriteScan::INTEGRATION_MOS:
 		default:
 			text=tr("Mouse integration (Mouse BIOS)");
-			tip=tr("Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.");
+			tip=tr("Mouse BIOS (MOS) integration is active. "
+			       "Middle button switches to mouse capture; middle again restores.");
 			break;
 		}
 		break;
@@ -5265,9 +5266,9 @@ void MainWindow::updateMouseModeIndicator()
 		break;
 	default:
 		// Mouse capture, released: alternate the state word with the capture hint.
-		text=(0==mouse_mode_phase_) ? tr("Mouse capture (released)") : tr("Click to capture");
-		tip=tr("Mouse capture released. Click the screen to start capture; "
-		       "press the middle mouse button to release it.");
+		text=(0==mouse_mode_phase_) ? tr("Mouse capture (released)") : tr("Middle button to capture");
+		tip=tr("Mouse capture released. Press the middle mouse button to start capture; "
+		       "press it again to release.");
 		break;
 	}
 	mouse_mode_label_->setText(text);
@@ -5310,27 +5311,7 @@ void MainWindow::updateMouseFailsafeFromActivity()
 
 void MainWindow::noteEmuPictureClicked()
 {
-	// Capture resume is for differential only. Absolute/snap clears any stale
-	// capture-released flag in UpdateEffectiveDifferentialMouseIntegration.
-	if(cached_mouse_capture_released_ &&
-	   nullptr!=controller_ &&
-	   nullptr!=emu_thread_ &&
-	   emu_thread_->isRunning())
-	{
-		QMetaObject::invokeMethod(
-		    controller_,
-		    "resumeMouseCapture",
-		    Qt::QueuedConnection);
-		cached_mouse_capture_released_=false;
-		if(nullptr!=view_)
-		{
-			view_->setMouseCaptureReleased(false);
-		}
-		syncWaylandRelativePointer();
-		updateBlankCursor();
-		updateMouseModeIndicator();
-		return;
-	}
+	// Capture is armed only by the middle mouse button (not by screen click).
 	updateBlankCursor();
 }
 

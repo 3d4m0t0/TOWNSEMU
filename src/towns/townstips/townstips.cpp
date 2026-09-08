@@ -61,9 +61,10 @@ std::vector <std::string> TownsTips::GetTips(void)
 	);
 
 	tips.push_back(
-		"If the mouse does not work, or jumping around, or uncontrollable, try differential\n"
-		"mouse integration.  It is enabled when you press mouse middle button, and disabled"
-		"when you press the middle button again.\n"
+		"Mouse operation (Default): app-specific Phys when set → Mouse BIOS (MOS) while\n"
+		"alive → mouse capture otherwise.  Mouse capture mode always uses capture.\n"
+		"The middle mouse button enables or releases capture (and temporarily switches\n"
+		"from MOS/app integration to capture).  Screen clicks do not start capture.\n"
 		"Also you can control mouse by keyboard arrow keys, or a USB game pad.\n"
 		"Go to Game-Port options, and select appropriate mouse mode.\n"
 	);
