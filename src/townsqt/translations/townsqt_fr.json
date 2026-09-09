@@ -3,7 +3,7 @@
     {
       "context": "AudioMixerDialog",
       "source": "Audio mixer",
-      "translation": "Audio mixer"
+      "translation": "Mixeur audio"
     },
     {
       "context": "AudioMixerDialog",
@@ -28,12 +28,12 @@
     {
       "context": "AudioMixerDialog",
       "source": "Close",
-      "translation": "Close"
+      "translation": "Fermer"
     },
     {
       "context": "CdromMonitorWindow",
       "source": "CD-ROM monitor",
-      "translation": "CD-ROM monitor"
+      "translation": "Moniteur CD-ROM"
     },
     {
       "context": "CdromMonitorWindow",
@@ -48,22 +48,67 @@
     {
       "context": "CdromMonitorWindow",
       "source": "CDDA cache",
-      "translation": "CDDA cache"
+      "translation": "Cache CDDA"
     },
     {
       "context": "DebugTextWindow",
       "source": "Clear",
-      "translation": "Clear"
+      "translation": "Effacer"
     },
     {
       "context": "DebugTextWindow",
       "source": "Close",
-      "translation": "Close"
+      "translation": "Fermer"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Single-drive mode (disable FD1)",
+      "translation": "Mode single-drive (FD1 off)"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Towns CMOS flag at I/O 0x328C. When on, FD1 is unavailable.",
+      "translation": "Flag CMOS Towns (I/O 0x328C). Activé = FD1 indisponible."
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Drive letter assignments (A–P). Apply or OK writes VM CMOS RAM and the active CMOS file. Towns OS usually picks them up after reset/boot.",
+      "translation": "Lettres de lecteur (A–P). Appliquer/OK écrit la CMOS RAM et le fichier CMOS actif. Towns OS : souvent après reset/boot."
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Type",
+      "translation": "Type"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Unit",
+      "translation": "Unit"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Unassigned",
+      "translation": "Libre"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "FD",
+      "translation": "FD"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "SCSI",
+      "translation": "SCSI"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "ROM",
+      "translation": "ROM"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Hard disk drive settings",
-      "translation": "Hard disk drive settings"
+      "translation": "Disque dur"
     },
     {
       "context": "HddSettingsDialog",
@@ -73,117 +118,147 @@
     {
       "context": "HddSettingsDialog",
       "source": "No image",
-      "translation": "No image"
+      "translation": "Pas d’image"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Create",
-      "translation": "Create"
+      "translation": "Créer"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Create a sparse image.\nLogical size is as entered; disk usage starts small and grows on write.",
-      "translation": "Create a sparse image.\nLogical size is as entered; disk usage starts small and grows on write."
+      "translation": "Créer une image sparse.\nTaille logique saisie ; usage disque faible au début, croît à l’écriture."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Compact",
-      "translation": "Compact"
+      "translation": "Compacter"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Make an existing image sparse by punching holes in zero regions.\nLogical size is unchanged; only on-disk usage shrinks.",
-      "translation": "Make an existing image sparse by punching holes in zero regions.\nLogical size is unchanged; only on-disk usage shrinks."
+      "translation": "Rendre sparse (trous dans les zéros).\nTaille logique inchangée ; usage disque réduit."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Browse…",
-      "translation": "Browse…"
+      "translation": "Parcourir…"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Remove",
-      "translation": "Remove"
+      "translation": "Retirer"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "TownsOS: create with 1 partition + format (127 MB, max size)",
+      "translation": "TownsOS : 1 partition + format (127 MB, max)"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Writes Towns HD IPL, one full-size partition, and an empty FAT16.\nFor HD0, CMOS is set to D: = SCSI unit 0 after OK.\nRestart the emulator to recognize the drive.",
+      "translation": "Écrit IPL HD Towns, une partition pleine et FAT16 vide.\nHD0 : CMOS D: = SCSI unit 0 après OK.\nRedémarrage requis."
     },
     {
       "context": "HddSettingsDialog",
       "source": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written.",
-      "translation": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written."
+      "translation": "Nouvelles images en sparse. L’explorateur montre la taille logique ; usage réel faible tant qu’on n’écrit pas."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Images are stored under %1 by default.",
-      "translation": "Images are stored under %1 by default."
+      "translation": "Images par défaut dans %1."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Changes take effect after the emulator is restarted.",
-      "translation": "Changes take effect after the emulator is restarted."
+      "translation": "Effet après redémarrage de l’émulateur."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Path: %1\nLogical size: %2\nDisk usage: %3",
-      "translation": "Path: %1\nLogical size: %2\nDisk usage: %3"
+      "translation": "Chemin : %1\nTaille logique : %2\nUsage disque : %3"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Create hard disk image",
-      "translation": "Create hard disk image"
+      "translation": "Créer image HD"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Logical size in MB (%1–%2).\nCreated as a sparse image:",
-      "translation": "Logical size in MB (%1–%2).\nCreated as a sparse image:"
+      "translation": "Taille logique en Mo (%1–%2).\nImage sparse :"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Create a 127 MB TownsOS image with one full-size partition and an empty format?\nFor HD0, D: will be set to SCSI unit 0 in CMOS when you press OK.",
+      "translation": "Créer une image TownsOS 127 Mo (1 partition, format vide) ?\nHD0 : D: = SCSI unit 0 en CMOS à OK."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Failed to create the hard disk directory.",
-      "translation": "Failed to create the hard disk directory."
+      "translation": "Échec création du dossier HD."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Hard disk images (*.hd *.hdi *.hdm *.bin);;All files (*)",
-      "translation": "Hard disk images (*.hd *.hdi *.hdm *.bin);;All files (*)"
+      "translation": "Images disque (*.hd *.hdi *.hdm *.bin);;Tous les fichiers (*)"
     },
     {
       "context": "HddSettingsDialog",
       "source": "The file already exists. Overwrite it?",
-      "translation": "The file already exists. Overwrite it?"
+      "translation": "Le fichier existe. Écraser ?"
     },
     {
       "context": "HddSettingsDialog",
       "source": "Failed to create the hard disk image.",
-      "translation": "Failed to create the hard disk image."
+      "translation": "Échec création image HD."
     },
     {
       "context": "HddSettingsDialog",
-      "source": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
-      "translation": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage."
+      "source": "Created a TownsOS-formatted sparse hard disk image (1 partition).\n\n",
+      "translation": "Image HD sparse TownsOS créée (1 partition).\n\n"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Created a sparse hard disk image.\n\n",
+      "translation": "Image HD sparse créée.\n\n"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Logical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
+      "translation": "Taille logique (FM TOWNS) : %1\nUsage ici : %2\n\nL’explorateur montre la taille logique. Infobulle du chemin ou `du -h` pour l’usage."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "\n\nAfter OK: CMOS D: = SCSI unit 0 (HD0). Restart to recognize the drive.",
+      "translation": "\n\nAprès OK : CMOS D: = SCSI unit 0 (HD0). Redémarrer pour reconnaître."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Compact hard disk image",
-      "translation": "Compact hard disk image"
+      "translation": "Compacter image HD"
     },
     {
       "context": "HddSettingsDialog",
       "source": "The selected file does not exist.",
-      "translation": "The selected file does not exist."
+      "translation": "Le fichier n’existe pas."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Failed to compact the hard disk image.\nSparse compaction is supported on Linux with ext4, XFS, or Btrfs.",
-      "translation": "Failed to compact the hard disk image.\nSparse compaction is supported on Linux with ext4, XFS, or Btrfs."
+      "translation": "Échec compaction.\nSparse sous Linux : ext4, XFS ou Btrfs."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Compacted the hard disk image.\nLogical size is unchanged; unused zero regions now use less disk space.",
-      "translation": "Compacted the hard disk image.\nLogical size is unchanged; unused zero regions now use less disk space."
+      "translation": "Image HD compactée.\nTaille logique inchangée ; zéros occupent moins d’espace."
     },
     {
       "context": "HddSettingsDialog",
       "source": "Select hard disk image",
-      "translation": "Select hard disk image"
+      "translation": "Choisir image HD"
     },
     {
       "context": "MainWindow",
@@ -198,7 +273,7 @@
     {
       "context": "MainWindow",
       "source": "Failed to load CD image",
-      "translation": "Failed to load CD image"
+      "translation": "Échec chargement CD"
     },
     {
       "context": "MainWindow",
@@ -208,12 +283,12 @@
     {
       "context": "MainWindow",
       "source": "Restarting the emulator…",
-      "translation": "Redémarrage de l’émulateur…"
+      "translation": "Redémarrage…"
     },
     {
       "context": "MainWindow",
       "source": "Emulator restarted",
-      "translation": "Émulateur redémarré"
+      "translation": "Redémarré"
     },
     {
       "context": "MainWindow",
@@ -223,7 +298,7 @@
     {
       "context": "MainWindow",
       "source": "&Restart",
-      "translation": "&Restart"
+      "translation": "&Redémarrer"
     },
     {
       "context": "MainWindow",
@@ -238,17 +313,17 @@
     {
       "context": "MainWindow",
       "source": "Window scale",
-      "translation": "Window scale"
+      "translation": "Échelle fenêtre"
     },
     {
       "context": "MainWindow",
       "source": "Decrease window scale",
-      "translation": "Decrease window scale"
+      "translation": "Échelle −"
     },
     {
       "context": "MainWindow",
       "source": "Increase window scale",
-      "translation": "Increase window scale"
+      "translation": "Échelle +"
     },
     {
       "context": "MainWindow",
@@ -268,17 +343,17 @@
     {
       "context": "MainWindow",
       "source": "&Open CD image…",
-      "translation": "&Ouvrir une image CD…"
+      "translation": "Ouvrir CD (&O)…"
     },
     {
       "context": "MainWindow",
       "source": "&Eject CD",
-      "translation": "Éjecter CD (&E)"
+      "translation": "Éjecter (&E)"
     },
     {
       "context": "MainWindow",
       "source": "Open &recent files",
-      "translation": "Fichiers &récents"
+      "translation": "&Récents…"
     },
     {
       "context": "MainWindow",
@@ -288,7 +363,7 @@
     {
       "context": "MainWindow",
       "source": "Hard disk drive settings…",
-      "translation": "Hard disk drive settings…"
+      "translation": "Disque dur…"
     },
     {
       "context": "MainWindow",
@@ -303,17 +378,17 @@
     {
       "context": "MainWindow",
       "source": "Open recent files",
-      "translation": "Fichiers récents"
+      "translation": "Récents"
     },
     {
       "context": "MainWindow",
       "source": "Write protect",
-      "translation": "Lecture seule"
+      "translation": "Prot. écriture"
     },
     {
       "context": "MainWindow",
       "source": "Create blank FD image",
-      "translation": "Image FD vierge"
+      "translation": "FD vierge"
     },
     {
       "context": "MainWindow",
@@ -323,7 +398,7 @@
     {
       "context": "MainWindow",
       "source": "&Settings…",
-      "translation": "&Options…"
+      "translation": "&Paramètres…"
     },
     {
       "context": "MainWindow",
@@ -333,7 +408,7 @@
     {
       "context": "MainWindow",
       "source": "&Load",
-      "translation": "&Load"
+      "translation": "&Charger"
     },
     {
       "context": "MainWindow",
@@ -343,27 +418,27 @@
     {
       "context": "MainWindow",
       "source": "&Save",
-      "translation": "&Save"
+      "translation": "&Enregistrer"
     },
     {
       "context": "MainWindow",
       "source": "Audio mixer…",
-      "translation": "Audio mixer…"
+      "translation": "Mixeur audio…"
     },
     {
       "context": "MainWindow",
       "source": "Drive access",
-      "translation": "Accès lecteurs"
+      "translation": "Accès disque"
     },
     {
       "context": "MainWindow",
       "source": "FPS display",
-      "translation": "FPS display"
+      "translation": "Affichage FPS"
     },
     {
       "context": "MainWindow",
       "source": "Show FPS, emulation Hz, and present-queue stats in the window title.",
-      "translation": "Show FPS, emulation Hz, and present-queue stats in the window title."
+      "translation": "FPS, Hz d’émulation et file present dans le titre."
     },
     {
       "context": "MainWindow",
@@ -373,7 +448,7 @@
     {
       "context": "MainWindow",
       "source": "Mouse integration coords",
-      "translation": "Coords. souris"
+      "translation": "Coords souris"
     },
     {
       "context": "MainWindow",
@@ -383,42 +458,42 @@
     {
       "context": "MainWindow",
       "source": "CD-ROM monitor",
-      "translation": "CD-ROM monitor"
+      "translation": "Moniteur CD-ROM"
     },
     {
       "context": "MainWindow",
       "source": "Log CD-ROM commands, CDDA play/stop, and data-sector access.",
-      "translation": "Log CD-ROM commands, CDDA play/stop, and data-sector access."
+      "translation": "Journaliser commandes CD, CDDA play/stop et secteurs data."
     },
     {
       "context": "MainWindow",
       "source": "APP monitor",
-      "translation": "APP monitor"
+      "translation": "Moniteur APP"
     },
     {
       "context": "MainWindow",
       "source": "Log guest EXE/EXP identity, MOS session, in-game phase, and mouse apply.",
-      "translation": "Log guest EXE/EXP identity, MOS session, in-game phase, and mouse apply."
+      "translation": "Journaliser EXE/EXP, session MOS, phase et apply souris."
     },
     {
       "context": "MainWindow",
       "source": "CPU / CS:EIP history",
-      "translation": "Historique CS:EIP"
+      "translation": "CPU / CS:EIP"
     },
     {
       "context": "MainWindow",
       "source": "Live CPU registers, current instruction, CS:EIP history, and call stack. Enables the core debugger while open.",
-      "translation": "Registres CPU, instruction courante, historique CS:EIP et pile d'appels. Active le débogueur du cœur tant que la fenêtre est ouverte."
+      "translation": "Registres CPU live, instruction, historique CS:EIP et pile. Active le debugger tant qu’ouvert."
     },
     {
       "context": "MainWindow",
       "source": "&Help",
-      "translation": "A&ide"
+      "translation": "&Aide"
     },
     {
       "context": "MainWindow",
       "source": "Disc profile clock updated.",
-      "translation": "Disc profile clock updated."
+      "translation": "Horloge profil mise à jour."
     },
     {
       "context": "MainWindow",
@@ -428,47 +503,62 @@
     {
       "context": "MainWindow",
       "source": "Sprite transfer  %1",
-      "translation": "Sprites  %1"
+      "translation": "Transfert sprite  %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Hard disk drive settings",
+      "translation": "Disque dur"
+    },
+    {
+      "context": "MainWindow",
+      "source": "HD image created, but failed to set CMOS D: = SCSI unit 0.",
+      "translation": "Image HD créée, échec CMOS D: = SCSI unit 0."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Hard disk settings saved (CMOS D: = SCSI unit 0). Restart to recognize HD0.",
+      "translation": "Disque dur enregistré (CMOS D: = SCSI unit 0). Redémarrer pour HD0."
     },
     {
       "context": "MainWindow",
       "source": "Hard disk settings saved. They take effect after restart.",
-      "translation": "Hard disk settings saved. They take effect after restart."
+      "translation": "Disque dur enregistré. Effet après redémarrage."
     },
     {
       "context": "MainWindow",
       "source": "Drive configuration",
-      "translation": "Drive configuration"
+      "translation": "Lecteurs"
     },
     {
       "context": "MainWindow",
       "source": "Failed to update CMOS (file missing or not writable).",
-      "translation": "Failed to update CMOS (file missing or not writable)."
+      "translation": "Échec mise à jour CMOS (absent/non inscriptible)."
     },
     {
       "context": "MainWindow",
       "source": "Could not apply mouse profile (need a disc profile).",
-      "translation": "Could not apply mouse profile (need a disc profile)."
+      "translation": "Profil souris non applicable (profil disque requis)."
     },
     {
       "context": "MainWindow",
       "source": "Could not create disc profile.",
-      "translation": "Could not create disc profile."
+      "translation": "Profil non créé."
     },
     {
       "context": "MainWindow",
       "source": "Could not delete disc profile.",
-      "translation": "Could not delete disc profile."
+      "translation": "Profil non supprimé."
     },
     {
       "context": "MainWindow",
       "source": "Disc profile deleted.",
-      "translation": "Disc profile deleted."
+      "translation": "Profil supprimé."
     },
     {
       "context": "MainWindow",
       "source": "Bound current EXP to disc profile.",
-      "translation": "Bound current EXP to disc profile."
+      "translation": "EXP lié au profil."
     },
     {
       "context": "MainWindow",
@@ -483,17 +573,17 @@
     {
       "context": "MainWindow",
       "source": "The selected CPU/model did not match the SYS ROM, so it was reset to an allowed value.",
-      "translation": "The selected CPU/model did not match the SYS ROM, so it was reset to an allowed value."
+      "translation": "CPU/modèle incompatible avec la SYS ROM — réinitialisé à une valeur autorisée."
     },
     {
       "context": "MainWindow",
       "source": "Could not save disc profile.",
-      "translation": "Could not save disc profile."
+      "translation": "Profil non enregistré."
     },
     {
       "context": "MainWindow",
       "source": "Open CD image",
-      "translation": "Ouvrir CD"
+      "translation": "Ouvrir image CD"
     },
     {
       "context": "MainWindow",
@@ -503,7 +593,7 @@
     {
       "context": "MainWindow",
       "source": "Open FD image (%1)",
-      "translation": "Ouvrir FD (%1)"
+      "translation": "Ouvrir image FD (%1)"
     },
     {
       "context": "MainWindow",
@@ -513,22 +603,22 @@
     {
       "context": "MainWindow",
       "source": "Failed to create the FD image.",
-      "translation": "Échec de la création de l’image FD."
+      "translation": "Échec image FD."
     },
     {
       "context": "MainWindow",
       "source": "Unsupported floppy-image extension.",
-      "translation": "Unsupported floppy-image extension."
+      "translation": "Extension FD inconnue."
     },
     {
       "context": "MainWindow",
       "source": "The file already exists. Overwrite it?",
-      "translation": "The file already exists. Overwrite it?"
+      "translation": "Le fichier existe. Écraser ?"
     },
     {
       "context": "MainWindow",
       "source": "Clear list",
-      "translation": "Effacer"
+      "translation": "Vider la liste"
     },
     {
       "context": "MainWindow",
@@ -553,47 +643,57 @@
     {
       "context": "MainWindow",
       "source": "Profile enabled",
-      "translation": "Profile enabled"
+      "translation": "Profil actif"
     },
     {
       "context": "MainWindow",
       "source": "A disc profile is loaded for the mounted CD.",
-      "translation": "A disc profile is loaded for the mounted CD."
+      "translation": "Profil disque chargé pour le CD."
     },
     {
       "context": "MainWindow",
       "source": "Mouse integration debug",
-      "translation": "Mouse integration debug"
+      "translation": "Debug souris"
     },
     {
       "context": "MainWindow",
       "source": "Mouse capture ON — list refresh / prune (profile paused). ESC to stop.",
-      "translation": "Mouse capture ON — list refresh / prune (profile paused). ESC to stop."
+      "translation": "Capture ON — rafraîchir/élaguer (profil en pause). ESC pour arrêter."
     },
     {
       "context": "MainWindow",
       "source": "Mouse capture OFF — profile mouse mode restored.",
-      "translation": "Mouse capture OFF — profile mouse mode restored."
+      "translation": "Capture OFF — mode souris du profil restauré."
     },
     {
       "context": "MainWindow",
       "source": "Scan on — adding candidates (mouse capture ON). ESC to stop.",
-      "translation": "Scan on — adding candidates (mouse capture ON). ESC to stop."
+      "translation": "Scan ON — ajout de candidats (capture ON). ESC pour arrêter."
     },
     {
       "context": "MainWindow",
       "source": "Scan off — capture may stay on for prune.",
-      "translation": "Scan off — capture may stay on for prune."
+      "translation": "Scan OFF — la capture peut rester pour élaguer."
     },
     {
       "context": "MainWindow",
       "source": "Check one X and one Y candidate, then Update.",
-      "translation": "Check one X and one Y candidate, then Update."
+      "translation": "Cochez un X et un Y, puis Update."
     },
     {
       "context": "MainWindow",
       "source": "Updated Mouse integration setting from selected X/Y.",
-      "translation": "Updated Mouse integration setting from selected X/Y."
+      "translation": "Intégration souris mise à jour depuis X/Y."
+    },
+    {
+      "context": "MainWindow",
+      "source": "VM paused (CPU debug)",
+      "translation": "VM en pause (CPU debug)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "VM resumed",
+      "translation": "VM reprise"
     },
     {
       "context": "MainWindow",
@@ -608,72 +708,72 @@
     {
       "context": "MainWindow",
       "source": "Stopped (ESC) — profile mouse mode restored.",
-      "translation": "Stopped (ESC) — profile mouse mode restored."
+      "translation": "Arrêté (ESC) — mode souris du profil restauré."
     },
     {
       "context": "MainWindow",
       "source": "Mouse capture released (ESC).",
-      "translation": "Mouse capture released (ESC)."
+      "translation": "Capture libérée (ESC)."
     },
     {
       "context": "MainWindow",
       "source": "Exit ESC",
-      "translation": "Fin ESC"
+      "translation": "Quitter ESC"
     },
     {
       "context": "MainWindow",
       "source": "Mouse capture",
-      "translation": "Mouse capture"
+      "translation": "Capture souris"
     },
     {
       "context": "MainWindow",
       "source": "Memory scan mouse capture is active. Press ESC to stop Scan and capture.",
-      "translation": "Memory scan mouse capture is active. Press ESC to stop Scan and capture."
+      "translation": "Capture du scan mémoire active. ESC arrête Scan et capture."
     },
     {
       "context": "MainWindow",
       "source": "Mouse integration (app-specific settings)",
-      "translation": "Mouse integration (app-specific settings)"
+      "translation": "Intégr. souris (app)"
     },
     {
       "context": "MainWindow",
-      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor.",
-      "translation": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor."
+      "source": "App-specific Phys integration is active. Middle button switches to mouse capture; middle again restores.",
+      "translation": "Phys app actif. Clic milieu → capture ; encore → restauration."
     },
     {
       "context": "MainWindow",
       "source": "Mouse integration (Mouse BIOS)",
-      "translation": "Mouse integration (Mouse BIOS)"
+      "translation": "Intégr. souris (Mouse BIOS)"
     },
     {
       "context": "MainWindow",
-      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.",
-      "translation": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS."
+      "source": "Mouse BIOS (MOS) integration is active. Middle button switches to mouse capture; middle again restores.",
+      "translation": "Intégration Mouse BIOS (MOS) active. Clic milieu → capture ; encore → restauration."
     },
     {
       "context": "MainWindow",
       "source": "Middle button to release",
-      "translation": "Middle button to release"
+      "translation": "Clic milieu: libérer"
     },
     {
       "context": "MainWindow",
       "source": "Mouse capture is active. Press the middle mouse button to release capture.",
-      "translation": "Mouse capture is active. Press the middle mouse button to release capture."
+      "translation": "Capture active. Clic milieu pour libérer."
     },
     {
       "context": "MainWindow",
       "source": "Mouse capture (released)",
-      "translation": "Mouse capture (released)"
+      "translation": "Capture (libre)"
     },
     {
       "context": "MainWindow",
-      "source": "Click to capture",
-      "translation": "Click to capture"
+      "source": "Middle button to capture",
+      "translation": "Clic milieu: capturer"
     },
     {
       "context": "MainWindow",
-      "source": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it.",
-      "translation": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it."
+      "source": "Mouse capture released. Press the middle mouse button to start capture; press it again to release.",
+      "translation": "Capture libre. Clic milieu pour capturer ; encore pour libérer."
     },
     {
       "context": "MainWindow",
@@ -683,37 +783,37 @@
     {
       "context": "MainWindow",
       "source": "Window scale (%1x)",
-      "translation": "Window scale (%1x)"
+      "translation": "Échelle (%1x)"
     },
     {
       "context": "MainWindow",
       "source": "Emulator is not running",
-      "translation": "Emulator is not running"
+      "translation": "Émulateur arrêté"
     },
     {
       "context": "MainWindow",
       "source": "Failed to load state slot %1",
-      "translation": "Failed to load state slot %1"
+      "translation": "Échec chargement slot %1"
     },
     {
       "context": "MainWindow",
       "source": "State slot %1 loaded",
-      "translation": "State slot %1 loaded"
+      "translation": "Slot %1 chargé"
     },
     {
       "context": "MainWindow",
       "source": "No resume state for the mounted CD (slot 0)",
-      "translation": "No resume state for the mounted CD (slot 0)"
+      "translation": "Pas d’état resume (slot 0)"
     },
     {
       "context": "MainWindow",
       "source": "Failed to save state slot %1",
-      "translation": "Failed to save state slot %1"
+      "translation": "Échec enregistrement slot %1"
     },
     {
       "context": "MainWindow",
       "source": "State slot %1 saved",
-      "translation": "State slot %1 saved"
+      "translation": "Slot %1 enregistré"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -723,22 +823,12 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Mouse capture",
-      "translation": "Mouse capture"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS)",
-      "translation": "Mouse integration (Mouse BIOS)"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (app-specific settings)",
-      "translation": "Mouse integration (app-specific settings)"
+      "translation": "Capture souris"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Clear",
-      "translation": "Clear"
+      "translation": "Effacer"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -748,17 +838,17 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Mouse operation type",
-      "translation": "Mouse operation type"
+      "translation": "Mode souris"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Current EXP:",
-      "translation": "Current EXP:"
+      "translation": "EXP actuel :"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Linked EXP:",
-      "translation": "Linked EXP:"
+      "translation": "EXP lié :"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -768,42 +858,42 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Bind app-specific mouse integration to the latest DOS Load/Exec (INT 21H AH=4BH). Under DOS extenders (RUN386), bind the .EXP payload when shown.",
-      "translation": "Bind app-specific mouse integration to the latest DOS Load/Exec (INT 21H AH=4BH). Under DOS extenders (RUN386), bind the .EXP payload when shown."
+      "translation": "Lier la souris app au dernier DOS Load/Exec (INT 21H AH=4BH). Sous extender (RUN386) : lier le .EXP affiché."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Phys search",
-      "translation": "Phys search"
+      "translation": "Recherche Phys"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Open Memory scan to find guest RAM cursor coordinates.\nSettings closes while the scan window is open.",
-      "translation": "Open Memory scan to find guest RAM cursor coordinates.\nSettings closes while the scan window is open."
+      "translation": "Ouvrir le scan mémoire pour les coords curseur.\nLes paramètres se ferment pendant le scan."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Load preset",
-      "translation": "Load preset"
+      "translation": "Charger preset"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile.",
-      "translation": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile."
+      "translation": "Charger un preset souris pour cette empreinte CD.\nActif si mouse_XXXXXXXX.ini existe. Appliquer/OK enregistre dans le profil."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Save to file",
-      "translation": "Save to file"
+      "translation": "Enregistrer"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Write the current app-specific mouse settings to\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini.\nEnabled when app-specific Phys is set.",
-      "translation": "Write the current app-specific mouse settings to\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini.\nEnabled when app-specific Phys is set."
+      "translation": "Écrire les réglages souris app dans\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini.\nActif si Phys app défini."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Axis",
-      "translation": "Axis"
+      "translation": "Axe"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -838,32 +928,32 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Invert",
-      "translation": "Invert"
+      "translation": "Inverser"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes.",
-      "translation": "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes."
+      "translation": "Offset depuis DS.base live (WC). Préférer à Phys absolu si le layout change (RAM/CMOS/HDD)."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value.",
-      "translation": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value."
+      "translation": "2e Phys X/Y optionnel (ci-dessous). Direct-write applique Scale par ligne."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Multiplies the mapped write value for this Phys pair (0 = no multiply).",
-      "translation": "Multiplies the mapped write value for this Phys pair (0 = no multiply)."
+      "translation": "Multiplie la valeur écrite mappée (0 = pas de multiplication)."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Invert X",
-      "translation": "Invert X"
+      "translation": "Inverser X"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Invert Y",
-      "translation": "Invert Y"
+      "translation": "Inverser Y"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -893,67 +983,52 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Memory write",
-      "translation": "Memory write"
+      "translation": "Écriture RAM"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "On: poke Game Phys in guest RAM (range clamp).\nOff: feed host−guest deltas through the gameport.",
-      "translation": "On: poke Game Phys in guest RAM (range clamp).\nOff: feed host−guest deltas through the gameport."
+      "translation": "On : poke Game Phys en RAM (clamp).\nOff : deltas host−guest via gameport."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Wait for gameport input to apply",
-      "translation": "Wait for gameport input to apply"
+      "translation": "Attendre gameport"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "When on, hold the next gameport packet until Phys updates or the port is idle. Turn off for continuous refill (may oscillate on delayed guest feedback). Only used for gameport mode (memory write off).",
-      "translation": "When on, hold the next gameport packet until Phys updates or the port is idle. Turn off for continuous refill (may oscillate on delayed guest feedback). Only used for gameport mode (memory write off)."
+      "translation": "On : retenir le paquet gameport jusqu’à Phys/idle. Off : refill continu (peut osciller). Mode gameport seulement."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Stop writing to Mouse BIOS soft-cursor phys",
-      "translation": "Stop writing to Mouse BIOS soft-cursor phys"
+      "translation": "Stop soft-cursor Phys"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "When on, do not write Mouse BIOS soft coordinates while MOS is alive. Game Phys / gameport still follow app-specific settings.",
-      "translation": "When on, do not write Mouse BIOS soft coordinates while MOS is alive. Game Phys / gameport still follow app-specific settings."
+      "translation": "On : ne pas écrire soft Mouse BIOS tant que MOS vit. Game Phys/gameport suivent encore les réglages app."
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
-      "translation": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration."
+      "source": "Default (priority): app-specific Phys when set and bound → Mouse BIOS (MOS) while alive → mouse capture otherwise. Middle button toggles mouse capture on/off (no click-to-capture). Set Game Phys / Bind for app-specific integration.",
+      "translation": "Défaut (priorité) : Phys app si défini+lié → Mouse BIOS (MOS) vivant → sinon capture. Clic milieu bascule capture (pas de clic-pour-capturer). App : Game Phys / Bind."
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Mouse capture: always uses mouse capture. Mouse integration is not performed.",
-      "translation": "Mouse capture: always uses mouse capture. Mouse integration is not performed."
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
-      "translation": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration."
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved.",
-      "translation": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved."
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport.",
-      "translation": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport."
+      "source": "Mouse capture (failsafe): always uses mouse capture. Middle button enables or releases capture. Mouse integration is not performed.",
+      "translation": "Capture (failsafe) : toujours capture. Clic milieu on/off. Pas d’intégration souris."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Could not write mouse preset:\n%1",
-      "translation": "Could not write mouse preset:\n%1"
+      "translation": "Échec écriture preset souris :\n%1"
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Memory scan",
-      "translation": "Memory scan"
+      "translation": "Scan mémoire"
     },
     {
       "context": "MouseCoordScanWindow",
@@ -963,42 +1038,42 @@
     {
       "context": "MouseCoordScanWindow",
       "source": "Scan RAM for new coordinate candidates (also turns Mouse capture ON).\nMove the mouse in the emu view.  ESC stops Scan and capture.",
-      "translation": "Scan RAM for new coordinate candidates (also turns Mouse capture ON).\nMove the mouse in the emu view.  ESC stops Scan and capture."
+      "translation": "Scanner la RAM pour des candidats (capture ON).\nBouger la souris dans l’emu. ESC arrête Scan et capture."
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Mouse capture",
-      "translation": "Mouse capture"
+      "translation": "Capture souris"
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Press again or ESC restores the profile mouse mode.",
-      "translation": "Alone: refresh list values and drop unrelated candidates (no new Scan picks).\nForced while Scan is on.  Press again or ESC restores the profile mouse mode."
+      "translation": "Seul : rafraîchir et élaguer (pas de nouveaux).\nForcé pendant Scan. Encore ou ESC restaure le mode profil."
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Clear min max",
-      "translation": "Clear min max"
+      "translation": "Effacer min/max"
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Reset observed min..max on all candidates.\nStarts again from the next sampled value.",
-      "translation": "Reset observed min..max on all candidates.\nStarts again from the next sampled value."
+      "translation": "Réinitialiser min..max observés.\nReprend au prochain échantillon."
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Clear candidates",
-      "translation": "Clear candidates"
+      "translation": "Vider candidats"
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Remove unselected",
-      "translation": "Remove unselected"
+      "translation": "Ôter non cochés"
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Delete rows with none of Watch / Chase / X / Y / X2 / Y2 checked.",
-      "translation": "Delete rows with none of Watch / Chase / X / Y / X2 / Y2 checked."
+      "translation": "Supprimer les lignes sans Watch / Chase / X / Y / X2 / Y2."
     },
     {
       "context": "MouseCoordScanWindow",
@@ -1008,17 +1083,17 @@
     {
       "context": "MouseCoordScanWindow",
       "source": "Copy the checked X/Y pair (and min..max) into Mouse integration.\nIf X2/Y2 are also checked, fill Phys 2 as well.\nCloses Memory scan and reopens Settings. Does not save — use Apply or OK there.",
-      "translation": "Copy the checked X/Y pair (and min..max) into Mouse integration.\nIf X2/Y2 are also checked, fill Phys 2 as well.\nCloses Memory scan and reopens Settings. Does not save — use Apply or OK there."
+      "translation": "Copier le couple X/Y (et min..max) vers intégration souris.\nX2/Y2 → Phys 2 aussi.\nFerme le scan et rouvre Paramètres. Ne sauve pas — Appliquer/OK là-bas."
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Cancel",
-      "translation": "Cancel"
+      "translation": "Annuler"
     },
     {
       "context": "MouseCoordScanWindow",
       "source": "Close Memory scan and return to Settings → Mouse integration.",
-      "translation": "Close Memory scan and return to Settings → Mouse integration."
+      "translation": "Fermer le scan → Paramètres → Intégr. souris."
     },
     {
       "context": "MouseCoordScanWindow",
@@ -1083,7 +1158,7 @@
     {
       "context": "MouseCoordScanWindow",
       "source": "Scan = add candidates (turns Mouse capture ON).\nMouse capture ON alone = refresh values / prune noise (no new picks).\nWatch = keep in list after Scan stops.\nChase = follow guest-writer SOURCE; moves to the new SOURCE when found.\nAlso adds nearby phys (±32 bytes) whose value Δ matches host/IO mouse Δ.\nX/Y = primary Game Phys pair.  X2/Y2 = optional Phys 2 pair.\nGreen phys = MOS soft-cursor words (writable if set as Phys).\nBlue phys = disc-profile pair.  span = max−min; oversized rows are pruned.\nESC ends capture (+ Scan).",
-      "translation": "Scan = add candidates (turns Mouse capture ON).\nMouse capture ON alone = refresh values / prune noise (no new picks).\nWatch = keep in list after Scan stops.\nChase = follow guest-writer SOURCE; moves to the new SOURCE when found.\nAlso adds nearby phys (±32 bytes) whose value Δ matches host/IO mouse Δ.\nX/Y = primary Game Phys pair.  X2/Y2 = optional Phys 2 pair.\nGreen phys = MOS soft-cursor words (writable if set as Phys).\nBlue phys = disc-profile pair.  span = max−min; oversized rows are pruned.\nESC ends capture (+ Scan)."
+      "translation": "Scan = candidats (capture ON).\nCapture seule = rafraîchir/élaguer.\nWatch = garder après Scan.\nChase = suivre SOURCE.\nPhys proches (±32) si Δ mouse.\nX/Y = Game Phys. X2/Y2 = Phys 2.\nVert = MOS soft-cursor. Bleu = profil. span = max−min.\nESC finit capture (+ Scan)."
     },
     {
       "context": "SettingsDialog",
@@ -1093,7 +1168,7 @@
     {
       "context": "SettingsDialog",
       "source": "Settings",
-      "translation": "Options"
+      "translation": "Paramètres"
     },
     {
       "context": "SettingsDialog",
@@ -1108,7 +1183,7 @@
     {
       "context": "SettingsDialog",
       "source": "Model",
-      "translation": "Model"
+      "translation": "Modèle"
     },
     {
       "context": "SettingsDialog",
@@ -1123,32 +1198,32 @@
     {
       "context": "SettingsDialog",
       "source": "Disabled",
-      "translation": "Disabled"
+      "translation": "Désactivé"
     },
     {
       "context": "SettingsDialog",
       "source": "Create profile",
-      "translation": "Create profile"
+      "translation": "Créer profil"
     },
     {
       "context": "SettingsDialog",
       "source": "(unnamed)",
-      "translation": "(unnamed)"
+      "translation": "(sans nom)"
     },
     {
       "context": "SettingsDialog",
       "source": "Delete disc profile",
-      "translation": "Delete disc profile"
+      "translation": "Supprimer profil"
     },
     {
       "context": "SettingsDialog",
       "source": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone.",
-      "translation": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone."
+      "translation": "Supprimer le profil « %1 » ?\nRéglages machine/souris du disque seront effacés.\nIrréversible."
     },
     {
       "context": "SettingsDialog",
       "source": "Profile file",
-      "translation": "Profile file"
+      "translation": "Fichier profil"
     },
     {
       "context": "SettingsDialog",
@@ -1163,7 +1238,7 @@
     {
       "context": "SettingsDialog",
       "source": "Boot drive",
-      "translation": "Boot drive"
+      "translation": "Lecteur boot"
     },
     {
       "context": "SettingsDialog",
@@ -1173,7 +1248,7 @@
     {
       "context": "SettingsDialog",
       "source": "Pretend 386DX",
-      "translation": "Pretend 386DX"
+      "translation": "Simuler 386DX"
     },
     {
       "context": "SettingsDialog",
@@ -1223,12 +1298,12 @@
     {
       "context": "SettingsDialog",
       "source": "Game pad / mouse ports",
-      "translation": "Ports manette / souris"
+      "translation": "Pad / souris"
     },
     {
       "context": "SettingsDialog",
       "source": "Max button hold time",
-      "translation": "Durée max. d’appui"
+      "translation": "Maintien max"
     },
     {
       "context": "SettingsDialog",
@@ -1238,7 +1313,7 @@
     {
       "context": "SettingsDialog",
       "source": "Any",
-      "translation": "Any"
+      "translation": "Quelconque"
     },
     {
       "context": "SettingsDialog",
@@ -1253,32 +1328,32 @@
     {
       "context": "SettingsDialog",
       "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
-      "translation": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin)."
+      "translation": "Éditer les defaults Base (townsqt.conf). Appliquer/OK enregistre ici.\nMémoire, boot et fidélité CPU redémarrent ; gameport immédiat.\nAvec un CD, créez un profil pour réglages par disque\n(FD0/FD1/HD0–HD6, CMOS dans cmos/cmos_XXXXXXXX.bin)."
     },
     {
       "context": "SettingsDialog",
       "source": "Basics",
-      "translation": "Basics"
+      "translation": "Base"
     },
     {
       "context": "SettingsDialog",
       "source": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
-      "translation": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot."
+      "translation": "CMOS active (cmos.bin global ou profil cmos/cmos_XXXXXXXX.bin).\nAppliquer/OK met à jour CMOS RAM et fichier. Towns OS : souvent reset/boot."
     },
     {
       "context": "SettingsDialog",
       "source": "Drive configuration",
-      "translation": "Drive configuration"
+      "translation": "Lecteurs"
     },
     {
       "context": "SettingsDialog",
       "source": "Mouse integration",
-      "translation": "Mouse integration"
+      "translation": "Intégr. souris"
     },
     {
       "context": "SettingsDialog",
       "source": "Video",
-      "translation": "Video"
+      "translation": "Vidéo"
     },
     {
       "context": "SettingsDialog",
@@ -1303,12 +1378,12 @@
     {
       "context": "SettingsDialog",
       "source": "Window scale:",
-      "translation": "Window scale:"
+      "translation": "Échelle :"
     },
     {
       "context": "SettingsDialog",
       "source": "Sprite transfer speed:",
-      "translation": "Sprite transfer speed:"
+      "translation": "Transfert sprite :"
     },
     {
       "context": "SettingsDialog",
@@ -1318,17 +1393,17 @@
     {
       "context": "SettingsDialog",
       "source": "Damper-wire line",
-      "translation": "Ligne damper-wire"
+      "translation": "Damper-wire"
     },
     {
       "context": "SettingsDialog",
       "source": "VSync in fullscreen",
-      "translation": "VSync en plein écran"
+      "translation": "VSync plein écran"
     },
     {
       "context": "SettingsDialog",
       "source": "VSync in windowed mode",
-      "translation": "VSync fenêtré"
+      "translation": "VSync fenêtre"
     },
     {
       "context": "SettingsDialog",
@@ -1338,7 +1413,7 @@
     {
       "context": "SettingsDialog",
       "source": "Use sinc interpolation for PCM resampling",
-      "translation": "Interpolation sinc (PCM)"
+      "translation": "PCM : sinc"
     },
     {
       "context": "SettingsDialog",
@@ -1353,7 +1428,7 @@
     {
       "context": "SettingsDialog",
       "source": "Without sinc interpolation, linear interpolation is used.",
-      "translation": "Sans interpolation sinc, une interpolation linéaire est utilisée."
+      "translation": "Sans sinc : interpolation linéaire."
     },
     {
       "context": "SettingsDialog",
@@ -1368,7 +1443,7 @@
     {
       "context": "SettingsDialog",
       "source": "MIDI output",
-      "translation": "MIDI output"
+      "translation": "Sortie MIDI"
     },
     {
       "context": "SettingsDialog",
@@ -1383,7 +1458,7 @@
     {
       "context": "SettingsDialog",
       "source": "Browse…",
-      "translation": "Ouvrir…"
+      "translation": "Parcourir…"
     },
     {
       "context": "SettingsDialog",
@@ -1393,37 +1468,37 @@
     {
       "context": "SettingsDialog",
       "source": "Changes take effect immediately when you press Apply or OK.",
-      "translation": "Les modifications s’appliquent immédiatement avec Appliquer ou OK."
+      "translation": "Effet immédiat avec Appliquer ou OK."
     },
     {
       "context": "SettingsDialog",
       "source": "Video / Audio",
-      "translation": "Video / Audio"
+      "translation": "Vidéo / Audio"
     },
     {
       "context": "SettingsDialog",
       "source": "Enable auto-resume",
-      "translation": "Enable auto-resume"
+      "translation": "Auto-resume"
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded.",
-      "translation": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded."
+      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
+      "translation": "Avec profil disque : sauver le slot 0 (state0_XXXXXXXX.TState) à l’éjection CD et à la sortie,\nauto-resume au prochain chargement. Redémarrage manuel du même CD : pas de state.\nOff : pas d’auto save/load."
     },
     {
       "context": "SettingsDialog",
       "source": "Faster mouse integration",
-      "translation": "Faster mouse integration"
+      "translation": "Souris plus rapide"
     },
     {
       "context": "SettingsDialog",
       "source": "Mouse BIOS integration that writes guest memory to reduce latency.",
-      "translation": "Mouse BIOS integration that writes guest memory to reduce latency."
+      "translation": "Intégration Mouse BIOS écrivant la RAM (moins de latence)."
     },
     {
       "context": "SettingsDialog",
       "source": "CDDA cache:",
-      "translation": "CDDA cache:"
+      "translation": "Cache CDDA :"
     },
     {
       "context": "SettingsDialog",
@@ -1433,27 +1508,17 @@
     {
       "context": "SettingsDialog",
       "source": "Bulk-prefetch the CDDA audio track and keep playing through data reads\nwithout interrupting playback. The value is how many seconds until\nplayback is considered finished.",
-      "translation": "Bulk-prefetch the CDDA audio track and keep playing through data reads\nwithout interrupting playback. The value is how many seconds until\nplayback is considered finished."
+      "translation": "Précharger la piste CDDA et continuer pendant les lectures data.\nValeur = secondes avant fin de lecture."
     },
     {
       "context": "SettingsDialog",
       "source": "Inhibit display idle",
-      "translation": "Anti-veille"
+      "translation": "Anti idle écran"
     },
     {
       "context": "SettingsDialog",
       "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "Empêche l’extinction/atténuation automatique de l’écran sous Wayland."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MOS unused",
-      "translation": "MOS unused"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture.",
-      "translation": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture."
+      "translation": "Empêche l’extinction/assombrissement auto sous Wayland."
     },
     {
       "context": "SettingsDialog",
@@ -1478,7 +1543,7 @@
     {
       "context": "SettingsDialog",
       "source": "Available only on sessions that support Wayland idle-inhibit.",
-      "translation": "Disponible uniquement sur les sessions prenant en charge Wayland idle-inhibit."
+      "translation": "Uniquement avec Wayland idle-inhibit."
     },
     {
       "context": "SettingsDialog",
@@ -1493,17 +1558,17 @@
     {
       "context": "SettingsDialog",
       "source": "(none)",
-      "translation": "(none)"
+      "translation": "(aucun)"
     },
     {
       "context": "SettingsDialog",
       "source": "(select)",
-      "translation": "(select)"
+      "translation": "(choisir)"
     },
     {
       "context": "SettingsDialog",
       "source": "Select SoundFont",
-      "translation": "Choisir SF2"
+      "translation": "Choisir SoundFont"
     },
     {
       "context": "SettingsDialog",
@@ -1513,42 +1578,42 @@
     {
       "context": "SettingsDialog",
       "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
-      "translation": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator."
+      "translation": "Éditer le profil (fp_XXXXXXXX.ini, ambre).\nAppliquer/OK sauve horloge, boot, mémoire, ports, options\net montages FD0/FD1/HD0–HD6.\nCMOS : cmos/cmos_XXXXXXXX.bin — Towns SETUP.\nCPU/modèle restent globaux (townsqt.conf).\nMémoire/boot/fidélité → redémarrage."
     },
     {
       "context": "SettingsDialog",
       "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-      "translation": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately."
+      "translation": "Pas encore de profil. « Créer profil » pour réglages par disque\n(FD0/FD1/HD0–HD6).\nLe profil a son CMOS (cmos/cmos_XXXXXXXX.bin).\nSinon Appliquer/OK sauve la Base dans townsqt.conf.\nMémoire/boot/fidélité → redémarrage ; gameport immédiat."
     },
     {
       "context": "SettingsDialog",
       "source": "Enabled",
-      "translation": "Enabled"
+      "translation": "Activé"
     },
     {
       "context": "SettingsDialog",
       "source": "No CD mounted.",
-      "translation": "No CD mounted."
+      "translation": "Pas de CD."
     },
     {
       "context": "SettingsDialog",
       "source": "No profile for this disc.",
-      "translation": "No profile for this disc."
+      "translation": "Pas de profil pour ce disque."
     },
     {
       "context": "SettingsDialog",
       "source": "Disc profile loaded.",
-      "translation": "Disc profile loaded."
+      "translation": "Profil disque chargé."
     },
     {
       "context": "SettingsDialog",
       "source": "(no CD)",
-      "translation": "(no CD)"
+      "translation": "(pas de CD)"
     },
     {
       "context": "SettingsDialog",
       "source": "Delete profile",
-      "translation": "Delete profile"
+      "translation": "Supprimer profil"
     },
     {
       "context": "TownsQtCpuProfile",
@@ -1583,12 +1648,12 @@
     {
       "context": "TownsQtRomAvailability",
       "source": "FMT_SYS.ROM: not found",
-      "translation": "FMT_SYS.ROM: absent"
+      "translation": "FMT_SYS.ROM : introuvable"
     },
     {
       "context": "TownsQtRomAvailability",
       "source": "FMT_SYS.ROM: unknown",
-      "translation": "FMT_SYS.ROM: unknown"
+      "translation": "FMT_SYS.ROM : inconnu"
     },
     {
       "context": "TownsQtRomAvailability",

@@ -2265,7 +2265,8 @@ void MainWindow::showAboutDialog()
 	iconLabel->setScaledContents(false);
 	iconLabel->setAlignment(Qt::AlignTop|Qt::AlignHCenter);
 	{
-		QPixmap iconPix(QStringLiteral(":/icons/tsugaru_128.png"));
+		// Same master asset as window / taskbar / desktop icons (FM TOWNS Marty lid).
+		QPixmap iconPix(QStringLiteral(":/icons/tsugaru_pixel_128.png"));
 		const qreal dpr=dlg.devicePixelRatioF();
 		// 1:1 device pixels — do not resample; DPR marks logical size.
 		iconPix.setDevicePixelRatio(dpr);

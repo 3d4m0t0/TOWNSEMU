@@ -1,6 +1,6 @@
 # Tsugaru_QT — FM TOWNS / Marty エミュレータ ”津軽” (Qt)
 
-**版 Tsugaru20260522-qt 1.0.0**
+**版 Tsugaru20260522-qt 1.1.0**
 
 CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/captainys/TOWNSEMU) の **Qt 6** フロントエンドです。
 
@@ -8,7 +8,7 @@ CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/c
 
 **Tsugaru_QT — FM TOWNS / Marty Emulator ”津軽” (Qt frontend)**
 
-**Version Tsugaru20260522-qt 1.0.0**
+**Version Tsugaru20260522-qt 1.1.0**
 
 A **Qt 6** frontend for CaptainYS's FM TOWNS / Marty emulator [Tsugaru](https://github.com/captainys/TOWNSEMU).
 
@@ -33,14 +33,23 @@ Referral registration link: [cursor.com/referral?code=TI3UQLE9PFH3](https://curs
 
 * **Qt メニューバー UI** — フロントエンドに Qt 6 を使い、一般的なメニューバー形式の操作画面にしています。ゲームポート機器の切り替え、全画面表示、スプライト転送速度などはメニューから設定できます。
 * **タイミング** — エミュレータの進行を実時間に合わせる処理を見直しました。音声のテンポがぶれにくく、画面の同期（VSYNC）も安定します。既定は実時間待ち（CUI の `-YESWAIT` 相当）で、遅れた分を一気に取り戻す動作はしません。
-* **ディスクプロファイル** — マウントした CD ごとに設定を保存します。同じディスクをマウントして再起動すると、保存した内容が読み込まれます。フロッピー（FD0 / FD1）のマウント状況も保存され、次回起動時に再現されます。マウス統合の設定も、このプロファイルに含まれます。
-* **HDD イメージ** — 作成時はスパース形式です。論理サイズは指定どおりで、未書き込み領域の実ディスク使用量は小さく、書き込みに応じて増えます。旧形式の密なイメージは HDD 設定の **Compact** で変換できます。
-* **マウス統合** — ゲストメモリへ座標を書き込むことで、ポインタ操作の遅延を抑えています。マウス BIOS を使わないアプリでは、ゲーム内カーソルの phys を検索して設定し、座標の読み取りと書き換えでマウス統合できます。いくつかのタイトル向けプリセットを同梱しています。phys の位置や書き込み方法はタイトルごとに異なるため、統合できないソフトもあります。
+* **ディスクプロファイル** — マウントした CD ごとに設定を保存します。同じディスクをマウントして再起動すると、保存した内容が読み込まれます。フロッピー（FD0 / FD1）や HDD のマウント状況も保存され、次回起動時に再現されます。マウス統合の設定も、このプロファイルに含まれます。CMOS もプロファイルごとに保存されます。
+* **ドライブ構成** — ゲストの SETUP を使わず、設定から Towns 上のドライブレター／シングルドライブ（CMOS）を編集できます。
+* **HDD イメージ** — 上流 Tsugaru と同様、新規作成はスパース形式です。論理サイズは指定どおりで、未書き込み領域の実ディスク使用量は小さく、書き込みに応じて増えます。TownsOS 向けに 127 MB・1 パーティション＋フォーマット済みイメージを作るオプションもあります。旧形式の密なイメージは HDD 設定の **Compact** で変換できます。
+* **マウス統合** — ゲストメモリへ座標を書き込むことで、ポインタ操作の遅延を抑えています。アプリ別統合では DS.base からのオフセットを使え、CMOS 変更など環境が変わっても追従しやすくしています。操作設定は **規定** と **マウスキャプチャ** に簡略化（規定時の優先はアプリ別 Phys → Mouse BIOS (MOS) → キャプチャ）。アプリ別／MOS 統合中でもマウス中ボタンでキャプチャに切り替えられます。オフセット対応のプリセットを同梱しています。
+* **CPU コア及びメモリウェイト** — 互換モードと 16 MHz は i386 命令タイミング、それ以外は i486 相当です。i486 用とは別に各命令の実行サイクル数を用意することで、i386 の動作速度をエミュレート（再現）しています。メモリウェイトも RAM／VRAM で再現し、互換モードをより実機に寄せています（下表）。
+* **オートレジューム** — ディスクプロファイルが有効なとき、終了時の状態をステートセーブで残し、次回起動時に再現します。
 * **CDDA キャッシュ** — CD 音源（CDDA）を先読みキャッシュし、データトラックの読み込み中も演奏を止めない仕組みです。
 * **CD イメージ** — Tsugaru が扱える CD-ROM イメージに加え、`.chd` 形式にも対応しています。
 * **MIDI** — FluidSynth によるソフトウェア音源出力です。利用には別途パッケージが必要です。現在、SysEx は GS 音源向けのみ処理します。SoundFont は GS 対応のものを推奨します。
 * **Wayland idle-inhibit** — 実行中は画面スリープやスクリーンセーバーを抑止します。
 * **UI 多言語化 (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es（en と ja はバイナリ埋め込み、他は `share/townsqt/translations/` の JSON。`TOWNSQT_LANG` またはシステムロケールで選択）
+
+| 名称 | CPU設定 | クロック | ウェイト |
+|---|---|---|---|
+| 互換モード | i386 | 16 MHz | あり（RAM / VRAM） |
+| 16 MHz FAST | i386 | 16 MHz | VRAM |
+| 他 | i486 | それ以外 | なし |
 
 ### English
 
@@ -48,14 +57,48 @@ Main differences from `Tsugaru_CUI`:
 
 * **Qt menu-bar UI** — The frontend uses Qt 6 with a conventional menu-bar layout. Game-port devices, fullscreen, sprite transfer speed, and similar options are available from the menu.
 * **Timing** — Real-time pacing was reworked so audio tempo stays steady and emulated VSYNC does not wobble. By default the emulator waits for real time (same idea as CUI `-YESWAIT`) and does not catch up a time deficit in one burst.
-* **Disc profiles** — Settings are saved per mounted CD. Mount the same disc and restart to load them. Floppy (FD0 / FD1) mount state is stored and restored on the next launch. Mouse-integration settings are part of the profile.
-* **HDD images** — New images are created sparse: logical size matches your choice, on-disk usage starts small and grows on write. Use **Compact** in HDD settings to convert older dense images.
-* **Mouse integration** — Writing coordinates into guest memory reduces pointer latency. For titles that do not use Mouse BIOS, you can search for the in-game cursor phys, then read and write coordinates to integrate the mouse. A few presets are bundled. Some titles still cannot be integrated, because phys location and write method vary.
+* **Disc profiles** — Settings are saved per mounted CD. Mount the same disc and restart to load them. Floppy (FD0 / FD1) and HDD mount state is stored and restored on the next launch. Mouse-integration settings are part of the profile. CMOS is also stored per profile.
+* **Drive configuration** — Edit Towns drive letters / single-drive (CMOS) from Settings without running guest SETUP.
+* **HDD images** — Same as upstream Tsugaru: new images are created sparse. Logical size matches your choice; on-disk usage starts small and grows on write. Optional TownsOS 127 MB image with one partition + empty format. Use **Compact** in HDD settings to convert older dense images.
+* **Mouse integration** — Writing coordinates into guest memory reduces pointer latency. App-specific mode can use a DS.base offset so CMOS and other environment changes are less likely to break mapping. Modes are simplified to **Default** and **Mouse capture** (Default priority: app Phys → Mouse BIOS (MOS) → capture). Middle button switches to capture even during app/MOS integration. Offset-aware presets are bundled.
+* **CPU core and memory wait** — Compatible and 16 MHz use i386 instruction timing; other speeds use i486-class timing. A separate per-instruction cycle table (distinct from i486) emulates i386 execution speed. RAM/VRAM waits are also modeled, bringing Compatible mode closer to real hardware (see table).
+* **Auto-resume** — When a disc profile is active, saves state on exit and restores it on the next launch.
 * **CDDA cache** — CD audio (CDDA) is prefetched so data-track reads do not interrupt playback.
 * **CD images** — In addition to the CD-ROM image formats Tsugaru already supports, `.chd` is accepted.
 * **MIDI** — Software synthesis via FluidSynth (a separate package is required). Only GS-oriented SysEx is handled at present. A GS SoundFont is recommended.
 * **Wayland idle-inhibit** — Suppresses screen sleep / screensaver while running.
 * **UI localization (i18n)** — en / ja / zh-CN / zh-TW / ko / de / fr / es (en and ja embedded in the binary; others load JSON from `share/townsqt/translations/`; select via `TOWNSQT_LANG` or system locale)
+
+| Name | CPU | Clock | Wait |
+|---|---|---|---|
+| Compatible | i386 | 16 MHz | yes (RAM / VRAM) |
+| 16 MHz FAST | i386 | 16 MHz | VRAM |
+| Other | i486 | otherwise | none |
+
+---
+
+## 変更履歴 / Changelog
+
+### v1.1.0
+
+* **マウス統合更新**
+  1. アプリ別マウス統合にオフセットを採用し、CMOS の変更など環境が変わったときにも対応できるようにしました。
+  2. プリセットを上記オフセット対応に更新しました。
+  3. マウス操作設定を **規定** と **マウスキャプチャ** に簡略化。アプリ別統合・MOS 統合中でも、マウス中ボタンでマウスキャプチャに切り替えられます。
+* **ドライブ構成** — ゲストアプリを使わずに TOWNS 上のドライブ構成を設定できます。CMOS はプロファイルごとに保存されます。
+* **HD イメージ** — 新規作成を上流 Tsugaru と同じスパースイメージに寄せました。あわせて TownsOS 向け 127 MB 初期化済みイメージ作成のオプションを用意しました。
+* **CPU コア及びメモリウェイト** — i486 用とは別に各命令の実行サイクル数を用意し、i386 の動作速度をエミュレート（再現）しました。あわせてメモリウェイトも RAM／VRAM で再現し、互換モードをより実機に寄せています（上表）。
+* **オートレジューム** — プロファイルが有効な場合、ステートセーブを利用して終了時の状態を次回起動時に再現します。
+* **バグ修正** — CDDA キャッシュ周りの判定・挙動を修正、ほか。
+
+### English
+
+* **Mouse integration** — App-specific offset so CMOS and other environment changes are handled more gracefully; presets updated for offset; modes simplified to Default / Mouse capture; middle button switches to capture during app/MOS integration.
+* **Drive configuration** — Configure the TOWNS drive layout without guest apps; CMOS is stored per disc profile.
+* **HD images** — Aligned new image creation with upstream Tsugaru sparse images; optional 127 MB TownsOS-initialized image.
+* **CPU core and memory wait** — Emulates i386 speed with a separate per-instruction cycle table (distinct from i486), plus RAM/VRAM waits that bring Compatible mode closer to real hardware (see table above).
+* **Auto-resume** — With a disc profile active, restore the previous session via state save on the next launch.
+* **Bug fixes** — CDDA cache decision logic and behavior, and other fixes.
 
 ---
 

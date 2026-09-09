@@ -234,7 +234,7 @@ void setCddaCachePostReadGraceSec(int sec);
 bool useDiscProfiles();
 void setUseDiscProfiles(bool enabled);
 
-/*! Load state0_XXXXXXXX.TState at boot when a disc profile exists (Features). */
+/*! Auto-save state0_XXXXXXXX.TState on eject/exit; auto-load on next mount (Features). */
 bool autoResumeEnabled();
 void setAutoResumeEnabled(bool enabled);
 

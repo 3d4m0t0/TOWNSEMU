@@ -14,6 +14,7 @@ LOCALES = ("en", "ja", "de", "fr", "es", "ko", "zh_CN", "zh_TW")
 FILE_CONTEXT = {
     "main_window": "MainWindow",
     "settings_dialog": "SettingsDialog",
+    "drive_config_page": "DriveConfigPage",
     "mouse_coord_profile_page": "MouseCoordProfilePage",
     "mouse_coord_scan_window": "MouseCoordScanWindow",
     "audio_mixer_dialog": "AudioMixerDialog",
@@ -149,9 +150,73 @@ JA_FORCE: dict[tuple[str, str], str] = {
         "Hard disk settings saved. They take effect after restart.",
     ): "ハードディスク設定を保存しました。再起動後に反映されます。",
     (
+        "MainWindow",
+        "Hard disk settings saved (CMOS D: = SCSI unit 0). Restart to recognize HD0.",
+    ): "ハードディスク設定を保存しました（CMOS D: = SCSI ユニット 0）。再起動後に HD0 を認識します。",
+    (
+        "MainWindow",
+        "HD image created, but failed to set CMOS D: = SCSI unit 0.",
+    ): "HD イメージは作成しましたが、CMOS の D: = SCSI ユニット 0 設定に失敗しました。",
+    ("MainWindow", "Drive configuration"): "ドライブ構成",
+    (
+        "MainWindow",
+        "Failed to update CMOS (file missing or not writable).",
+    ): "CMOS を更新できませんでした（ファイルがないか書き込めません）。",
+    (
+        "MainWindow",
+        "Could not apply mouse profile (need a disc profile).",
+    ): "マウスプロファイルを適用できませんでした（ディスクプロファイルが必要です）。",
+    ("MainWindow", "Failed to load CD image"): "CD イメージの読み込みに失敗しました",
+    (
+        "MainWindow",
+        "App-specific Phys integration is active. Middle button switches to mouse capture; middle again restores.",
+    ): "アプリ別 Phys 統合が有効です。中ボタンでマウスキャプチャへ切替、もう一度で戻ります。",
+    (
+        "MainWindow",
+        "Mouse BIOS (MOS) integration is active. Middle button switches to mouse capture; middle again restores.",
+    ): "Mouse BIOS (MOS) 統合が有効です。中ボタンでマウスキャプチャへ切替、もう一度で戻ります。",
+    (
         "HddSettingsDialog",
         "Changes take effect after the emulator is restarted.",
     ): "変更はエミュレーター再起動後に反映されます。",
+    (
+        "HddSettingsDialog",
+        "TownsOS: create with 1 partition + format (127 MB, max size)",
+    ): "TownsOS: 1パーティション＋フォーマットで作成（127 MB・最大サイズ）",
+    (
+        "HddSettingsDialog",
+        "Writes Towns HD IPL, one full-size partition, and an empty FAT16.\n"
+        "For HD0, CMOS is set to D: = SCSI unit 0 after OK.\n"
+        "Restart the emulator to recognize the drive.",
+    ): "Towns HD IPL・最大サイズの1パーティション・空の FAT16 を書き込みます。\n"
+    "HD0 の場合、OK 後に CMOS で D: = SCSI ユニット 0 を設定します。\n"
+    "ドライブ認識にはエミュレーターの再起動が必要です。",
+    (
+        "HddSettingsDialog",
+        "Create a 127 MB TownsOS image with one full-size partition and an empty format?\n"
+        "For HD0, D: will be set to SCSI unit 0 in CMOS when you press OK.",
+    ): "127 MB の TownsOS イメージを、最大サイズの1パーティションと空フォーマットで作成しますか？\n"
+    "HD0 の場合、OK 時に CMOS で D: = SCSI ユニット 0 を設定します。",
+    (
+        "HddSettingsDialog",
+        "Created a TownsOS-formatted sparse hard disk image (1 partition).\n\n",
+    ): "TownsOS 形式のスパース HD イメージを作成しました（1パーティション）。\n\n",
+    (
+        "HddSettingsDialog",
+        "Created a sparse hard disk image.\n\n",
+    ): "スパースのハードディスクイメージを作成しました。\n\n",
+    (
+        "HddSettingsDialog",
+        "Logical size (for FM TOWNS): %1\n"
+        "Disk usage on this computer: %2\n\n"
+        "File managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
+    ): "論理サイズ（FM TOWNS 向け）: %1\n"
+    "実ディスク使用量: %2\n\n"
+    "ファイルマネージャは論理サイズを表示します。パス欄のツールチップまたは `du -h` で実使用量を確認できます。",
+    (
+        "HddSettingsDialog",
+        "\n\nAfter OK: CMOS D: = SCSI unit 0 (HD0). Restart to recognize the drive.",
+    ): "\n\nOK 後: CMOS D: = SCSI ユニット 0（HD0）。再起動後にドライブを認識します。",
     ("MainWindow", "FPS display"): "FPS表示",
     (
         "MainWindow",
@@ -416,6 +481,81 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ): "ディスクプロファイル (fp_XXXXXXXX.ini) を編集中です。適用または OK でここに表示している項目\n"
     "（クロック、メモリ、ポート、オプション）をプロファイルへ保存します。CPU とモデルは\n"
     "グローバル (townsqt.conf) のままプロファイルには保存しません。メモリ／忠実度の変更は再起動します。",
+    ("SettingsDialog", "Enable auto-resume"): "オートレジューム有効",
+    (
+        "SettingsDialog",
+        "When a disc profile exists for the mounted CD image, automatically save\n"
+        "per-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
+        "and auto-resume on the next load. Manual restart with the same CD does not\n"
+        "load a saved state. When off, state saves are neither auto-written nor auto-loaded.",
+    ): "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了時に、\n"
+    "ディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n"
+    "次回読み込み時に自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\n"
+    "オフのときは、ステートセーブの自動保存・自動読み込みを行いません。",
+    ("SettingsDialog", "Boot drive"): "起動ディスク",
+    ("SettingsDialog", "Drive configuration"): "ドライブ構成",
+    (
+        "DriveConfigPage",
+        "Single-drive mode (disable FD1)",
+    ): "シングルドライブモード（FD1 を無効）",
+    (
+        "DriveConfigPage",
+        "Towns CMOS flag at I/O 0x328C. When on, FD1 is unavailable.",
+    ): "Towns CMOS の I/O 0x328C フラグ。オンだと FD1 は使えません。",
+    (
+        "DriveConfigPage",
+        "Drive letter assignments (A–P). Apply or OK writes VM CMOS RAM and the "
+        "active CMOS file. Towns OS usually picks them up after reset/boot.",
+    ): "ドライブレター割り当て（A–P）。適用または OK で VM の CMOS RAM と有効な CMOS ファイルに書き込みます。"
+    "Towns OS では通常リセット／再起動後に反映されます。",
+    ("DriveConfigPage", "Type"): "種類",
+    ("DriveConfigPage", "Unit"): "ユニット",
+    ("DriveConfigPage", "Unassigned"): "未割り当て",
+    ("DriveConfigPage", "FD"): "FD",
+    ("DriveConfigPage", "SCSI"): "SCSI",
+    ("DriveConfigPage", "ROM"): "ROM",
+    (
+        "SettingsDialog",
+        "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
+        "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
+        "Create a disc profile when a CD is mounted to save per-disc settings\n"
+        "(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
+    ): "基本構成の既定値 (townsqt.conf) を編集中です。適用または OK でここに保存します。\n"
+    "メモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動し、ゲームポートの変更は即時反映されます。\n"
+    "CD マウント中にディスクプロファイルを作成すると、ディスクごとの設定を保存できます\n"
+    "（FD0 / FD1 / HD0–HD6 のマウントと cmos/cmos_XXXXXXXX.bin の CMOS）。",
+    (
+        "SettingsDialog",
+        "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\n"
+        "Apply or OK saves clock, boot drive, memory, ports, options,\n"
+        "and FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\n"
+        "CMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\n"
+        "CPU and model stay global in townsqt.conf and are not stored in the profile.\n"
+        "Memory, boot drive, and CPU fidelity changes restart the emulator.",
+    ): "ディスクプロファイル (fp_XXXXXXXX.ini、琥珀色の枠) を編集中です。\n"
+    "適用または OK でクロック・起動ディスク・メモリ・ポート・オプション、\n"
+    "および FD0 / FD1 / HD0–HD6 のマウント状態をプロファイルへ保存します（次回読込時に復元）。\n"
+    "CMOS（ドライブレター・シングルドライブ）はこのディスク用の cmos/cmos_XXXXXXXX.bin を使います — Towns SETUP で設定。\n"
+    "CPU とモデルは townsqt.conf のグローバル設定のままで、プロファイルには保存しません。\n"
+    "メモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動します。",
+    (
+        "SettingsDialog",
+        "No disc profile for this CD yet. Use Create profile to save per-disc settings\n"
+        "(including FD0, FD1, and HD0–HD6 mount state for restore).\n"
+        "A profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\n"
+        "Until then, Apply or OK saves Basics defaults to townsqt.conf.\n"
+        "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
+    ): "この CD のディスクプロファイルはまだありません。「プロファイルを作成」でディスクごとの設定を保存できます\n"
+    "（復元用に FD0 / FD1 / HD0–HD6 のマウント状態も含みます）。\n"
+    "プロファイルには Towns SETUP 用の CMOS ファイル (cmos/cmos_XXXXXXXX.bin) も付きます。\n"
+    "作成するまでは、適用または OK で基本構成の既定を townsqt.conf へ保存します。\n"
+    "メモリ・起動ディスク・CPU 忠実度の変更は再起動し、ゲームポートの変更は即時反映されます。",
+    (
+        "SettingsDialog",
+        "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\n"
+        "Apply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
+    ): "有効な CMOS（グローバル cmos.bin またはプロファイルの cmos/cmos_XXXXXXXX.bin）を編集します。\n"
+    "適用または OK で VM の CMOS RAM とファイルを更新します。Towns OS では通常リセット／再起動が必要です。",
     (
         "SettingsDialog",
         "Mouse integration is configured for this disc profile.",
@@ -430,6 +570,10 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("MouseCoordProfilePage", "Phys"): "Phys",
     ("MouseCoordProfilePage", "Min"): "Min",
     ("MouseCoordProfilePage", "Offset"): "オフセット",
+    (
+        "MouseCoordProfilePage",
+        "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes.",
+    ): "ライブの DS.base からのオフセット（WC 方式）。メモリ／CMOS／HDD 変更でゲスト配置がずれるときは、絶対 Phys よりこちらを推奨。",
     ("MouseCoordProfilePage", "Scale"): "Scale",
     ("MouseCoordProfilePage", "Invert"): "反転",
     ("MouseCoordProfilePage", "Invert X"): "X を反転",

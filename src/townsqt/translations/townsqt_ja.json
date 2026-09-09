@@ -51,61 +51,6 @@
       "translation": "CDDAキャッシュ"
     },
     {
-      "context": "CpuDebugWindow",
-      "source": "CPU / CS:EIP history",
-      "translation": "CPU / CS:EIP 履歴"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Address",
-      "translation": "アドレス"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "CS:EIP / 4000:187B / L:0004187B",
-      "translation": "CS:EIP / 4000:187B / L:0004187B"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Bytes",
-      "translation": "バイト数"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Dump",
-      "translation": "ダンプ"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Memory dump appears here. Prefer VM Stop first for a stable view.",
-      "translation": "メモリダンプはここに表示されます。安定した表示のため、先に VM 停止を推奨します。"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Enter an address (e.g. 4000:187B or L:0004187B).",
-      "translation": "アドレスを入力してください（例: 4000:187B または L:0004187B）。"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Resume VM",
-      "translation": "VM 再開"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Resume the emulator (click again to stop).",
-      "translation": "エミュレータを再開します（再クリックで停止）。"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Stop VM",
-      "translation": "VM 停止"
-    },
-    {
-      "context": "CpuDebugWindow",
-      "source": "Pause the emulator so registers and dumps stay stable.",
-      "translation": "レジスタとダンプを安定させるため、エミュレータを一時停止します。"
-    },
-    {
       "context": "DebugTextWindow",
       "source": "Clear",
       "translation": "クリア"
@@ -114,6 +59,51 @@
       "context": "DebugTextWindow",
       "source": "Close",
       "translation": "閉じる"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Single-drive mode (disable FD1)",
+      "translation": "シングルドライブモード（FD1 を無効）"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Towns CMOS flag at I/O 0x328C. When on, FD1 is unavailable.",
+      "translation": "Towns CMOS の I/O 0x328C フラグ。オンだと FD1 は使えません。"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Drive letter assignments (A–P). Apply or OK writes VM CMOS RAM and the active CMOS file. Towns OS usually picks them up after reset/boot.",
+      "translation": "ドライブレター割り当て（A–P）。適用または OK で VM の CMOS RAM と有効な CMOS ファイルに書き込みます。Towns OS では通常リセット／再起動後に反映されます。"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Type",
+      "translation": "種類"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Unit",
+      "translation": "ユニット"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Unassigned",
+      "translation": "未割り当て"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "FD",
+      "translation": "FD"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "SCSI",
+      "translation": "SCSI"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "ROM",
+      "translation": "ROM"
     },
     {
       "context": "HddSettingsDialog",
@@ -162,6 +152,16 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "TownsOS: create with 1 partition + format (127 MB, max size)",
+      "translation": "TownsOS: 1パーティション＋フォーマットで作成（127 MB・最大サイズ）"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Writes Towns HD IPL, one full-size partition, and an empty FAT16.\nFor HD0, CMOS is set to D: = SCSI unit 0 after OK.\nRestart the emulator to recognize the drive.",
+      "translation": "Towns HD IPL・最大サイズの1パーティション・空の FAT16 を書き込みます。\nHD0 の場合、OK 後に CMOS で D: = SCSI ユニット 0 を設定します。\nドライブ認識にはエミュレーターの再起動が必要です。"
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written.",
       "translation": "新規作成はスパースです。ファイルマネージャのサイズは論理サイズ表示で、実ディスク使用量は書き込むまで小さいままです。"
     },
@@ -192,6 +192,11 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "Create a 127 MB TownsOS image with one full-size partition and an empty format?\nFor HD0, D: will be set to SCSI unit 0 in CMOS when you press OK.",
+      "translation": "127 MB の TownsOS イメージを、最大サイズの1パーティションと空フォーマットで作成しますか？\nHD0 の場合、OK 時に CMOS で D: = SCSI ユニット 0 を設定します。"
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "Failed to create the hard disk directory.",
       "translation": "ハードディスク用ディレクトリを作成できませんでした。"
     },
@@ -212,8 +217,23 @@
     },
     {
       "context": "HddSettingsDialog",
-      "source": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
-      "translation": "スパースのハードディスクイメージを作成しました。\n\n論理サイズ（FM TOWNS 向け）: %1\n実ディスク使用量: %2\n\nファイルマネージャは論理サイズを表示します。パス欄のツールチップまたは `du -h` で実使用量を確認できます。"
+      "source": "Created a TownsOS-formatted sparse hard disk image (1 partition).\n\n",
+      "translation": "TownsOS 形式のスパース HD イメージを作成しました（1パーティション）。\n\n"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Created a sparse hard disk image.\n\n",
+      "translation": "スパースのハードディスクイメージを作成しました。\n\n"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Logical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
+      "translation": "論理サイズ（FM TOWNS 向け）: %1\n実ディスク使用量: %2\n\nファイルマネージャは論理サイズを表示します。パス欄のツールチップまたは `du -h` で実使用量を確認できます。"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "\n\nAfter OK: CMOS D: = SCSI unit 0 (HD0). Restart to recognize the drive.",
+      "translation": "\n\nOK 後: CMOS D: = SCSI ユニット 0（HD0）。再起動後にドライブを認識します。"
     },
     {
       "context": "HddSettingsDialog",
@@ -253,7 +273,7 @@
     {
       "context": "MainWindow",
       "source": "Failed to load CD image",
-      "translation": "Failed to load CD image"
+      "translation": "CD イメージの読み込みに失敗しました"
     },
     {
       "context": "MainWindow",
@@ -467,16 +487,6 @@
     },
     {
       "context": "MainWindow",
-      "source": "VM paused (CPU debug)",
-      "translation": "VM を一時停止しました（CPU デバッグ）"
-    },
-    {
-      "context": "MainWindow",
-      "source": "VM resumed",
-      "translation": "VM を再開しました"
-    },
-    {
-      "context": "MainWindow",
       "source": "&Help",
       "translation": "ヘルプ(&H)"
     },
@@ -497,23 +507,38 @@
     },
     {
       "context": "MainWindow",
+      "source": "Hard disk drive settings",
+      "translation": "ハードディスクドライブ設定"
+    },
+    {
+      "context": "MainWindow",
+      "source": "HD image created, but failed to set CMOS D: = SCSI unit 0.",
+      "translation": "HD イメージは作成しましたが、CMOS の D: = SCSI ユニット 0 設定に失敗しました。"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Hard disk settings saved (CMOS D: = SCSI unit 0). Restart to recognize HD0.",
+      "translation": "ハードディスク設定を保存しました（CMOS D: = SCSI ユニット 0）。再起動後に HD0 を認識します。"
+    },
+    {
+      "context": "MainWindow",
       "source": "Hard disk settings saved. They take effect after restart.",
       "translation": "ハードディスク設定を保存しました。再起動後に反映されます。"
     },
     {
       "context": "MainWindow",
       "source": "Drive configuration",
-      "translation": "Drive configuration"
+      "translation": "ドライブ構成"
     },
     {
       "context": "MainWindow",
       "source": "Failed to update CMOS (file missing or not writable).",
-      "translation": "Failed to update CMOS (file missing or not writable)."
+      "translation": "CMOS を更新できませんでした（ファイルがないか書き込めません）。"
     },
     {
       "context": "MainWindow",
       "source": "Could not apply mouse profile (need a disc profile).",
-      "translation": "Could not apply mouse profile (need a disc profile)."
+      "translation": "マウスプロファイルを適用できませんでした（ディスクプロファイルが必要です）。"
     },
     {
       "context": "MainWindow",
@@ -662,6 +687,16 @@
     },
     {
       "context": "MainWindow",
+      "source": "VM paused (CPU debug)",
+      "translation": "VM を一時停止しました（CPU デバッグ）"
+    },
+    {
+      "context": "MainWindow",
+      "source": "VM resumed",
+      "translation": "VM を再開しました"
+    },
+    {
+      "context": "MainWindow",
       "source": "Tsugaru_QT",
       "translation": "Tsugaru_QT"
     },
@@ -702,8 +737,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor.",
-      "translation": "マウス統合(アプリ別設定): 基本は規定と同じで、紐付けしたEXP起動後にアプリごとのPhys設定を適用します。"
+      "source": "App-specific Phys integration is active. Middle button switches to mouse capture; middle again restores.",
+      "translation": "アプリ別 Phys 統合が有効です。中ボタンでマウスキャプチャへ切替、もう一度で戻ります。"
     },
     {
       "context": "MainWindow",
@@ -712,8 +747,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.",
-      "translation": "マウス統合(マウスBIOS): マウスBIOSを使ったマウス統合を強制します。"
+      "source": "Mouse BIOS (MOS) integration is active. Middle button switches to mouse capture; middle again restores.",
+      "translation": "Mouse BIOS (MOS) 統合が有効です。中ボタンでマウスキャプチャへ切替、もう一度で戻ります。"
     },
     {
       "context": "MainWindow",
@@ -789,16 +824,6 @@
       "context": "MouseCoordProfilePage",
       "source": "Mouse capture",
       "translation": "マウスキャプチャ"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS)",
-      "translation": "マウス統合(マウスBIOS)"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (app-specific settings)",
-      "translation": "マウス統合(アプリ別設定)"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -908,7 +933,7 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes.",
-      "translation": "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes."
+      "translation": "ライブの DS.base からのオフセット（WC 方式）。メモリ／CMOS／HDD 変更でゲスト配置がずれるときは、絶対 Phys よりこちらを推奨。"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -994,21 +1019,6 @@
       "context": "MouseCoordProfilePage",
       "source": "Mouse capture (failsafe): always uses mouse capture. Middle button enables or releases capture. Mouse integration is not performed.",
       "translation": "マウスキャプチャ（フェイルセーフ）: 常にマウスキャプチャ。中ボタンで有効／解除。マウス統合は行いません。"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
-      "translation": "マウス統合(マウスBIOS): マウスBIOSを使ったマウス統合を強制します。マウスBIOS非対応タイトルではマウス統合できません。"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved.",
-      "translation": "マウス統合(マウスBIOS): マウスBIOS softカーソルが解決できない間は使えません。"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport.",
-      "translation": "マウス統合(アプリ別設定): 基本は規定と同じです。紐付けしたEXP起動後にアプリごとのPhys設定を適用します。phys検索でphysを特定・設定し、ゲーム内カーソル位置の取得と書き換えを行います。「メモリ書込み」オンでゲストRAMへ直接書き込み、オフではゲームポート経由の差分になります。"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -1228,7 +1238,7 @@
     {
       "context": "SettingsDialog",
       "source": "Boot drive",
-      "translation": "Boot drive"
+      "translation": "起動ディスク"
     },
     {
       "context": "SettingsDialog",
@@ -1318,7 +1328,7 @@
     {
       "context": "SettingsDialog",
       "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
-      "translation": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin)."
+      "translation": "基本構成の既定値 (townsqt.conf) を編集中です。適用または OK でここに保存します。\nメモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動し、ゲームポートの変更は即時反映されます。\nCD マウント中にディスクプロファイルを作成すると、ディスクごとの設定を保存できます\n（FD0 / FD1 / HD0–HD6 のマウントと cmos/cmos_XXXXXXXX.bin の CMOS）。"
     },
     {
       "context": "SettingsDialog",
@@ -1328,12 +1338,12 @@
     {
       "context": "SettingsDialog",
       "source": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
-      "translation": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot."
+      "translation": "有効な CMOS（グローバル cmos.bin またはプロファイルの cmos/cmos_XXXXXXXX.bin）を編集します。\n適用または OK で VM の CMOS RAM とファイルを更新します。Towns OS では通常リセット／再起動が必要です。"
     },
     {
       "context": "SettingsDialog",
       "source": "Drive configuration",
-      "translation": "Drive configuration"
+      "translation": "ドライブ構成"
     },
     {
       "context": "SettingsDialog",
@@ -1472,8 +1482,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded.",
-      "translation": "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了・起動・CD 変更時に、\nディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n必要に応じて自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\nオフのときは、ステートセーブの自動保存・自動読み込みを行いません。"
+      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
+      "translation": "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了時に、\nディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n次回読み込み時に自動再開します。\n同じ CD の手動再起動ではステートセーブは読み込まれません。\nオフのときは、ステートセーブの自動保存・自動読み込みを行いません。"
     },
     {
       "context": "SettingsDialog",
@@ -1509,16 +1519,6 @@
       "context": "SettingsDialog",
       "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
       "translation": "Wayland セッションで画面の自動消灯や暗転を防ぎます。"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MOS unused",
-      "translation": "MOS未使用"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture.",
-      "translation": "Mouse BIOS 動作中でも未使用ならマウス統合を終了し、マウスキャプチャへ切り替えます。"
     },
     {
       "context": "SettingsDialog",
@@ -1578,12 +1578,12 @@
     {
       "context": "SettingsDialog",
       "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
-      "translation": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator."
+      "translation": "ディスクプロファイル (fp_XXXXXXXX.ini、琥珀色の枠) を編集中です。\n適用または OK でクロック・起動ディスク・メモリ・ポート・オプション、\nおよび FD0 / FD1 / HD0–HD6 のマウント状態をプロファイルへ保存します（次回読込時に復元）。\nCMOS（ドライブレター・シングルドライブ）はこのディスク用の cmos/cmos_XXXXXXXX.bin を使います — Towns SETUP で設定。\nCPU とモデルは townsqt.conf のグローバル設定のままで、プロファイルには保存しません。\nメモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動します。"
     },
     {
       "context": "SettingsDialog",
       "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-      "translation": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately."
+      "translation": "この CD のディスクプロファイルはまだありません。「プロファイルを作成」でディスクごとの設定を保存できます\n（復元用に FD0 / FD1 / HD0–HD6 のマウント状態も含みます）。\nプロファイルには Towns SETUP 用の CMOS ファイル (cmos/cmos_XXXXXXXX.bin) も付きます。\n作成するまでは、適用または OK で基本構成の既定を townsqt.conf へ保存します。\nメモリ・起動ディスク・CPU 忠実度の変更は再起動し、ゲームポートの変更は即時反映されます。"
     },
     {
       "context": "SettingsDialog",

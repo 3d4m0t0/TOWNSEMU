@@ -347,6 +347,7 @@ int main(int argc,char *argv[])
 		icon.addFile(QStringLiteral(":/icons/tsugaru_16.png"));
 		icon.addFile(QStringLiteral(":/icons/tsugaru_32.png"));
 		icon.addFile(QStringLiteral(":/icons/tsugaru_48.png"));
+		icon.addFile(QStringLiteral(":/icons/tsugaru_64.png"));
 		icon.addFile(QStringLiteral(":/icons/tsugaru_128.png"));
 		icon.addFile(QStringLiteral(":/icons/tsugaru.png"));
 		icon.addFile(QStringLiteral(":/icons/tsugaru_512.png"));

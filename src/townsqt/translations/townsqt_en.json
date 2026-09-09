@@ -61,6 +61,51 @@
       "translation": "Close"
     },
     {
+      "context": "DriveConfigPage",
+      "source": "Single-drive mode (disable FD1)",
+      "translation": "Single-drive mode (disable FD1)"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Towns CMOS flag at I/O 0x328C. When on, FD1 is unavailable.",
+      "translation": "Towns CMOS flag at I/O 0x328C. When on, FD1 is unavailable."
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Drive letter assignments (A–P). Apply or OK writes VM CMOS RAM and the active CMOS file. Towns OS usually picks them up after reset/boot.",
+      "translation": "Drive letter assignments (A–P). Apply or OK writes VM CMOS RAM and the active CMOS file. Towns OS usually picks them up after reset/boot."
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Type",
+      "translation": "Type"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Unit",
+      "translation": "Unit"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "Unassigned",
+      "translation": "Unassigned"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "FD",
+      "translation": "FD"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "SCSI",
+      "translation": "SCSI"
+    },
+    {
+      "context": "DriveConfigPage",
+      "source": "ROM",
+      "translation": "ROM"
+    },
+    {
       "context": "HddSettingsDialog",
       "source": "Hard disk drive settings",
       "translation": "Hard disk drive settings"
@@ -107,6 +152,16 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "TownsOS: create with 1 partition + format (127 MB, max size)",
+      "translation": "TownsOS: create with 1 partition + format (127 MB, max size)"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Writes Towns HD IPL, one full-size partition, and an empty FAT16.\nFor HD0, CMOS is set to D: = SCSI unit 0 after OK.\nRestart the emulator to recognize the drive.",
+      "translation": "Writes Towns HD IPL, one full-size partition, and an empty FAT16.\nFor HD0, CMOS is set to D: = SCSI unit 0 after OK.\nRestart the emulator to recognize the drive."
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written.",
       "translation": "New images are created sparse. File managers show logical size; actual disk usage stays small until data is written."
     },
@@ -137,6 +192,11 @@
     },
     {
       "context": "HddSettingsDialog",
+      "source": "Create a 127 MB TownsOS image with one full-size partition and an empty format?\nFor HD0, D: will be set to SCSI unit 0 in CMOS when you press OK.",
+      "translation": "Create a 127 MB TownsOS image with one full-size partition and an empty format?\nFor HD0, D: will be set to SCSI unit 0 in CMOS when you press OK."
+    },
+    {
+      "context": "HddSettingsDialog",
       "source": "Failed to create the hard disk directory.",
       "translation": "Failed to create the hard disk directory."
     },
@@ -157,8 +217,23 @@
     },
     {
       "context": "HddSettingsDialog",
-      "source": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
-      "translation": "Created a sparse hard disk image.\n\nLogical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage."
+      "source": "Created a TownsOS-formatted sparse hard disk image (1 partition).\n\n",
+      "translation": "Created a TownsOS-formatted sparse hard disk image (1 partition).\n\n"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Created a sparse hard disk image.\n\n",
+      "translation": "Created a sparse hard disk image.\n\n"
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "Logical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.",
+      "translation": "Logical size (for FM TOWNS): %1\nDisk usage on this computer: %2\n\nFile managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage."
+    },
+    {
+      "context": "HddSettingsDialog",
+      "source": "\n\nAfter OK: CMOS D: = SCSI unit 0 (HD0). Restart to recognize the drive.",
+      "translation": "\n\nAfter OK: CMOS D: = SCSI unit 0 (HD0). Restart to recognize the drive."
     },
     {
       "context": "HddSettingsDialog",
@@ -432,6 +507,21 @@
     },
     {
       "context": "MainWindow",
+      "source": "Hard disk drive settings",
+      "translation": "Hard disk drive settings"
+    },
+    {
+      "context": "MainWindow",
+      "source": "HD image created, but failed to set CMOS D: = SCSI unit 0.",
+      "translation": "HD image created, but failed to set CMOS D: = SCSI unit 0."
+    },
+    {
+      "context": "MainWindow",
+      "source": "Hard disk settings saved (CMOS D: = SCSI unit 0). Restart to recognize HD0.",
+      "translation": "Hard disk settings saved (CMOS D: = SCSI unit 0). Restart to recognize HD0."
+    },
+    {
+      "context": "MainWindow",
       "source": "Hard disk settings saved. They take effect after restart.",
       "translation": "Hard disk settings saved. They take effect after restart."
     },
@@ -597,6 +687,16 @@
     },
     {
       "context": "MainWindow",
+      "source": "VM paused (CPU debug)",
+      "translation": "VM paused (CPU debug)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "VM resumed",
+      "translation": "VM resumed"
+    },
+    {
+      "context": "MainWindow",
       "source": "Tsugaru_QT",
       "translation": "Tsugaru_QT"
     },
@@ -637,8 +737,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor.",
-      "translation": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings for the in-game cursor."
+      "source": "App-specific Phys integration is active. Middle button switches to mouse capture; middle again restores.",
+      "translation": "App-specific Phys integration is active. Middle button switches to mouse capture; middle again restores."
     },
     {
       "context": "MainWindow",
@@ -647,8 +747,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS.",
-      "translation": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS."
+      "source": "Mouse BIOS (MOS) integration is active. Middle button switches to mouse capture; middle again restores.",
+      "translation": "Mouse BIOS (MOS) integration is active. Middle button switches to mouse capture; middle again restores."
     },
     {
       "context": "MainWindow",
@@ -667,13 +767,13 @@
     },
     {
       "context": "MainWindow",
-      "source": "Click to capture",
-      "translation": "Click to capture"
+      "source": "Middle button to capture",
+      "translation": "Middle button to capture"
     },
     {
       "context": "MainWindow",
-      "source": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it.",
-      "translation": "Mouse capture released. Click the screen to start capture; press the middle mouse button to release it."
+      "source": "Mouse capture released. Press the middle mouse button to start capture; press it again to release.",
+      "translation": "Mouse capture released. Press the middle mouse button to start capture; press it again to release."
     },
     {
       "context": "MainWindow",
@@ -724,16 +824,6 @@
       "context": "MouseCoordProfilePage",
       "source": "Mouse capture",
       "translation": "Mouse capture"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS)",
-      "translation": "Mouse integration (Mouse BIOS)"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (app-specific settings)",
-      "translation": "Mouse integration (app-specific settings)"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -922,28 +1012,13 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
-      "translation": "Default: automatically switches between mouse integration (Mouse BIOS) and mouse capture to match Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration."
+      "source": "Default (priority): app-specific Phys when set and bound → Mouse BIOS (MOS) while alive → mouse capture otherwise. Middle button toggles mouse capture on/off (no click-to-capture). Set Game Phys / Bind for app-specific integration.",
+      "translation": "Default (priority): app-specific Phys when set and bound → Mouse BIOS (MOS) while alive → mouse capture otherwise. Middle button toggles mouse capture on/off (no click-to-capture). Set Game Phys / Bind for app-specific integration."
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Mouse capture: always uses mouse capture. Mouse integration is not performed.",
-      "translation": "Mouse capture: always uses mouse capture. Mouse integration is not performed."
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration.",
-      "translation": "Mouse integration (Mouse BIOS): forces mouse integration via Mouse BIOS. Titles without Mouse BIOS cannot use mouse integration."
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved.",
-      "translation": "Mouse integration (Mouse BIOS): unavailable while the Mouse BIOS soft cursor cannot be resolved."
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport.",
-      "translation": "Mouse integration (app-specific settings): follows Default until a bound EXP starts, then applies per-app Phys settings. Use Phys search to identify and set phys addresses for reading and writing the in-game cursor. “Memory write” pokes guest RAM; when off, host−guest deltas go through the gameport."
+      "source": "Mouse capture (failsafe): always uses mouse capture. Middle button enables or releases capture. Mouse integration is not performed.",
+      "translation": "Mouse capture (failsafe): always uses mouse capture. Middle button enables or releases capture. Mouse integration is not performed."
     },
     {
       "context": "MouseCoordProfilePage",
@@ -1407,8 +1482,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded.",
-      "translation": "When a disc profile exists for the mounted CD image, automatically save and\nresume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\napp exit, startup, and CD change. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither written nor loaded."
+      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
+      "translation": "When a disc profile exists for the mounted CD image, automatically save\nper-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded."
     },
     {
       "context": "SettingsDialog",
@@ -1444,16 +1519,6 @@
       "context": "SettingsDialog",
       "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
       "translation": "Prevents automatic screen blanking/dimming on Wayland sessions."
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "MOS unused",
-      "translation": "MOS unused"
-    },
-    {
-      "context": "SettingsDialog",
-      "source": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture.",
-      "translation": "Even while Mouse BIOS is running, if it is unused, end mouse integration\nand switch to mouse capture."
     },
     {
       "context": "SettingsDialog",

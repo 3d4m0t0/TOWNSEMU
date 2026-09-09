@@ -20,7 +20,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define TOWNSQT_CORE_TAG "20260522"
 
 /*! TownsQt port version (SemVer). Bump independently of upstream. */
-#define TOWNSQT_PORT_VERSION "1.0.0"
+#define TOWNSQT_PORT_VERSION "1.1.0"
 
 /*! Full product version for About / QApplication::applicationVersion. */
 #define TOWNSQT_VERSION "Tsugaru" TOWNSQT_CORE_TAG "-qt " TOWNSQT_PORT_VERSION

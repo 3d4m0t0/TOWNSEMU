@@ -1245,10 +1245,10 @@ void SettingsDialog::buildUi()
 		v->addWidget(auto_resume_enabled_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("When a disc profile exists for the mounted CD image, automatically save and\n"
-		       "resume from per-disc state save slot 0 (state0_XXXXXXXX.TState) at CD eject,\n"
-		       "app exit, startup, and CD change. Manual restart with the same CD does not\n"
-		       "load a saved state. When off, state saves are neither written nor loaded.")));
+		    tr("When a disc profile exists for the mounted CD image, automatically save\n"
+		       "per-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
+		       "and auto-resume on the next load. Manual restart with the same CD does not\n"
+		       "load a saved state. When off, state saves are neither auto-written nor auto-loaded.")));
 
 		snap_mouse_integration_=new QCheckBox(tr("Faster mouse integration"),page);
 		v->addWidget(snap_mouse_integration_);
