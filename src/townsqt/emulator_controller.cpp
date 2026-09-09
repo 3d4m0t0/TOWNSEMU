@@ -3225,6 +3225,20 @@ bool EmulatorController::updateDiscMachineClock(bool fastMode,int frequencyMhz,i
 	return true;
 }
 
+bool EmulatorController::updateDiscMachineGamePort(unsigned int portIndex,unsigned int emu)
+{
+	if(nullptr==towns_ || 1<portIndex)
+	{
+		return false;
+	}
+	if(true!=towns_->mouseCoordWriteScan.MergeAndSaveMachineGamePort(portIndex,emu))
+	{
+		return false;
+	}
+	Q_EMIT discProfileStateChanged();
+	return true;
+}
+
 void EmulatorController::setUseDiscProfiles(bool enabled)
 {
 	if(nullptr!=towns_)

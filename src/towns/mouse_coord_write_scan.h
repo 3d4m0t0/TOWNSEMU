@@ -592,6 +592,8 @@ public:
 	/*! Merge CPU clock fields into the active disc profile [machine] and save
 	    (preserves other machine keys and the mouse section). */
 	bool MergeAndSaveMachineClock(bool fastMode,int frequencyMhz,int customFrequencyMhz);
+	/*! Merge one game-port selection into the active disc profile [machine] and save. */
+	bool MergeAndSaveMachineGamePort(unsigned int portIndex,unsigned int emu);
 	/*! Update FD0/FD1 mount paths on the active disc profile and save. */
 	bool ApplyAndSaveFdMounts(const std::string &fd0,const std::string &fd1);
 	/*! Update SCSI HD0–HD6 mount paths on the active disc profile and save.

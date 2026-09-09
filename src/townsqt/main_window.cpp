@@ -1346,6 +1346,10 @@ void MainWindow::setSpriteTransferMode(int mode)
 void MainWindow::setGamePort(int port,unsigned int emu)
 {
 	port=std::clamp(port,0,1);
+	if(true==applyGamePortViaDiscProfile(port,emu))
+	{
+		return;
+	}
 	TownsQtSettings::setGamePort(port,emu);
 	if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
 	{
@@ -1368,6 +1372,67 @@ void MainWindow::setGamePort(int port,unsigned int emu)
 	syncGamePortMenus();
 }
 
+bool MainWindow::applyGamePortViaDiscProfile(int port,unsigned int emu)
+{
+	port=std::clamp(port,0,1);
+	if(true!=cached_disc_profile_loaded_ ||
+	   nullptr==controller_ ||
+	   nullptr==emu_thread_ ||
+	   true!=emu_thread_->isRunning())
+	{
+		return false;
+	}
+
+	bool ok=false;
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "updateDiscMachineGamePort",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(bool,ok),
+	    Q_ARG(unsigned int,static_cast<unsigned int>(port)),
+	    Q_ARG(unsigned int,emu));
+	if(true!=ok)
+	{
+		return false;
+	}
+
+	const QString key=(0==port) ? QStringLiteral("gameport0") : QStringLiteral("gameport1");
+	disc_profile_machine_override_.insert(key,emu);
+	disc_profile_override_active_=true;
+
+	const QVariantMap &machine=disc_profile_machine_override_;
+	const unsigned int gp0=machine.contains(QStringLiteral("gameport0")) ?
+	    machine.value(QStringLiteral("gameport0")).toUInt() :
+	    TownsQtSettings::gamePort(0);
+	const unsigned int gp1=machine.contains(QStringLiteral("gameport1")) ?
+	    machine.value(QStringLiteral("gameport1")).toUInt() :
+	    TownsQtSettings::gamePort(1);
+	const int hold0=machine.contains(QStringLiteral("max_button_hold_ms0")) ?
+	    machine.value(QStringLiteral("max_button_hold_ms0")).toInt() :
+	    TownsQtSettings::maxButtonHoldTimeMs(0,0);
+	const int hold1=machine.contains(QStringLiteral("max_button_hold_ms1")) ?
+	    machine.value(QStringLiteral("max_button_hold_ms1")).toInt() :
+	    TownsQtSettings::maxButtonHoldTimeMs(0,1);
+
+	QMetaObject::invokeMethod(
+	    controller_,
+	    "applyPeripheralSettings",
+	    Qt::QueuedConnection,
+	    Q_ARG(unsigned int,gp0),
+	    Q_ARG(unsigned int,gp1),
+	    Q_ARG(int,hold0),
+	    Q_ARG(int,hold1),
+	    Q_ARG(int,TownsQtSettings::mouseIntegrationSpeed()),
+	    Q_ARG(bool,TownsQtSettings::considerVRAMOffsetInMouseIntegration()),
+	    Q_ARG(bool,TownsQtSettings::autoDifferentialOnMosUnused()),
+	    Q_ARG(int,TownsQtSettings::mouseMinX()),
+	    Q_ARG(int,TownsQtSettings::mouseMinY()),
+	    Q_ARG(int,TownsQtSettings::mouseMaxX()),
+	    Q_ARG(int,TownsQtSettings::mouseMaxY()));
+	syncGamePortMenus();
+	return true;
+}
+
 void MainWindow::syncGamePortMenus()
 {
 	QMenu *menus[2]={gameport0_menu_,gameport1_menu_};
@@ -1380,6 +1445,14 @@ void MainWindow::syncGamePortMenus()
 			continue;
 		}
 		unsigned int emu=TownsQtSettings::gamePort(port);
+		if(true==disc_profile_override_active_)
+		{
+			const QString key=(0==port) ? QStringLiteral("gameport0") : QStringLiteral("gameport1");
+			if(disc_profile_machine_override_.contains(key))
+			{
+				emu=disc_profile_machine_override_.value(key).toUInt();
+			}
+		}
 		TownsQtGamePortOptions::PopulateMenu(menus[port],groups[port],emu);
 		if(!groups[port]->checkedAction())
 		{
@@ -2575,10 +2648,16 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 		    controller_,
 		    "applyPeripheralSettings",
 		    Qt::QueuedConnection,
-		    Q_ARG(unsigned int,effective.gamePort0),
-		    Q_ARG(unsigned int,effective.gamePort1),
-		    Q_ARG(int,effective.maxButtonHoldTimeMs0),
-		    Q_ARG(int,effective.maxButtonHoldTimeMs1),
+		    Q_ARG(unsigned int,
+		          true==effective.discProfileAvailable ? effective.profileGamePort0 : effective.gamePort0),
+		    Q_ARG(unsigned int,
+		          true==effective.discProfileAvailable ? effective.profileGamePort1 : effective.gamePort1),
+		    Q_ARG(int,
+		          true==effective.discProfileAvailable ?
+		              effective.profileMaxButtonHoldTimeMs0 : effective.maxButtonHoldTimeMs0),
+		    Q_ARG(int,
+		          true==effective.discProfileAvailable ?
+		              effective.profileMaxButtonHoldTimeMs1 : effective.maxButtonHoldTimeMs1),
 		    Q_ARG(int,effective.mouseIntegrationSpeed),
 		    Q_ARG(bool,effective.considerVRAMOffsetInMouseIntegration),
 		    Q_ARG(bool,effective.autoDifferentialOnMosUnused),
@@ -3069,6 +3148,7 @@ void MainWindow::applyRuntimeDiscProfileOverrides(bool retainOverrideIfUnprofile
 	}
 
 	syncCpuClockMenuActions();
+	syncGamePortMenus();
 
 	const QVariantMap &machine=disc_profile_machine_override_;
 	const bool useProfilePeripherals=true==disc_profile_override_active_;

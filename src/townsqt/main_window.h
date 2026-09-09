@@ -128,6 +128,8 @@ private:
 	void syncCdSpeedMenuTitle();
 	/*! When a disc profile is loaded, Operation-menu clock writes into that profile. */
 	bool applyCpuClockViaDiscProfile(bool fast_mode,int mhz);
+	/*! When a disc profile is loaded, Operation-menu game-port writes into that profile. */
+	bool applyGamePortViaDiscProfile(int port,unsigned int emu);
 	void setCpuFastModeEnabled(bool enabled);
 	void setCpuFrequencyMhz(int mhz);
 	void setCdSpeed(int speed);

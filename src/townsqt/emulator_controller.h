@@ -82,6 +82,8 @@ public Q_SLOTS:
 	Q_INVOKABLE bool saveDiscMachineProfile(const QVariantMap &machine);
 	/*! Merge Operation-menu CPU clock into the active disc profile [machine]. */
 	Q_INVOKABLE bool updateDiscMachineClock(bool fastMode,int frequencyMhz,int customFrequencyMhz);
+	/*! Merge Operation-menu game-port selection into the active disc profile [machine]. */
+	Q_INVOKABLE bool updateDiscMachineGamePort(unsigned int portIndex,unsigned int emu);
 	Q_INVOKABLE void setUseDiscProfiles(bool enabled);
 	Q_INVOKABLE bool fastModeLamp() const;
 	Outside_World::StatusBarInfo driveAccessStatus() const;

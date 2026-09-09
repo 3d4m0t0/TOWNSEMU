@@ -4717,6 +4717,34 @@ bool MouseCoordWriteScan::MergeAndSaveMachineClock(
 	return WriteProfileFile(p);
 }
 
+bool MouseCoordWriteScan::MergeAndSaveMachineGamePort(unsigned int portIndex,unsigned int emu)
+{
+	Profile p;
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		if(true!=profileLoaded || true!=activeProfile.HasFingerprint())
+		{
+			return false;
+		}
+		if(0==portIndex)
+		{
+			activeProfile.machine.hasGamePort0=true;
+			activeProfile.machine.gamePort0=emu;
+		}
+		else if(1==portIndex)
+		{
+			activeProfile.machine.hasGamePort1=true;
+			activeProfile.machine.gamePort1=emu;
+		}
+		else
+		{
+			return false;
+		}
+		p=activeProfile;
+	}
+	return WriteProfileFile(p);
+}
+
 bool MouseCoordWriteScan::ApplyAndSaveFdMounts(const std::string &fd0,const std::string &fd1)
 {
 	Profile p;
