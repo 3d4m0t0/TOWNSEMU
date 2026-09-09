@@ -12,11 +12,95 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 << LICENSE */
+#include <algorithm>
 #include <cstring>
 #include "cpputil.h"
 #include "render.h"
 #include "fmt3631.h"
 
+namespace
+{
+/*! zoom2x horizontal step (ZH[0]+ZH[1]). Always >= 1. */
+inline int HorizZoomPixels(int zoom2x_x)
+{
+	const int zh0=zoom2x_x/2;
+	const int zh1=(zoom2x_x+1)/2;
+	return std::max(1,zh0+zh1);
+}
+
+/*! zoom2x vertical step. Always >= 1 (0 would infinite-loop y += ZV). */
+inline int VertZoomPixels(int zoom2x_y)
+{
+	return std::max(1,zoom2x_y/2);
+}
+
+/*! Plot one horizontally-zoomed 4-bit VRAM byte into the line, clipped to [0,wid).
+    Emerald Dragon (and similar) can have non-zero page origin; the old loops only
+    tested the chunk start against wid and then wrote ZH[2] pixels — heap overrun. */
+template <class Pix4>
+inline void Plot4BitZoomClipped(
+    unsigned char rgba[],
+    unsigned int wid,unsigned int hei,
+    int Y,
+    int zh0,int zh1,
+    int screenX0,
+    const Pix4 &lo,const Pix4 &hi,
+    bool writeLo,bool writeHi)
+{
+	if(Y<0 || (unsigned int)Y>=hei)
+	{
+		return;
+	}
+	auto *line=rgba+4*(Y*(int)wid);
+	for(int i=0; i<zh0; ++i)
+	{
+		const int px=screenX0+i;
+		if(px<0 || px>=(int)wid)
+		{
+			continue;
+		}
+		if(true==writeLo)
+		{
+			std::memcpy(line+4*px,&lo,4);
+		}
+	}
+	const int screenX1=screenX0+zh0;
+	for(int i=0; i<zh1; ++i)
+	{
+		const int px=screenX1+i;
+		if(px<0 || px>=(int)wid)
+		{
+			continue;
+		}
+		if(true==writeHi)
+		{
+			std::memcpy(line+4*px,&hi,4);
+		}
+	}
+}
+
+inline void DuplicateScanlines(
+    unsigned char rgba[],
+    unsigned int wid,unsigned int hei,
+    int Y,unsigned int yStep)
+{
+	if(yStep<=1 || Y<0 || (unsigned int)Y>=hei)
+	{
+		return;
+	}
+	auto *src=rgba+4*(Y*(int)wid);
+	const size_t bytes=static_cast<size_t>(wid)*4u;
+	for(unsigned int zv=1; zv<yStep; ++zv)
+	{
+		const int yDst=Y+(int)zv;
+		if(yDst<0 || (unsigned int)yDst>=hei)
+		{
+			break;
+		}
+		std::memcpy(rgba+4*(yDst*(int)wid),src,bytes);
+	}
+}
+}
 
 TownsRender::TownsRender()
 {
@@ -25,9 +109,27 @@ TownsRender::TownsRender()
 }
 void TownsRender::Create(int wid,int hei)
 {
+	if(wid<1)
+	{
+		wid=1;
+	}
+	if(hei<1)
+	{
+		hei=1;
+	}
+	// Guard against corrupt CRTC sizes / signed overflow in 4*wid*hei.
+	constexpr int kMaxDim=4096;
+	if(kMaxDim<wid)
+	{
+		wid=kMaxDim;
+	}
+	if(kMaxDim<hei)
+	{
+		hei=kMaxDim;
+	}
 	this->wid=wid;
 	this->hei=hei;
-	rgba.resize(4*wid*hei);
+	rgba.resize(static_cast<size_t>(wid)*static_cast<size_t>(hei)*4u);
 }
 
 void TownsRender::Crop(unsigned int x0,unsigned int y0,unsigned int newWid,unsigned int newHei)
@@ -455,53 +557,40 @@ void TownsRender::Render4Bit(
 
 	if(47!=chaseHQPalette.lastPaletteUpdateCount) // ChaseHQ updates palette 47 times between VSYNC
 	{
-		auto ZV0=layer.zoom2x.y()/2;
-		auto ZV=ZV0;
-		const int ZH[3] = { layer.zoom2x.x() / 2,(layer.zoom2x.x() + 1) / 2, (layer.zoom2x.x() / 2) + ((layer.zoom2x.x() + 1) / 2) };  // For x.5 times zoom rate.
+		const int ZV0=VertZoomPixels(layer.zoom2x.y());
+		int ZV=ZV0;
+		const int ZH0=layer.zoom2x.x()/2;
+		const int ZH1=(layer.zoom2x.x()+1)/2;
+		const int ZH2=HorizZoomPixels(layer.zoom2x.x());
 		int bytesPerLineTimesVRAMy=layer.VRAMOffset+layer.FlipVRAMOffset;
 		auto VRAMTop=VRAM+VRAMAddr+layer.VRAMHSkipBytes;
 
 		// yStep should be 1 if transparent.
 		// If transparnet==true, there is a possibility that memcpy overwrites background pixels.
-		unsigned int yStep=(true!=transparent ? ZV : 1);
-		auto bottomY=this->hei-yStep;
+		const unsigned int yStep=(true!=transparent ? (unsigned int)ZV0 : 1u);
+		const int bottomY=(int)this->hei-(int)yStep;
 		if (true != transparent)
 		{
-			for (int y = 0; y < layer.sizeOnMonitor.y() && y + layer.originOnMonitor.y() <= bottomY; y += yStep)
+			for (int y = 0; y < layer.sizeOnMonitor.y() && y + layer.originOnMonitor.y() <= bottomY; y += (int)yStep)
 			{
 				const int Y = y + layer.originOnMonitor.y();
 				const int X = layer.originOnMonitor.x();
 				unsigned int VRAMAddr = (bytesPerLineTimesVRAMy & layer.VScrollMask);
 				OFFSETTRANS::Trans(VRAMAddr);
 				const unsigned char* src = VRAMTop + VRAMAddr;
-				unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + X);
-				auto dst = dstLine;
-				for (int x = 0; x < layer.sizeOnMonitor.x() && x + layer.originOnMonitor.x() < this->wid; x += ZH[2])
+				for (int x = 0; x < layer.sizeOnMonitor.x(); x += ZH2)
 				{
 					unsigned char vrambyte = ((*src) & pixelMask);
-					unsigned char pix = (vrambyte & 0x0f);
-					for (int i = 0; i < ZH[0]; ++i)
-					{
-						std::memcpy(dst, &palette[pix], 4);
-						dst += 4;
-					}
-					pix = (vrambyte & 0xf0) >> 4;
-					for (int i = 0; i < ZH[1]; ++i)
-					{
-						std::memcpy(dst, &palette[pix], 4);
-						dst += 4;
-					}
+					unsigned char pixLo = (vrambyte & 0x0f);
+					unsigned char pixHi = (vrambyte & 0xf0) >> 4;
+					Plot4BitZoomClipped(
+					    rgba.data(),this->wid,this->hei,Y,ZH0,ZH1,x+X,
+					    palette[pixLo],palette[pixHi],true,true);
 					++src;
 				}
-
+				DuplicateScanlines(rgba.data(),this->wid,this->hei,Y,yStep);
 				if (1 < yStep)
 				{
-					auto copyPtr = dstLine + (4 * this->wid);
-					for (unsigned int zv = 1; zv < yStep; ++zv)
-					{
-						std::memcpy(copyPtr, dstLine, dst - dstLine);
-						copyPtr += (4 * this->wid);
-					}
 					bytesPerLineTimesVRAMy += layer.bytesPerLine;
 				}
 				else
@@ -517,47 +606,26 @@ void TownsRender::Render4Bit(
 		}
 		else
 		{
-			for (int y = 0; y < layer.sizeOnMonitor.y() && y + layer.originOnMonitor.y() <= bottomY; y += yStep)
+			for (int y = 0; y < layer.sizeOnMonitor.y() && y + layer.originOnMonitor.y() <= bottomY; y += (int)yStep)
 			{
 				const int Y = y + layer.originOnMonitor.y();
 				const int X = layer.originOnMonitor.x();
 				unsigned int VRAMAddr = (bytesPerLineTimesVRAMy & layer.VScrollMask);
 				OFFSETTRANS::Trans(VRAMAddr);
 				const unsigned char* src = VRAMTop + VRAMAddr;
-				unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + X);
-				auto dst = dstLine;
-				for (int x = 0; x < layer.sizeOnMonitor.x() && x + layer.originOnMonitor.x() < this->wid; x += ZH[2])
+				for (int x = 0; x < layer.sizeOnMonitor.x(); x += ZH2)
 				{
 					unsigned char vrambyte = ((*src) & pixelMask);
-					unsigned char pix = (vrambyte & 0x0f);
-					for (int i = 0; i < ZH[0]; ++i)
-					{
-						if (0 != pix)
-						{
-							std::memcpy(dst, &palette[pix], 4);
-						}
-						dst += 4;
-					}
-					pix = (vrambyte & 0xf0) >> 4;
-					for (int i = 0; i < ZH[1]; ++i)
-					{
-						if (0 != pix)
-						{
-							std::memcpy(dst, &palette[pix], 4);
-						}
-						dst += 4;
-					}
+					unsigned char pixLo = (vrambyte & 0x0f);
+					unsigned char pixHi = (vrambyte & 0xf0) >> 4;
+					Plot4BitZoomClipped(
+					    rgba.data(),this->wid,this->hei,Y,ZH0,ZH1,x+X,
+					    palette[pixLo],palette[pixHi],0!=pixLo,0!=pixHi);
 					++src;
 				}
-
+				DuplicateScanlines(rgba.data(),this->wid,this->hei,Y,yStep);
 				if (1 < yStep)
 				{
-					auto copyPtr = dstLine + (4 * this->wid);
-					for (unsigned int zv = 1; zv < yStep; ++zv)
-					{
-						std::memcpy(copyPtr, dstLine, dst - dstLine);
-						copyPtr += (4 * this->wid);
-					}
 					bytesPerLineTimesVRAMy += layer.bytesPerLine;
 				}
 				else
@@ -588,12 +656,14 @@ void TownsRender::Render4Bit(
 			paletteUpdate[code & 0x0F][2] = chaseHQPalette.paletteLog[(i << 2) + 1];   // BRG->RGB
 		}
 
-		auto ZV = layer.zoom2x.y() / 2;
-		const int ZH[3] = { layer.zoom2x.x() / 2,(layer.zoom2x.x() + 1) / 2 ,  (layer.zoom2x.x() / 2) + ((layer.zoom2x.x() + 1) / 2) };  // For x.5 times zoom rate.
+		const int ZV = VertZoomPixels(layer.zoom2x.y());
+		const int ZH0 = layer.zoom2x.x() / 2;
+		const int ZH1 = (layer.zoom2x.x() + 1) / 2;
+		const int ZH2 = HorizZoomPixels(layer.zoom2x.x());
 		int bytesPerLineTimesVRAMy = layer.VRAMOffset + layer.FlipVRAMOffset;
 		auto VRAMTop = VRAM + VRAMAddr + layer.VRAMHSkipBytes;
 
-		auto bottomY = this->hei - ZV;
+		const int bottomY = (int)this->hei - ZV;
 		if (true != transparent)
 		{
 			for (int y = 0; y < layer.sizeOnMonitor.y() && y + layer.originOnMonitor.y() <= bottomY; y += ZV)
@@ -625,33 +695,17 @@ void TownsRender::Render4Bit(
 				unsigned int VRAMAddr = (bytesPerLineTimesVRAMy & layer.VScrollMask);
 				OFFSETTRANS::Trans(VRAMAddr);
 				const unsigned char* src = VRAMTop + VRAMAddr;
-				unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + X);
-				auto dst = dstLine;
-				for (int x = 0; x < layer.sizeOnMonitor.x() && x + layer.originOnMonitor.x() < this->wid; x += ZH[2])
+				for (int x = 0; x < layer.sizeOnMonitor.x(); x += ZH2)
 				{
 					unsigned char vrambyte = ((*src) & pixelMask);
-					unsigned char pix = (vrambyte & 0x0f);
-					for (int i = 0; i < ZH[0]; ++i)
-					{
-						std::memcpy(dst, &paletteUpdate[pix], 4);
-						dst += 4;
-					}
-					pix = (vrambyte & 0xf0) >> 4;
-					for (int i = 0; i < ZH[1]; ++i)
-					{
-						std::memcpy(dst, &paletteUpdate[pix], 4);
-						dst += 4;
-					}
+					unsigned char pixLo = (vrambyte & 0x0f);
+					unsigned char pixHi = (vrambyte & 0xf0) >> 4;
+					Plot4BitZoomClipped(
+					    rgba.data(),this->wid,this->hei,Y,ZH0,ZH1,x+X,
+					    paletteUpdate[pixLo],paletteUpdate[pixHi],true,true);
 					++src;
 				}
-
-				auto copyPtr = dstLine + (4 * this->wid);
-				for (unsigned int zv = 1; zv < ZV; ++zv)
-				{
-					std::memcpy(copyPtr, dstLine, dst - dstLine);
-					copyPtr += (4 * this->wid);
-				}
-
+				DuplicateScanlines(rgba.data(),this->wid,this->hei,Y,(unsigned int)ZV);
 				bytesPerLineTimesVRAMy += layer.bytesPerLine;
 			}
 		}
@@ -686,39 +740,17 @@ void TownsRender::Render4Bit(
 				unsigned int VRAMAddr = (bytesPerLineTimesVRAMy & layer.VScrollMask);
 				OFFSETTRANS::Trans(VRAMAddr);
 				const unsigned char* src = VRAMTop + VRAMAddr;
-				unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + X);
-				auto dst = dstLine;
-				for (int x = 0; x < layer.sizeOnMonitor.x() && x + layer.originOnMonitor.x() < this->wid; x += ZH[2])
+				for (int x = 0; x < layer.sizeOnMonitor.x(); x += ZH2)
 				{
 					unsigned char vrambyte = ((*src) & pixelMask);
-					unsigned char pix = (vrambyte & 0x0f);
-					for (int i = 0; i < ZH[0]; ++i)
-					{
-						if (0 != pix)
-						{
-							std::memcpy(dst, &paletteUpdate[pix], 4);
-						}
-						dst += 4;
-					}
-					pix = (vrambyte & 0xf0) >> 4;
-					for (int i = 0; i < ZH[1]; ++i)
-					{
-						if (0 != pix)
-						{
-							std::memcpy(dst, &paletteUpdate[pix], 4);
-						}
-						dst += 4;
-					}
+					unsigned char pixLo = (vrambyte & 0x0f);
+					unsigned char pixHi = (vrambyte & 0xf0) >> 4;
+					Plot4BitZoomClipped(
+					    rgba.data(),this->wid,this->hei,Y,ZH0,ZH1,x+X,
+					    paletteUpdate[pixLo],paletteUpdate[pixHi],0!=pixLo,0!=pixHi);
 					++src;
 				}
-
-				auto copyPtr = dstLine + (4 * this->wid);
-				for (unsigned int zv = 1; zv < ZV; ++zv)
-				{
-					std::memcpy(copyPtr, dstLine, dst - dstLine);
-					copyPtr += (4 * this->wid);
-				}
-
+				DuplicateScanlines(rgba.data(),this->wid,this->hei,Y,(unsigned int)ZV);
 				bytesPerLineTimesVRAMy += layer.bytesPerLine;
 			}
 		}
@@ -734,7 +766,7 @@ void TownsRender::Render8Bit(const TownsCRTC::Layer &layer,const Vec4ub palette[
 	const unsigned int VRAMVScrollMask=layer.VScrollMask;
 	unsigned int lineVRAMOffset=0;
 	const int ZHsrc[2]={layer.zoom2x.x()/2,(layer.zoom2x.x()+1)/2};  // For x.5 times zoom rate.
-	auto ZV=layer.zoom2x.y()/2;
+	const int ZV=VertZoomPixels(layer.zoom2x.y());
 
 	auto bottomY=this->hei-ZV;
 	if (true != transparent)
@@ -743,36 +775,40 @@ void TownsRender::Render8Bit(const TownsCRTC::Layer &layer,const Vec4ub palette[
 		{
 			auto X = layer.originOnMonitor.x();
 			auto Y = y + layer.originOnMonitor.y();
-			unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + X);
-			auto dst = dstLine;
+			if(Y<0 || (unsigned int)Y>=this->hei)
+			{
+				lineVRAMOffset += layer.bytesPerLine;
+				continue;
+			}
 
 			unsigned int inLineVRAMOffset = layer.VRAMHSkipBytes;
 			int ZHswitch = 0;
 			auto ZH = ZHsrc[ZHswitch];
-			for (int x = 0; x < layer.sizeOnMonitor.x() && x + layer.originOnMonitor.x() < this->wid && inLineVRAMOffset < layer.bytesPerLine; x++)
+			for (int x = 0; x < layer.sizeOnMonitor.x() && inLineVRAMOffset < layer.bytesPerLine; x++)
 			{
+				const int sx=x+X;
 				unsigned int VRAMAddr = lineVRAMOffset + ((inLineVRAMOffset + VRAMOffsetHorizontal) & VRAMHScrollMask);
 				VRAMAddr = VRAMBase + ((VRAMAddr + VRAMOffsetVertical) & VRAMVScrollMask);
 				OFFSETTRANS::Trans(VRAMAddr);
 
 				unsigned char col8 = VRAM[VRAMAddr];
-				std::memcpy(dst, &palette[col8], 4);
-				dst += 4;
+				if(0<=sx && sx<(int)this->wid)
+				{
+					std::memcpy(rgba.data()+4*(Y*(int)this->wid+sx), &palette[col8], 4);
+				}
 				if (0 == (--ZH))
 				{
 					ZHswitch = 1 - ZHswitch;
 					ZH = ZHsrc[ZHswitch];
 					++inLineVRAMOffset;
 				}
+				if(sx>=(int)this->wid)
+				{
+					break;
+				}
 			}
 
-			auto copyPtr = dstLine + (4 * this->wid);
-			for (unsigned int zv = 1; zv < ZV; ++zv)
-			{
-				std::memcpy(copyPtr, dstLine, dst - dstLine);
-				copyPtr += (4 * this->wid);
-			}
-
+			DuplicateScanlines(rgba.data(),this->wid,this->hei,Y,(unsigned int)ZV);
 			lineVRAMOffset += layer.bytesPerLine;
 		}
 	}
@@ -782,39 +818,40 @@ void TownsRender::Render8Bit(const TownsCRTC::Layer &layer,const Vec4ub palette[
 		{
 			auto X = layer.originOnMonitor.x();
 			auto Y = y + layer.originOnMonitor.y();
-			unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + X);
-			auto dst = dstLine;
+			if(Y<0 || (unsigned int)Y>=this->hei)
+			{
+				lineVRAMOffset += layer.bytesPerLine;
+				continue;
+			}
 
 			unsigned int inLineVRAMOffset = layer.VRAMHSkipBytes;
 			int ZHswitch = 0;
 			auto ZH = ZHsrc[ZHswitch];
-			for (int x = 0; x < layer.sizeOnMonitor.x() && x + layer.originOnMonitor.x() < this->wid && inLineVRAMOffset < layer.bytesPerLine; x++)
+			for (int x = 0; x < layer.sizeOnMonitor.x() && inLineVRAMOffset < layer.bytesPerLine; x++)
 			{
+				const int sx=x+X;
 				unsigned int VRAMAddr = lineVRAMOffset + ((inLineVRAMOffset + VRAMOffsetHorizontal) & VRAMHScrollMask);
 				VRAMAddr = VRAMBase + ((VRAMAddr + VRAMOffsetVertical) & VRAMVScrollMask);
 				OFFSETTRANS::Trans(VRAMAddr);
 
 				unsigned char col8 = VRAM[VRAMAddr];
-				if (0 != col8)
+				if(0<=sx && sx<(int)this->wid && 0!=col8)
 				{
-					std::memcpy(dst, &palette[col8], 4);
+					std::memcpy(rgba.data()+4*(Y*(int)this->wid+sx), &palette[col8], 4);
 				}
-				dst += 4;
 				if (0 == (--ZH))
 				{
 					ZHswitch = 1 - ZHswitch;
 					ZH = ZHsrc[ZHswitch];
 					++inLineVRAMOffset;
 				}
+				if(sx>=(int)this->wid)
+				{
+					break;
+				}
 			}
 
-			auto copyPtr = dstLine + (4 * this->wid);
-			for (unsigned int zv = 1; zv < ZV; ++zv)
-			{
-				std::memcpy(copyPtr, dstLine, dst - dstLine);
-				copyPtr += (4 * this->wid);
-			}
-
+			DuplicateScanlines(rgba.data(),this->wid,this->hei,Y,(unsigned int)ZV);
 			lineVRAMOffset += layer.bytesPerLine;
 		}
 	}
@@ -829,7 +866,7 @@ void TownsRender::Render16Bit(const TownsCRTC::Layer &layer,const unsigned char 
 	const unsigned int VRAMVScrollMask=layer.VScrollMask;
 	unsigned int lineVRAMOffset=0;
 	const int ZHsrc[2]={layer.zoom2x.x()/2,(layer.zoom2x.x()+1)/2};  // For x.5 times zoom rate.
-	auto ZV0=layer.zoom2x.y()/2;
+	auto ZV0=VertZoomPixels(layer.zoom2x.y());
 	auto ZV=ZV0;
 
 	// yStep should be 1 if transparent.
@@ -843,7 +880,25 @@ void TownsRender::Render16Bit(const TownsCRTC::Layer &layer,const unsigned char 
 		for (int y = 0; y < layer.sizeOnMonitor.y() && y + layer.originOnMonitor.y() <= bottomY; y += yStep)
 		{
 			auto Y = y + layer.originOnMonitor.y();
-			unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + X);
+			if(Y<0 || (unsigned int)Y>=this->hei || X>=(int)this->wid)
+			{
+				if(1<yStep)
+				{
+					lineVRAMOffset += layer.bytesPerLine;
+				}
+				else
+				{
+					--ZV;
+					if(0==ZV)
+					{
+						ZV=ZV0;
+						lineVRAMOffset += layer.bytesPerLine;
+					}
+				}
+				continue;
+			}
+			const int x0=std::max(0,X);
+			unsigned char* dstLine = rgba.data() + 4 * (Y * this->wid + x0);
 			auto dst = dstLine;
 
 			unsigned int inLineVRAMOffset = layer.VRAMHSkipBytes;
@@ -851,6 +906,16 @@ void TownsRender::Render16Bit(const TownsCRTC::Layer &layer,const unsigned char 
 			auto ZH = ZHsrc[ZHswitch];
 			for (int x = 0; x < layer.sizeOnMonitor.x() && x + layer.originOnMonitor.x() < this->wid && inLineVRAMOffset < layer.bytesPerLine + RenderOffsetX; x++)
 			{
+				if(x+X<0)
+				{
+					if (0 == (--ZH))
+					{
+						ZHswitch = 1 - ZHswitch;
+						ZH = ZHsrc[ZHswitch];
+						inLineVRAMOffset += 2;
+					}
+					continue;
+				}
 				unsigned int VRAMAddr = lineVRAMOffset + ((inLineVRAMOffset + VRAMOffsetHorizontal) & VRAMHScrollMask);
 				VRAMAddr = VRAMBase + ((VRAMAddr + VRAMOffsetVertical) & VRAMVScrollMask);
 				OFFSETTRANS::Trans(VRAMAddr);
@@ -885,12 +950,7 @@ void TownsRender::Render16Bit(const TownsCRTC::Layer &layer,const unsigned char 
 
 			if (1 < yStep)
 			{
-				auto copyPtr = dstLine + (4 * this->wid);
-				for (unsigned int zv = 1; zv < yStep; ++zv)
-				{
-					std::memcpy(copyPtr, dstLine, dst - dstLine);
-					copyPtr += (4 * this->wid);
-				}
+				DuplicateScanlines(rgba.data(),this->wid,this->hei,Y,yStep);
 				lineVRAMOffset += layer.bytesPerLine;
 			}
 			else
@@ -971,7 +1031,7 @@ void TownsRender::Render24Bit(const TownsCRTC::Layer &layer,const unsigned char 
 	const unsigned int VRAMVScrollMask=layer.VScrollMask;
 	unsigned int lineVRAMOffset=0;
 	const int ZHsrc[2]={layer.zoom2x.x()/2,(layer.zoom2x.x()+1)/2};  // For x.5 times zoom rate.
-	auto ZV0=layer.zoom2x.y()/2;
+	auto ZV0=VertZoomPixels(layer.zoom2x.y());
 	auto ZV=ZV0;
 
 	unsigned int RED=(layer.highResRGBSwap>>4)&3;
@@ -1056,7 +1116,7 @@ void TownsRender::Render32Bit(const TownsCRTC::Layer &layer,const unsigned char 
 	const unsigned int VRAMVScrollMask=layer.VScrollMask;
 	unsigned int lineVRAMOffset=0;
 	const int ZHsrc[2]={layer.zoom2x.x()/2,(layer.zoom2x.x()+1)/2};  // For x.5 times zoom rate.
-	auto ZV0=layer.zoom2x.y()/2;
+	auto ZV0=VertZoomPixels(layer.zoom2x.y());
 	auto ZV=ZV0;
 
 	unsigned int RED=(layer.highResRGBSwap>>4)&3;
