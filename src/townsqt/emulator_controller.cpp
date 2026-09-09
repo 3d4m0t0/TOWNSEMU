@@ -966,6 +966,26 @@ bool EmulatorController::applyCmosDriveSettings(bool single_drive,const QVariant
 	return writeCmosBuffer(buf);
 }
 
+bool EmulatorController::assignDriveLetterScsi(int letter_index,int scsi_unit)
+{
+	if(letter_index<0 || letter_index>=TownsCmos::kDriveLetterCount ||
+	   scsi_unit<0 || scsi_unit>255)
+	{
+		return false;
+	}
+	unsigned char buf[TOWNS_CMOS_SIZE];
+	if(true!=readCmosBuffer(buf))
+	{
+		std::memcpy(buf,FMTownsCommon::defCMOS,TOWNS_CMOS_SIZE);
+	}
+	TownsCmos::DriveAssignEntry letters[TownsCmos::kDriveLetterCount];
+	TownsCmos::GetDriveAssign(buf,letters);
+	letters[letter_index].type=TownsCmos::kTypeScsi;
+	letters[letter_index].unit=static_cast<unsigned char>(scsi_unit);
+	TownsCmos::ApplyDriveSettings(buf,TownsCmos::GetSingleDriveMode(buf),letters);
+	return writeCmosBuffer(buf);
+}
+
 void EmulatorController::PersistSingleDriveToCmosFile(bool enabled)
 {
 	// Best-effort file patch when called without a controller instance.

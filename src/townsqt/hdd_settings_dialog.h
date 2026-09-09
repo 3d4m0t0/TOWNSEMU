@@ -28,6 +28,12 @@ public:
 
 	void copySlotsTo(Slot out[TownsQtSettings::kHddSlotCount]) const;
 
+	/*! True if a TownsOS-formatted image was created for HD0 during this dialog session. */
+	bool townsOsFormatCreatedForHd0() const
+	{
+		return towns_os_format_created_hd0_;
+	}
+
 private Q_SLOTS:
 	void onCreateClicked(int slot);
 	void onCompactClicked(int slot);
@@ -53,4 +59,6 @@ private:
 	Row rows_[TownsQtSettings::kHddSlotCount];
 	/*! Basename (no extension) of the mounted CD, if any — used for HD0 Create default name. */
 	QString cd_image_base_name_;
+	QCheckBox *towns_os_format_=nullptr;
+	bool towns_os_format_created_hd0_=false;
 };

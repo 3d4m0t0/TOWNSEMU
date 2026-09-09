@@ -106,6 +106,8 @@ public Q_SLOTS:
 	/*! Rewrite DRIVE_ASSIGN + SINGLE_DRIVE in VM CMOSRAM (and flush CMOS file).
 	    letters: list of {type,unit} for A–P (type 0=FD,2=SCSI,5=ROM,255=unassigned). */
 	Q_INVOKABLE bool applyCmosDriveSettings(bool single_drive,const QVariantList &letters);
+	/*! Set one A–P letter to SCSI/unit (HD0→D:/unit 0). Preserves other letters + single-drive. */
+	Q_INVOKABLE bool assignDriveLetterScsi(int letter_index,int scsi_unit);
 	/*! Convenience: toggle single-drive, keep current drive letters; repairs checksum. */
 	Q_INVOKABLE void applySingleDrive(bool enabled);
 	/*! Write current single-drive into the active CMOS file (checksum-safe). */

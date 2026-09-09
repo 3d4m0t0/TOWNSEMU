@@ -1,5 +1,6 @@
 #include "hdd_settings_dialog.h"
 
+#include "townsqt_hdd_townsos.h"
 #include "townsqt_paths.h"
 
 #include "cpputil.h"
@@ -10,7 +11,6 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGridLayout>
-#include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -22,7 +22,7 @@
 
 namespace
 {
-constexpr int kDefaultHddSizeMb=127;
+constexpr int kDefaultHddSizeMb=kTownsOsHddSizeMb;
 constexpr int kMinHddSizeMb=1;
 constexpr int kMaxHddSizeMb=1024;
 
@@ -108,6 +108,17 @@ HddSettingsDialog::HddSettingsDialog(const Slot slots[TownsQtSettings::kHddSlotC
 	}
 
 	layout->addLayout(grid);
+
+	towns_os_format_=new QCheckBox(
+	    tr("TownsOS: create with 1 partition + format (127 MB, max size)"),
+	    this);
+	towns_os_format_->setToolTip(
+	    tr("Writes Towns HD IPL, one full-size partition, and an empty FAT16.\n"
+	       "For HD0, CMOS is set to D: = SCSI unit 0 after OK.\n"
+	       "Restart the emulator to recognize the drive."));
+	towns_os_format_->setChecked(true);
+	layout->addWidget(towns_os_format_);
+
 	layout->addWidget(new QLabel(
 	    tr("New images are created sparse. File managers show logical size; actual disk usage stays small until data is written."),
 	    this));
@@ -185,17 +196,34 @@ bool HddSettingsDialog::createBlankHddImage(const QString &path,int size_mb)
 void HddSettingsDialog::onCreateClicked(int slot)
 {
 	slot=std::clamp(slot,0,TownsQtSettings::kHddSlotCount-1);
-	bool ok=false;
-	const int size_mb=QInputDialog::getInt(
-	    this,
-	    tr("Create hard disk image"),
-	    tr("Logical size in MB (%1–%2).\nCreated as a sparse image:").arg(kMinHddSizeMb).arg(kMaxHddSizeMb),
-	    kDefaultHddSizeMb,
-	    kMinHddSizeMb,
-	    kMaxHddSizeMb,
-	    1,
-	    &ok);
-	if(!ok)
+	const bool towns_os=(nullptr!=towns_os_format_ && towns_os_format_->isChecked());
+
+	int size_mb=kTownsOsHddSizeMb;
+	if(true!=towns_os)
+	{
+		bool ok=false;
+		size_mb=QInputDialog::getInt(
+		    this,
+		    tr("Create hard disk image"),
+		    tr("Logical size in MB (%1–%2).\nCreated as a sparse image:")
+		        .arg(kMinHddSizeMb).arg(kMaxHddSizeMb),
+		    kDefaultHddSizeMb,
+		    kMinHddSizeMb,
+		    kMaxHddSizeMb,
+		    1,
+		    &ok);
+		if(!ok)
+		{
+			return;
+		}
+	}
+	else if(QMessageBox::Yes!=QMessageBox::question(
+	            this,
+	            tr("Create hard disk image"),
+	            tr("Create a 127 MB TownsOS image with one full-size partition and an empty format?\n"
+	               "For HD0, D: will be set to SCSI unit 0 in CMOS when you press OK."),
+	            QMessageBox::Yes|QMessageBox::No,
+	            QMessageBox::Yes))
 	{
 		return;
 	}
@@ -240,7 +268,11 @@ void HddSettingsDialog::onCreateClicked(int slot)
 		return;
 	}
 
-	if(!createBlankHddImage(path,size_mb))
+	const bool created=
+	    (true==towns_os)
+	        ? CreateTownsOsFormattedHdd127Mb(path)
+	        : createBlankHddImage(path,size_mb);
+	if(!created)
 	{
 		QMessageBox::warning(
 		    this,
@@ -249,16 +281,26 @@ void HddSettingsDialog::onCreateClicked(int slot)
 		return;
 	}
 
+	if(true==towns_os && 0==slot)
+	{
+		towns_os_format_created_hd0_=true;
+	}
+
 	const qint64 logical=QFileInfo(path).size();
 	const qint64 disk=cpputil::AllocatedFileBytes(path.toStdString());
-	QMessageBox::information(
-	    this,
-	    tr("Create hard disk image"),
-	    tr("Created a sparse hard disk image.\n\n"
-	       "Logical size (for FM TOWNS): %1\n"
-	       "Disk usage on this computer: %2\n\n"
-	       "File managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.")
-	        .arg(FormatByteSize(logical),FormatByteSize(disk)));
+	QString msg=
+	    (true==towns_os)
+	        ? tr("Created a TownsOS-formatted sparse hard disk image (1 partition).\n\n")
+	        : tr("Created a sparse hard disk image.\n\n");
+	msg+=tr("Logical size (for FM TOWNS): %1\n"
+	        "Disk usage on this computer: %2\n\n"
+	        "File managers list logical size. Use the tooltip on the path field or `du -h` to check disk usage.")
+	         .arg(FormatByteSize(logical),FormatByteSize(disk));
+	if(true==towns_os && 0==slot)
+	{
+		msg+=tr("\n\nAfter OK: CMOS D: = SCSI unit 0 (HD0). Restart to recognize the drive.");
+	}
+	QMessageBox::information(this,tr("Create hard disk image"),msg);
 
 	setSlotPath(slot,path);
 	rows_[slot].enabled->setChecked(true);

@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/hdd_templates">
+    <file alias="ipl.bin">hdd_templates/ipl.bin</file>
+    <file alias="vbr.bin">hdd_templates/vbr.bin</file>
+  </qresource>
+</RCC>

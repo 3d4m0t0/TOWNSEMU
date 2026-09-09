@@ -26,6 +26,9 @@ add_executable(${TARGET_NAME}
 	settings_dialog.cpp
 	hdd_settings_dialog.h
 	hdd_settings_dialog.cpp
+	townsqt_hdd_townsos.h
+	townsqt_hdd_townsos.cpp
+	townsqt_hdd_templates.qrc
 	drive_config_page.h
 	drive_config_page.cpp
 	audio_mixer_dialog.h

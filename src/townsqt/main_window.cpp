@@ -10,6 +10,7 @@
 #include "emulator_controller.h"
 #include "hdd_settings_dialog.h"
 #include "drive_config_page.h"
+#include "townsqt_hdd_townsos.h"
 #include "townsargv.h"
 #include "townsqt_argv_from_settings.h"
 #include "townsqt_cpu_profile.h"
@@ -1662,6 +1663,7 @@ void MainWindow::openHddSettingsDialog()
 	}
 
 	dlg.copySlotsTo(slots);
+	const bool towns_os_hd0=dlg.townsOsFormatCreatedForHd0();
 	bool changed=false;
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
@@ -1671,7 +1673,7 @@ void MainWindow::openHddSettingsDialog()
 			changed=true;
 		}
 	}
-	if(true!=changed)
+	if(true!=changed && true!=towns_os_hd0)
 	{
 		return;
 	}
@@ -1727,9 +1729,40 @@ void MainWindow::openHddSettingsDialog()
 		    Q_ARG(QStringList,hddPaths));
 		Q_UNUSED(persisted);
 	}
+
+	if(true==towns_os_hd0 && nullptr!=controller_)
+	{
+		bool ok=false;
+		if(nullptr!=emu_thread_ && emu_thread_->isRunning())
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "assignDriveLetterScsi",
+			    Qt::BlockingQueuedConnection,
+			    Q_RETURN_ARG(bool,ok),
+			    Q_ARG(int,kTownsOsHd0DriveLetterIndex),
+			    Q_ARG(int,kTownsOsHd0ScsiUnit));
+		}
+		else
+		{
+			ok=controller_->assignDriveLetterScsi(
+			    kTownsOsHd0DriveLetterIndex,kTownsOsHd0ScsiUnit);
+		}
+		if(true!=ok)
+		{
+			QMessageBox::warning(
+			    this,
+			    tr("Hard disk drive settings"),
+			    tr("HD image created, but failed to set CMOS D: = SCSI unit 0."));
+		}
+	}
+
 	// No restart: mounts apply on the next emulator restart.
 	statusBar()->showMessage(
-	    tr("Hard disk settings saved. They take effect after restart."),5000);
+	    true==towns_os_hd0
+	        ? tr("Hard disk settings saved (CMOS D: = SCSI unit 0). Restart to recognize HD0.")
+	        : tr("Hard disk settings saved. They take effect after restart."),
+	    5000);
 }
 
 void MainWindow::openSettingsDialog()
