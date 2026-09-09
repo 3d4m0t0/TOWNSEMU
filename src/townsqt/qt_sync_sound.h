@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <vector>
 
 struct ma_context;
@@ -79,6 +80,8 @@ private:
 	std::vector<int16_t> pending_pcm_;
 	size_t pending_read_frame_=0;
 
+	/*! Guards beep_samples_ / cdda_samples_ against VM writers vs miniaudio Mix*. */
+	mutable std::mutex mix_aux_mutex_;
 	std::vector<int16_t> beep_samples_;
 	std::atomic<size_t> beep_pos_{0};
 	std::atomic<bool> beep_active_{false};

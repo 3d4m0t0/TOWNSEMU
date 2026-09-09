@@ -1,5 +1,15 @@
 #include "shared_rgba_framebuffer.h"
 
+bool SharedRgbaFramebuffer::FramePixelBytesOk(const std::vector<unsigned char> &rgba,unsigned int wid,unsigned int hei)
+{
+	if(0==wid || 0==hei || rgba.empty())
+	{
+		return false;
+	}
+	const size_t need=static_cast<size_t>(wid)*static_cast<size_t>(hei)*4u;
+	return rgba.size()>=need;
+}
+
 void SharedRgbaFramebuffer::SetPresentCallback(std::function<void()> callback)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
@@ -21,23 +31,26 @@ void SharedRgbaFramebuffer::NotifyPresent()
 
 void SharedRgbaFramebuffer::StageRgba(std::vector<unsigned char> rgba,unsigned int wid,unsigned int hei)
 {
-	if(0==wid || 0==hei || rgba.empty())
+	if(true!=FramePixelBytesOk(rgba,wid,hei))
 	{
 		return;
 	}
 
-	const int write_index=1-read_index_;
-	auto &dst=buffers_[write_index];
-	dst=std::move(rgba);
+	const size_t need=static_cast<size_t>(wid)*static_cast<size_t>(hei)*4u;
+	if(rgba.size()!=need)
+	{
+		rgba.resize(need);
+	}
+
+	latest_=std::move(rgba);
 	wid_=wid;
 	hei_=hei;
-	read_index_=write_index;
 	++serial_;
 }
 
 void SharedRgbaFramebuffer::EnqueueFrame(QueuedFrame &&frame)
 {
-	if(0==frame.wid || 0==frame.hei || frame.rgba.empty())
+	if(true!=FramePixelBytesOk(frame.rgba,frame.wid,frame.hei))
 	{
 		return;
 	}
@@ -71,11 +84,14 @@ bool SharedRgbaFramebuffer::PresentOneDueFrame(uint64_t due_index,uint64_t *pres
 		{
 			frame=std::move(queue_.front());
 			queue_.pop_front();
-			StageRgba(std::move(frame.rgba),frame.wid,frame.hei);
-			presented=true;
-			if(nullptr!=presented_vsync_index)
+			if(true==FramePixelBytesOk(frame.rgba,frame.wid,frame.hei))
 			{
-				*presented_vsync_index=frame.vsync_index;
+				StageRgba(std::move(frame.rgba),frame.wid,frame.hei);
+				presented=true;
+				if(nullptr!=presented_vsync_index)
+				{
+					*presented_vsync_index=frame.vsync_index;
+				}
 			}
 		}
 	}
@@ -107,7 +123,7 @@ void SharedRgbaFramebuffer::ClearQueue()
 
 void SharedRgbaFramebuffer::StageFromImage(TownsRender::ImageCopy &&img)
 {
-	if(0==img.wid || 0==img.hei || img.rgba.empty())
+	if(true!=FramePixelBytesOk(img.rgba,img.wid,img.hei))
 	{
 		return;
 	}
@@ -121,7 +137,7 @@ void SharedRgbaFramebuffer::StageFromImage(TownsRender::ImageCopy &&img)
 
 void SharedRgbaFramebuffer::StageFromImage(const TownsRender::ImageCopy &img)
 {
-	if(0==img.wid || 0==img.hei || img.rgba.empty())
+	if(true!=FramePixelBytesOk(img.rgba,img.wid,img.hei))
 	{
 		return;
 	}
@@ -133,16 +149,38 @@ void SharedRgbaFramebuffer::StageFromImage(const TownsRender::ImageCopy &img)
 	NotifyPresent();
 }
 
-bool SharedRgbaFramebuffer::Acquire(const unsigned char **rgba,unsigned int *wid,unsigned int *hei,uint64_t *serial) const
+bool SharedRgbaFramebuffer::PeekLatest(unsigned int *wid,unsigned int *hei,uint64_t *serial) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	if(0==wid_ || 0==hei_ || buffers_[read_index_].empty())
+	if(0==wid_ || 0==hei_ || latest_.empty())
+	{
+		return false;
+	}
+	if(nullptr!=wid)
+	{
+		*wid=wid_;
+	}
+	if(nullptr!=hei)
+	{
+		*hei=hei_;
+	}
+	if(nullptr!=serial)
+	{
+		*serial=serial_;
+	}
+	return true;
+}
+
+bool SharedRgbaFramebuffer::CopyLatest(std::vector<unsigned char> *rgba,unsigned int *wid,unsigned int *hei,uint64_t *serial) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	if(0==wid_ || 0==hei_ || latest_.empty())
 	{
 		return false;
 	}
 	if(nullptr!=rgba)
 	{
-		*rgba=buffers_[read_index_].data();
+		*rgba=latest_;
 	}
 	if(nullptr!=wid)
 	{

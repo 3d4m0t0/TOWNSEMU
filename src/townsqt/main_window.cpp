@@ -1112,6 +1112,14 @@ void MainWindow::setupMenuBar()
 	mouse_debug_action_->setChecked(TownsQtSettings::showMouseIntegrationDebug());
 	connect(mouse_debug_action_,&QAction::toggled,this,[this](bool enabled){
 		TownsQtSettings::setShowMouseIntegrationDebug(enabled);
+		if(nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setMouseIntegrationDebug",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,enabled));
+		}
 		applyMouseDebugVisibility();
 		if(enabled)
 		{
@@ -1165,6 +1173,14 @@ void MainWindow::setupMenuBar()
 	    tr("Log guest EXE/EXP identity, MOS session, in-game phase, and mouse apply."));
 	connect(app_monitor_action_,&QAction::toggled,this,[this](bool enabled){
 		TownsQtSettings::setAppMonitor(enabled);
+		if(nullptr!=controller_)
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setAppMonitor",
+			    Qt::QueuedConnection,
+			    Q_ARG(bool,enabled));
+		}
 		applyAppMonitorVisibility();
 		if(enabled)
 		{
@@ -4145,6 +4161,14 @@ void MainWindow::updateMouseCoordScanDisplay()
 void MainWindow::applyMouseDebugVisibility()
 {
 	const bool show=TownsQtSettings::showMouseIntegrationDebug();
+	if(nullptr!=controller_)
+	{
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "setMouseIntegrationDebug",
+		    Qt::QueuedConnection,
+		    Q_ARG(bool,show));
+	}
 	if(nullptr!=view_)
 	{
 		view_->setMouseDebugCrosshair(show);
@@ -4496,6 +4520,14 @@ void MainWindow::ensureAppMonitorWindow()
 void MainWindow::applyAppMonitorVisibility()
 {
 	const bool show=TownsQtSettings::appMonitor();
+	if(nullptr!=controller_)
+	{
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "setAppMonitor",
+		    Qt::QueuedConnection,
+		    Q_ARG(bool,show));
+	}
 	if(nullptr!=app_monitor_action_ && app_monitor_action_->isChecked()!=show)
 	{
 		app_monitor_action_->blockSignals(true);

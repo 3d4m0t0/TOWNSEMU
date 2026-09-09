@@ -1821,6 +1821,11 @@ void Outside_World::SetMouseFailsafeShowHostCursor(bool show)
 	    true==mouseFailsafeShowHostCursor_;
 }
 
+void Outside_World::SetMouseIntegrationDebugEnabled(bool enabled)
+{
+	mouseIntegrationDebugEnabled_=enabled;
+}
+
 namespace
 {
 /*! Macromedia Director (and similar) often leave sprite H/V offset non-zero.
@@ -2286,6 +2291,16 @@ void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb
 
 void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 {
+	if(true!=mouseIntegrationDebugEnabled_)
+	{
+		// Soft-cursor shadow polling is live mouse logic, not the debug overlay.
+		if(true==towns.var.mouseCoordWriteScanEnabled)
+		{
+			towns.mouseCoordWriteScan.PollSoftCursorShadow();
+		}
+		return;
+	}
+
 	towns.var.suppressMosCoordReadProbe=true;
 
 	debugMouseBIOSActive=towns.state.mouseBIOSActive;
@@ -2476,7 +2491,7 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 		}
 	}
 
-	debugSysRomVersion.clear();
+	std::string nextSysRomVersion;
 	{
 		const auto &rom=towns.physMem.sysRom;
 		auto tryCapture=[&](size_t i)->bool
@@ -2497,7 +2512,7 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 			}
 			if(4<=s.size())
 			{
-				debugSysRomVersion=s;
+				nextSysRomVersion=s;
 				return true;
 			}
 			return false;
@@ -2538,18 +2553,20 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 		}
 	}
 
+	std::string nextTbiosId;
+	std::string nextTbiosDate;
+	std::string nextTosVersion;
+	bool refreshTbiosIds=false;
 	if(debugVersionCacheTbiosPhys_!=towns.state.TBIOS_physicalAddr)
 	{
 		debugVersionCacheTbiosPhys_=towns.state.TBIOS_physicalAddr;
-		debugTbiosId.clear();
-		debugTbiosDate.clear();
-		debugTosVersion.clear();
+		refreshTbiosIds=true;
 		if(0!=towns.state.TBIOS_physicalAddr)
 		{
 			std::string id[4];
 			towns.GetTBIOSIdentifierStrings(id,towns.state.TBIOS_physicalAddr);
-			debugTbiosId=id[0];
-			debugTbiosDate=id[1];
+			nextTbiosId=id[0];
+			nextTbiosDate=id[1];
 
 			// Prefer an explicit "V2.1Lxx" (or V1.1Lxx) string inside TBIOS image.
 			for(unsigned int ptr=0; ptr<0x40000; ++ptr)
@@ -2578,37 +2595,37 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 					}
 					if(6<=s.size())
 					{
-						debugTosVersion=s;
+						nextTosVersion=s;
 						break;
 					}
 				}
 			}
-			if(true==debugTosVersion.empty())
+			if(true==nextTosVersion.empty())
 			{
 				// Fallback: map known TBIOS builds to the Towns OS family that ships them.
-				if("V31L35"==debugTbiosId)
+				if("V31L35"==nextTbiosId)
 				{
-					if(0==debugTbiosDate.find("94/") || 0==debugTbiosDate.find("95/"))
+					if(0==nextTbiosDate.find("94/") || 0==nextTbiosDate.find("95/"))
 					{
-						debugTosVersion="V2.1L50? (TBIOS date)";
+						nextTosVersion="V2.1L50? (TBIOS date)";
 					}
-					else if(0==debugTbiosDate.find("93/"))
+					else if(0==nextTbiosDate.find("93/"))
 					{
-						debugTosVersion="V2.1L30-L40? (TBIOS date)";
+						nextTosVersion="V2.1L30-L40? (TBIOS date)";
 					}
 				}
-				else if("V31L31"==debugTbiosId ||
+				else if("V31L31"==nextTbiosId ||
 				        TBIOS_V31L31_91==towns.state.tbiosVersion ||
 				        TBIOS_V31L31_92==towns.state.tbiosVersion ||
 				        TBIOS_V31L31_93==towns.state.tbiosVersion)
 				{
-					debugTosVersion="V2.1L10B-L20A? (TBIOS id)";
+					nextTosVersion="V2.1L10B-L20A? (TBIOS id)";
 				}
 			}
 		}
 	}
 
-	debugMouseInfoWords.clear();
+	std::string nextMouseInfoWords;
 	if(0!=towns.state.TBIOS_physicalAddr && 0!=towns.state.TBIOS_mouseInfoOffset)
 	{
 		const unsigned int base=
@@ -2618,11 +2635,11 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 		{
 			const int w=(int)(short)towns.mem.FetchWord(base+off);
 			std::snprintf(buf,sizeof(buf),"+%02X:%d ",off,w);
-			debugMouseInfoWords+=buf;
+			nextMouseInfoWords+=buf;
 		}
 	}
 
-	debugMosWorkWords.clear();
+	std::string nextMosWorkWords;
 	if(0!=towns.state.MOS_work_physicalAddr)
 	{
 		char buf[32];
@@ -2630,8 +2647,21 @@ void Outside_World::UpdateMouseIntegrationDebug(class FMTownsCommon &towns)
 		{
 			const int w=(int)(short)towns.mem.FetchWord(towns.state.MOS_work_physicalAddr+off);
 			std::snprintf(buf,sizeof(buf),"+%02X:%d ",off,w);
-			debugMosWorkWords+=buf;
+			nextMosWorkWords+=buf;
 		}
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(mouseDebugUiMutex);
+		debugSysRomVersion=std::move(nextSysRomVersion);
+		if(true==refreshTbiosIds)
+		{
+			debugTbiosId=std::move(nextTbiosId);
+			debugTbiosDate=std::move(nextTbiosDate);
+			debugTosVersion=std::move(nextTosVersion);
+		}
+		debugMouseInfoWords=std::move(nextMouseInfoWords);
+		debugMosWorkWords=std::move(nextMosWorkWords);
 	}
 
 	debugMouseSnapValid=mouseDesktopSnapshotValid_;
@@ -2938,19 +2968,22 @@ void Outside_World::WindowInterface::BaseInterval(void)
 		shared.needRender=false;
 		auto imageNeedsFlipCopy=shared.imageNeedsFlip;
 		const auto captureTownsTimeCopy=shared.captureTownsTime;
-		newImageLock.unlock();
 
-		winThr.newImageRendered=true;
-		winThr.lastCaptureTownsTime=captureTownsTimeCopy;
-
-		// Rendered image won't be touched by the VM Thread.  Safe to cook.
+		// Keep newImageLock through Flip/MoveImage: VM SendNewImage→FlushOneCaptureToShared
+		// can otherwise ApplyPreparedState on the same renderer (heap corruption).
 		if(true==imageNeedsFlipCopy)
 		{
 			shared.renderer.FlipUpsideDown();
 		}
 
 		auto img=shared.renderer.MoveImage();
-		std::swap(winThr.mostRecentImage,img);
+		{
+			std::lock_guard<std::mutex> imgLock(renderingLock);
+			std::swap(winThr.mostRecentImage,img);
+			winThr.newImageRendered=true;
+			winThr.lastCaptureTownsTime=captureTownsTimeCopy;
+		}
+		newImageLock.unlock();
 
 		FlushOneCaptureToShared();
 	}

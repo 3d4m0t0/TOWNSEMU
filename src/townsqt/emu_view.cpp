@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 EmuView::EmuView(QWidget *parent) : QWidget(parent)
 {
@@ -484,10 +485,9 @@ void EmuView::refreshFrame()
 		gl_view_->refreshFrame();
 		if(nullptr!=framebuffer_)
 		{
-			const unsigned char *rgba=nullptr;
 			unsigned int wid=0,hei=0;
 			uint64_t serial=0;
-			if(true==framebuffer_->Acquire(&rgba,&wid,&hei,&serial) && serial!=last_serial_)
+			if(true==framebuffer_->PeekLatest(&wid,&hei,&serial) && serial!=last_serial_)
 			{
 				const bool size_changed=(static_cast<int>(wid)!=emu_wid_ || static_cast<int>(hei)!=emu_hei_);
 				emu_wid_=static_cast<int>(wid);
@@ -518,14 +518,19 @@ void EmuView::refreshFrameSoftware()
 		return;
 	}
 
-	const unsigned char *rgba=nullptr;
 	unsigned int wid=0,hei=0;
 	uint64_t serial=0;
-	if(true!=framebuffer_->Acquire(&rgba,&wid,&hei,&serial))
+	if(true!=framebuffer_->PeekLatest(&wid,&hei,&serial))
 	{
 		return;
 	}
 	if(serial==last_serial_)
+	{
+		return;
+	}
+
+	std::vector<unsigned char> rgba;
+	if(true!=framebuffer_->CopyLatest(&rgba,&wid,&hei,&serial) || serial==last_serial_)
 	{
 		return;
 	}
@@ -538,11 +543,7 @@ void EmuView::refreshFrameSoftware()
 	image_=QImage(wid,hei,QImage::Format_RGBA8888);
 	if(image_.bytesPerLine()==static_cast<int>(wid*4))
 	{
-		std::memcpy(image_.bits(),rgba,static_cast<size_t>(wid)*hei*4);
-		for(int i=3; i<image_.sizeInBytes(); i+=4)
-		{
-			image_.bits()[i]=255;
-		}
+		std::memcpy(image_.bits(),rgba.data(),static_cast<size_t>(wid)*hei*4);
 	}
 	else
 	{
@@ -550,7 +551,7 @@ void EmuView::refreshFrameSoftware()
 		{
 			std::memcpy(
 			    image_.scanLine(static_cast<int>(y)),
-			    rgba+static_cast<size_t>(y)*wid*4,
+			    rgba.data()+static_cast<size_t>(y)*wid*4,
 			    static_cast<size_t>(wid)*4);
 		}
 	}

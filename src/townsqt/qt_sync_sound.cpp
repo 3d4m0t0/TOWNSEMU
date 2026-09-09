@@ -450,11 +450,14 @@ void QtSyncSoundConnection::CDDAPlay(const DiscImage &discImg,DiscImage::MinSecF
 {
 	auto wave=discImg.GetWave(from,to);
 	const size_t num_samples=wave.size()/4;
-	cdda_samples_.clear();
-	AppendSigned16Stereo(wave.data(),num_samples,cdda_samples_);
-	cdda_pos_.store(0,std::memory_order_relaxed);
-	cdda_active_.store(0<cdda_samples_.size()/2,std::memory_order_relaxed);
-	cdda_start_hsg_=from.ToHSG();
+	{
+		std::lock_guard<std::mutex> lock(mix_aux_mutex_);
+		cdda_samples_.clear();
+		AppendSigned16Stereo(wave.data(),num_samples,cdda_samples_);
+		cdda_pos_.store(0,std::memory_order_relaxed);
+		cdda_active_.store(0<cdda_samples_.size()/2,std::memory_order_relaxed);
+		cdda_start_hsg_=from.ToHSG();
+	}
 	(void)repeat;
 }
 
@@ -477,6 +480,7 @@ void QtSyncSoundConnection::CDDAPause(void)
 
 void QtSyncSoundConnection::CDDAResume(void)
 {
+	std::lock_guard<std::mutex> lock(mix_aux_mutex_);
 	if(false==cdda_samples_.empty())
 	{
 		cdda_active_.store(true,std::memory_order_relaxed);
@@ -539,10 +543,12 @@ void QtSyncSoundConnection::BeepPlay(int samplingRate,std::vector<unsigned char>
 		return;
 	}
 
+	std::lock_guard<std::mutex> lock(mix_aux_mutex_);
 	beep_samples_.clear();
 	AppendSigned16Stereo(wave.data(),num_samples,beep_samples_);
 	beep_pos_.store(0,std::memory_order_relaxed);
 	beep_active_.store(0<beep_samples_.size()/2,std::memory_order_relaxed);
+	(void)samplingRate;
 }
 
 void QtSyncSoundConnection::BeepPlayStop(void)
@@ -557,6 +563,7 @@ bool QtSyncSoundConnection::BeepChannelPlaying() const
 	{
 		return false;
 	}
+	std::lock_guard<std::mutex> lock(mix_aux_mutex_);
 	return beep_pos_.load(std::memory_order_relaxed)*2<beep_samples_.size();
 }
 
@@ -567,6 +574,7 @@ void QtSyncSoundConnection::MixBeep(int16_t *stream,int frame_count)
 		return;
 	}
 
+	std::lock_guard<std::mutex> lock(mix_aux_mutex_);
 	size_t pos=beep_pos_.load(std::memory_order_relaxed);
 	for(int i=0; i<frame_count; ++i)
 	{
@@ -632,6 +640,7 @@ void QtSyncSoundConnection::FillAudio(int16_t *stream,int frame_count)
 
 	if(true==cdda_active_.load(std::memory_order_relaxed))
 	{
+		std::lock_guard<std::mutex> lock(mix_aux_mutex_);
 		size_t pos=cdda_pos_.load(std::memory_order_relaxed);
 		for(int i=0; i<frame_count; ++i)
 		{

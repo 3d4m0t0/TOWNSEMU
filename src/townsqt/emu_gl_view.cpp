@@ -324,10 +324,9 @@ void EmuGlView::refreshFrame()
 		return;
 	}
 
-	const unsigned char *rgba=nullptr;
 	unsigned int wid=0,hei=0;
 	uint64_t serial=0;
-	if(true!=framebuffer_->Acquire(&rgba,&wid,&hei,&serial))
+	if(true!=framebuffer_->PeekLatest(&wid,&hei,&serial))
 	{
 		return;
 	}
@@ -335,10 +334,14 @@ void EmuGlView::refreshFrame()
 	{
 		return;
 	}
-
-	const size_t bytes=static_cast<size_t>(wid)*hei*4;
-	staging_rgba_.resize(bytes);
-	std::memcpy(staging_rgba_.data(),rgba,bytes);
+	if(true!=framebuffer_->CopyLatest(&staging_rgba_,&wid,&hei,&serial))
+	{
+		return;
+	}
+	if(serial==last_serial_ && !frame_dirty_)
+	{
+		return;
+	}
 
 	emu_wid_=static_cast<int>(wid);
 	emu_hei_=static_cast<int>(hei);

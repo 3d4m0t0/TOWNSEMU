@@ -32,8 +32,11 @@ public:
 	void StageFromImage(TownsRender::ImageCopy &&img);
 	void StageFromImage(const TownsRender::ImageCopy &img);
 
-	/*! GUI thread: pointer valid until next StageFromImage. */
-	bool Acquire(const unsigned char **rgba,unsigned int *wid,unsigned int *hei,uint64_t *serial) const;
+	/*! GUI thread: metadata only (no pixel pointer — buffers may be recycled). */
+	bool PeekLatest(unsigned int *wid,unsigned int *hei,uint64_t *serial) const;
+
+	/*! GUI thread: copy latest pixels under the mutex so Present/Stage cannot free them. */
+	bool CopyLatest(std::vector<unsigned char> *rgba,unsigned int *wid,unsigned int *hei,uint64_t *serial) const;
 
 	uint64_t Serial() const;
 	size_t QueueDepth() const;
@@ -49,16 +52,16 @@ public:
 private:
 	static constexpr size_t kMaxQueueDepth=3;
 
+	static bool FramePixelBytesOk(const std::vector<unsigned char> &rgba,unsigned int wid,unsigned int hei);
 	void StageRgba(std::vector<unsigned char> rgba,unsigned int wid,unsigned int hei);
 	void NotifyPresent();
 
 	std::function<void()> present_callback_;
 	mutable std::mutex mutex_;
 	std::deque<QueuedFrame> queue_;
-	std::vector<unsigned char> buffers_[2];
+	std::vector<unsigned char> latest_;
 	unsigned int wid_ = 0;
 	unsigned int hei_ = 0;
-	int read_index_ = 0;
 	uint64_t serial_ = 0;
 };
 

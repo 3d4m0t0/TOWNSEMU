@@ -321,6 +321,12 @@ void EmulatorController::run()
 			last_fast_mode_lamp_=towns_->FASTModeLamp();
 			towns_->midi.midiMonitor=TownsQtSettings::midiMonitor();
 			towns_->cdrom.var.debugMonitorCommandWrite=TownsQtSettings::cdromMonitor();
+			towns_->mouseCoordWriteScan.SetAppMonitorEnabled(TownsQtSettings::appMonitor());
+		}
+		if(nullptr!=impl_->outside_world)
+		{
+			impl_->outside_world->SetMouseIntegrationDebugEnabled(
+			    TownsQtSettings::showMouseIntegrationDebug());
 		}
 		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
 
@@ -1028,6 +1034,22 @@ void EmulatorController::setMidiMonitor(bool enabled)
 	}
 }
 
+void EmulatorController::setAppMonitor(bool enabled)
+{
+	if(nullptr!=towns_)
+	{
+		towns_->mouseCoordWriteScan.SetAppMonitorEnabled(enabled);
+	}
+}
+
+void EmulatorController::setMouseIntegrationDebug(bool enabled)
+{
+	if(nullptr!=impl_->outside_world)
+	{
+		impl_->outside_world->SetMouseIntegrationDebugEnabled(enabled);
+	}
+}
+
 QStringList EmulatorController::takeMidiMonitorLines()
 {
 	QStringList lines;
@@ -1475,7 +1497,8 @@ QVariantMap EmulatorController::mouseUiState() const
 	}
 	const auto &ow=*impl_->outside_world;
 	result[QStringLiteral("diff")]=ow.effectiveDifferentialMouseIntegration;
-	result[QStringLiteral("mos")]=ow.debugMouseBIOSActive;
+	result[QStringLiteral("mos")]=
+	    (nullptr!=towns_) ? towns_->state.mouseBIOSActive : false;
 	result[QStringLiteral("soft_ok")]=false;
 	result[QStringLiteral("capture_released")]=ow.mouseCaptureReleased_;
 	result[QStringLiteral("feeding")]=ow.mouseFeedingEnabled_;
@@ -1880,10 +1903,6 @@ void EmulatorController::presentDueFrames()
 	last_presented_vsync_index_=presented_vsync_index;
 	has_presented_frame_=true;
 	++stats_frame_count_;
-	if(nullptr!=impl_->window)
-	{
-		impl_->window->winThr.newImageRendered=false;
-	}
 	Q_EMIT frameReady();
 }
 
@@ -1908,11 +1927,9 @@ void EmulatorController::pollWindow()
 
 	if(nullptr!=framebuffer_ && nullptr!=towns_)
 	{
+		// One present per poll: a second PresentOneDueFrame frees the previous
+		// write slot while the GUI may still be copying under load.
 		presentDueFrames();
-		if(1<framebuffer_->QueueDepth())
-		{
-			presentDueFrames();
-		}
 		updateStats();
 
 		const uint32_t revision=towns_->var.fastModeLampRevision.load(std::memory_order_acquire);
@@ -2049,12 +2066,15 @@ QVariantMap EmulatorController::guestMouseCoords() const
 	result[QStringLiteral("single_page")]=ow.debugSinglePage;
 	result[QStringLiteral("show0")]=ow.debugShowPage0;
 	result[QStringLiteral("show1")]=ow.debugShowPage1;
-	result[QStringLiteral("sysrom")]=QString::fromStdString(ow.debugSysRomVersion);
-	result[QStringLiteral("tbios_id")]=QString::fromStdString(ow.debugTbiosId);
-	result[QStringLiteral("tbios_date")]=QString::fromStdString(ow.debugTbiosDate);
-	result[QStringLiteral("tos")]=QString::fromStdString(ow.debugTosVersion);
-	result[QStringLiteral("mi_words")]=QString::fromStdString(ow.debugMouseInfoWords);
-	result[QStringLiteral("mo_words")]=QString::fromStdString(ow.debugMosWorkWords);
+	{
+		std::lock_guard<std::mutex> lock(ow.mouseDebugUiMutex);
+		result[QStringLiteral("sysrom")]=QString::fromStdString(ow.debugSysRomVersion);
+		result[QStringLiteral("tbios_id")]=QString::fromStdString(ow.debugTbiosId);
+		result[QStringLiteral("tbios_date")]=QString::fromStdString(ow.debugTbiosDate);
+		result[QStringLiteral("tos")]=QString::fromStdString(ow.debugTosVersion);
+		result[QStringLiteral("mi_words")]=QString::fromStdString(ow.debugMouseInfoWords);
+		result[QStringLiteral("mo_words")]=QString::fromStdString(ow.debugMosWorkWords);
+	}
 	result[QStringLiteral("zoom0_x")]=ow.debugZoom0X;
 	result[QStringLiteral("zoom0_y")]=ow.debugZoom0Y;
 	result[QStringLiteral("zoom1_x")]=ow.debugZoom1X;

@@ -69,19 +69,26 @@ void QtOutsideWorld::QtWindowConnection::Stop(void)
 void QtOutsideWorld::QtWindowConnection::Interval(void)
 {
 	auto enqueueRenderedImage=[this](){
-		if(true!=winThr.newImageRendered || nullptr==framebuffer_ || winThr.mostRecentImage.rgba.empty())
+		if(nullptr==framebuffer_)
 		{
 			return false;
 		}
 		SharedRgbaFramebuffer::QueuedFrame frame;
-		frame.rgba=std::move(winThr.mostRecentImage.rgba);
-		frame.wid=winThr.mostRecentImage.wid;
-		frame.hei=winThr.mostRecentImage.hei;
-		frame.capture_towns_time=winThr.lastCaptureTownsTime;
-		frame.vsync_index=frame.capture_towns_time/TOWNS_RENDERING_FREQUENCY;
+		{
+			std::lock_guard<std::mutex> lock(renderingLock);
+			if(true!=winThr.newImageRendered || winThr.mostRecentImage.rgba.empty())
+			{
+				return false;
+			}
+			frame.rgba=std::move(winThr.mostRecentImage.rgba);
+			frame.wid=winThr.mostRecentImage.wid;
+			frame.hei=winThr.mostRecentImage.hei;
+			frame.capture_towns_time=winThr.lastCaptureTownsTime;
+			frame.vsync_index=frame.capture_towns_time/TOWNS_RENDERING_FREQUENCY;
+			winThr.mostRecentImage.rgba.clear();
+			winThr.newImageRendered=false;
+		}
 		framebuffer_->EnqueueFrame(std::move(frame));
-		winThr.mostRecentImage.rgba.clear();
-		winThr.newImageRendered=false;
 		return true;
 	};
 
@@ -346,14 +353,9 @@ void QtOutsideWorld::QtWindowConnection::Render(bool /*swapBuffers*/)
 
 void QtOutsideWorld::QtWindowConnection::UpdateImage(TownsRender::ImageCopy &img)
 {
+	// Always deposit into mostRecentImage; Interval→EnqueueFrame→Present is the
+	// only presenter.  Staging here from the VM thread raced PresentOneDueFrame.
+	std::lock_guard<std::mutex> lock(renderingLock);
 	winThr.newImageRendered=true;
-	if(nullptr!=framebuffer_)
-	{
-		framebuffer_->StageFromImage(std::move(img));
-	}
-	else
-	{
-		std::lock_guard<std::mutex> lock(renderingLock);
-		winThr.mostRecentImage=std::move(img);
-	}
+	winThr.mostRecentImage=std::move(img);
 }

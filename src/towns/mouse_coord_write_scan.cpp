@@ -2531,8 +2531,29 @@ unsigned int MouseCoordWriteScan::HashExecFromMountedDisc(const std::string &nor
 	return disc.HashIso9660FilePrefix(normPath,4096u);
 }
 
+void MouseCoordWriteScan::SetAppMonitorEnabled(bool enabled)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	appMonitorEnabled=enabled;
+	if(true!=enabled)
+	{
+		appMonitorLines.clear();
+	}
+}
+
+bool MouseCoordWriteScan::AppMonitorEnabled(void) const
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	return appMonitorEnabled;
+}
+
 void MouseCoordWriteScan::LogAppMonitorLine(const std::string &line)
 {
+	// Callers that mutate app-exec state already hold mtx.
+	if(true!=appMonitorEnabled)
+	{
+		return;
+	}
 	appMonitorLines.push_back(line);
 	while(500<appMonitorLines.size())
 	{

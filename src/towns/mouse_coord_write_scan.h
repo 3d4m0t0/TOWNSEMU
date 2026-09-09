@@ -655,6 +655,8 @@ public:
 	void NoteMouseProfileApply(bool on);
 	/*! Drain [APP] monitor lines (merged into CD monitor take). */
 	std::vector <std::string> TakeMonitorLines(void);
+	void SetAppMonitorEnabled(bool enabled);
+	bool AppMonitorEnabled(void) const;
 
 	/*! Map emulator-image host coords → guest soft space using only a linear
 	    render-size ratio (e.g. /2 for 640→320). */
@@ -860,6 +862,7 @@ private:
 	unsigned int appExecGameportBaseline=0;
 	bool appExecLoggedInGame=false;
 	bool loggedProfileApply=false;
+	bool appMonitorEnabled=false;
 	std::deque <std::string> appMonitorLines;
 	void LogAppMonitorLine(const std::string &line);
 	void ResetAppExecPhaseLocked(void);

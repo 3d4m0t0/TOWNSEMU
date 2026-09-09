@@ -80,6 +80,8 @@ public:
 	bool middleForceCapture_=false;
 	/*! GUI/core failsafe: force host cursor visible (e.g. VM appear hung). */
 	bool mouseFailsafeShowHostCursor_=false;
+	/*! TownsQt mouse-integration debug overlay; OFF skips UpdateMouseIntegrationDebug work. */
+	bool mouseIntegrationDebugEnabled_=false;
 	/*! Saw MOS AH=00 at least once (debug / legacy). */
 	bool mouseBIOSEverActive_=false;
 	/*! No MOS → differential-only (unless app-specific hold). Cleared while MOS active. */
@@ -301,6 +303,8 @@ public:
 	int debugPageSize0X=0,debugPageSize1X=0;
 	bool debugSinglePage=true;
 	bool debugShowPage0=true,debugShowPage1=false;
+	/*! VM UpdateMouseIntegrationDebug vs TownsQt guestMouseCoords string reads. */
+	mutable std::mutex mouseDebugUiMutex;
 	std::string debugSysRomVersion;
 	std::string debugTbiosId;
 	std::string debugTbiosDate;
@@ -347,6 +351,9 @@ public:
 	/*! Set differential preference (settings / ENA/DIS DIFFMOUSE). */
 	void SetDifferentialMouseIntegrationPreference(bool enabled,class FMTownsCommon *towns);
 	void SetMouseFailsafeShowHostCursor(bool show);
+	/*! When false, UpdateMouseIntegrationDebug is a no-op (skip string/POD churn). */
+	void SetMouseIntegrationDebugEnabled(bool enabled);
+	bool MouseIntegrationDebugEnabled(void) const{return mouseIntegrationDebugEnabled_;}
 	void UpdateMouseIntegrationDebug(class FMTownsCommon &towns);
 	void UpdateStatusBarInfo(class FMTownsCommon &towns);
 

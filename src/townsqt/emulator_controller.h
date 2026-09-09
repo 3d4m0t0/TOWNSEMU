@@ -120,7 +120,9 @@ public Q_SLOTS:
 	Q_INVOKABLE QStringList takeMidiMonitorLines();
 	void setCdromMonitor(bool enabled);
 	Q_INVOKABLE QStringList takeCdromMonitorLines();
+	void setAppMonitor(bool enabled);
 	Q_INVOKABLE QStringList takeAppMonitorLines();
+	void setMouseIntegrationDebug(bool enabled);
 	void setCpuDebugMonitor(bool enabled);
 	Q_INVOKABLE QString cpuDebugSnapshot() const;
 	Q_INVOKABLE void setVmPaused(bool paused);
