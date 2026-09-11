@@ -937,13 +937,13 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value.",
-      "translation": "2e Phys X/Y optionnel (ci-dessous). Direct-write applique Scale par ligne."
+      "source": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on store; game-feedback uses Scale on host in Δ. Min/max are direct-write only.",
+      "translation": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on store; game-feedback uses Scale on host in Δ. Min/max are direct-write only."
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Multiplies the mapped write value for this Phys pair (0 = no multiply).",
-      "translation": "Multiplie la valeur écrite mappée (0 = pas de multiplication)."
+      "source": "Direct-write: multiplies the mapped store value. Game-feedback: multiplies host in Δ (0 = no multiply).",
+      "translation": "Direct-write: multiplies the mapped store value. Game-feedback: multiplies host in Δ (0 = no multiply)."
     },
     {
       "context": "MouseCoordProfilePage",
@@ -987,8 +987,8 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "On: poke Game Phys in guest RAM (range clamp).\nOff: feed host−guest deltas through the gameport.",
-      "translation": "On : poke Game Phys en RAM (clamp).\nOff : deltas host−guest via gameport."
+      "source": "On: poke Game Phys in guest RAM (min/max clamp + scale on store).\nOff: gameport Δ = (host × scale) − guest (1:1 raw coords; min/max unused).",
+      "translation": "On: poke Game Phys in guest RAM (min/max clamp + scale on store).\nOff: gameport Δ = (host × scale) − guest (1:1 raw coords; min/max unused)."
     },
     {
       "context": "MouseCoordProfilePage",

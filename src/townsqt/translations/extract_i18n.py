@@ -314,10 +314,10 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("MouseCoordProfilePage", "Memory write"): "メモリ書込み",
     (
         "MouseCoordProfilePage",
-        "On: poke Game Phys in guest RAM (range clamp).\n"
-        "Off: feed host−guest deltas through the gameport.",
-    ): "オン: Game Phys をゲスト RAM へ書き込み（範囲クランプ）。\n"
-    "オフ: ホスト−ゲスト差分をゲームポート経由で入力。",
+        "On: poke Game Phys in guest RAM (min/max clamp + scale on store).\n"
+        "Off: gameport Δ = (host × scale) − guest (1:1 raw coords; min/max unused).",
+    ): "オン: Game Phys をゲスト RAM へ書き込み（min/max クランプ＋スケール）。\n"
+    "オフ: ゲームポートΔ = (ホスト × scale) − ゲスト（1:1 生座標、min/max 未使用）。",
     ("MouseCoordProfilePage", "Stop writing to Mouse BIOS soft-cursor phys"):
     "マウスBIOSのソフトカーソルphysへの書込みを停止",
     ("MouseCoordProfilePage", "Wait for gameport input to apply"): "ゲームポート入力の反映を待つ",

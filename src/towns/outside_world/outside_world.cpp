@@ -1525,6 +1525,9 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 		// Do not latch MOS-unused → capture; app-specific keeps MOS absolute
 		// alongside phys while Mouse BIOS remains alive.
 		towns.DontControlMouse();
+		// Allow one settle pass even if the host has not moved yet.
+		mouseIntegrationActive=true;
+		mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 	}
 	else if(true!=wantProfileApply && true==profileApplySticky)
 	{
@@ -2259,7 +2262,19 @@ void Outside_World::ProcessMouse(class FMTownsCommon &towns,int lb,int mb,int rb
 
 	int diffX=0,diffY=0;
 	const bool useSnap=snapEnabled && !inSnapWarmup;
-	if(true==towns.ControlMouse(diffX,diffY,mx,my,towns.state.tbiosVersion,useSnap))
+	// App Phys GF: once settled and the host is still, do not keep closed-loop
+	// correcting.  Continuous refill at the guest's slow mouse-poll cadence
+	// looks like idle diagonal bounce (esp. UW after DS-relative hot resolve).
+	const bool skipIdleProfileApply=
+	    true==profileAbs &&
+	    true!=hostMoved &&
+	    true!=mouseIntegrationActive &&
+	    true!=inSnapWarmup;
+	if(true==skipIdleProfileApply)
+	{
+		towns.DontControlMouse();
+	}
+	else if(true==towns.ControlMouse(diffX,diffY,mx,my,towns.state.tbiosVersion,useSnap))
 	{
 		mouseIntegrationActive=true;
 		if(inSnapWarmup)

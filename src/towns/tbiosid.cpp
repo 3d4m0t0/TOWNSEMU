@@ -439,6 +439,9 @@ void FMTownsCommon::OnCRTC_HST_Write(void)
 			break;
 		}
 	}
+	// Disc-profile DS→phys: same timing as built-in UW/WC mouse-ptr identify
+	// (cache; do not re-resolve every DevicePolling mouse poll).
+	mouseCoordWriteScan.ResolveActiveProfileDsOffsets();
 }
 
 void FMTownsCommon::CaptureCustomMouseCoordPointer(void)
@@ -912,8 +915,14 @@ bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMo
 				int mappedX=rawHostX;
 				int mappedY=rawHostY;
 				mouseCoordWriteScan.MapHostToProfileCoords(mappedX,mappedY);
-				const int targetX=true==p.invertX ? -(mappedX+p.offsetX) : (mappedX+p.offsetX);
-				const int targetY=true==p.invertY ? -(mappedY+p.offsetY) : (mappedY+p.offsetY);
+				// Offset only; invert mirrors the stored write (0..N → N..0) inside
+				// WriteAppCursorCoords / MapScreenToPairStored.
+				const int targetX=mappedX+p.offsetX;
+				const int targetY=mappedY+p.offsetY;
+				mouseCoordWriteScan.NoteDirectWriteDebug(
+				    rawHostX,rawHostY,mappedX,mappedY,
+				    p.offsetX,p.offsetY,p.invertX,p.invertY,
+				    targetX,targetY);
 				if(true==haveGuest)
 				{
 					diffX=targetX-mx;
@@ -947,21 +956,67 @@ bool FMTownsCommon::ControlMouse(int &diffX,int &diffY,int hostMouseX,int hostMo
 			}
 			if(true==p.HasGameFeedbackTarget())
 			{
-				int mappedX=rawHostX;
-				int mappedY=rawHostY;
-				mouseCoordWriteScan.MapHostToProfileCoords(mappedX,mappedY);
+				// Same map/offset/scale/phys as DW write (invert off on write).
+				// Invert: mirror guest Phys in span (0..N → N..0), then Δ=write−guest'.
+				int mappedX=0,mappedY=0,targetX=0,targetY=0;
+				int writeX=0,writeY=0,guestX=0,guestY=0;
+				MouseCoordWriteScan::CoordPair pair0;
+				if(true!=mouseCoordWriteScan.ComputeFirstPairStoredFromHost(
+				       rawHostX,rawHostY,
+				       mappedX,mappedY,targetX,targetY,
+				       writeX,writeY,guestX,guestY,pair0))
+				{
+					var.profileDeltaInFlight=false;
+					return false;
+				}
 				mouseCoordWriteScan.LogSoftCursorIfChanged(mx,my);
-				const int signedGuestX=true==p.invertX ? -mx : mx;
-				const int signedGuestY=true==p.invertY ? -my : my;
-				diffX=mappedX-signedGuestX+p.offsetX;
-				diffY=mappedY-signedGuestY+p.offsetY;
+				int screenW=0,screenH=0;
+				(void)mouseCoordWriteScan.TryGuestScreenSize(screenW,screenH);
+				int guestForDx=guestX;
+				int guestForDy=guestY;
+				if(true==p.invertX)
+				{
+					guestForDx=MouseCoordWriteScan::MirrorStoredAxis(
+					    guestX,pair0,screenW,true);
+				}
+				if(true==p.invertY)
+				{
+					guestForDy=MouseCoordWriteScan::MirrorStoredAxis(
+					    guestY,pair0,screenH,false);
+				}
+				diffX=writeX-guestForDx;
+				diffY=writeY-guestForDy;
+				// Suppress idle chatter: residual 1px errors otherwise refill the
+				// gameport every poll and look like diagonal bounce.
+				constexpr int GF_DEADZONE=1;
+				if(std::abs(diffX)<=GF_DEADZONE)
+				{
+					diffX=0;
+				}
+				if(std::abs(diffY)<=GF_DEADZONE)
+				{
+					diffY=0;
+				}
+				mouseCoordWriteScan.NoteGameFeedbackDebug(
+				    rawHostX,rawHostY,
+				    mappedX,mappedY,
+				    p.offsetX,p.offsetY,p.invertX,p.invertY,
+				    targetX,targetY,
+				    writeX,writeY,
+				    guestForDx,guestForDy,diffX,diffY,
+				    pair0);
 
 				// Phys GF: honor waitFeedback setting only (not forced by MOS).
 				if(true==waitFeedbackHold(p.waitFeedback))
 				{
 					return true;
 				}
-				clampDiffToScreen();
+				if(0==diffX && 0==diffY)
+				{
+					var.profileDeltaInFlight=false;
+					DontControlMouse();
+					return true;
+				}
 				const bool gfOk=ControlMouseByDiff(diffX,diffY,tbiosid,slowDownRange);
 				noteFeedbackSent(p.waitFeedback);
 				if(true!=state.mouseBIOSActive || true==p.stopSoftWrite)

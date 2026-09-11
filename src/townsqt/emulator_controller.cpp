@@ -2011,6 +2011,8 @@ QVariantMap EmulatorController::guestMouseCoords() const
 		result[QStringLiteral("app_exec_matched")]=
 		    towns_->mouseCoordWriteScan.AppExecMatched();
 		result[QStringLiteral("profile_apply")]=towns_->var.mouseCoordProfileApply;
+		result[QStringLiteral("app_integ")]=
+		    QString::fromStdString(towns_->mouseCoordWriteScan.FormatAppIntegDebug());
 		if(true==towns_->mouseCoordWriteScan.ProfileLoaded())
 		{
 			result[QStringLiteral("app_exec_bound")]=

@@ -150,14 +150,15 @@ public:
 		unsigned int dsOffX=0;
 		unsigned int dsOffY=0;
 		bool hasDsOff=false;
-		/*! Segment selector used at capture (0 = use live DS at resolve time). */
+		/*! Segment selector used at capture (0 = use live DS at resolve time).
+		    Non-zero selectors are decoded with MODE_NATIVE. */
 		unsigned int dsSelector=0;
 		int biasX=0;
 		int biasY=0;
-		/*! Multiplier applied to the mapped write value (0 = skip axis write multiply). */
+		/*! Multiplier: direct-write store on mapped host; game-feedback Δ on host. */
 		int scaleX=1;
 		int scaleY=1;
-		/*! Clamp direct-write target on each axis (from scan min..max). */
+		/*! Clamp: direct-write store only (unused for game-feedback Δ). */
 		int rangeMinX=0;
 		int rangeMaxX=0;
 		int rangeMinY=0;
@@ -285,8 +286,9 @@ public:
 		/*! Legacy mirrors of pair[0].scaleX/Y (still written for old readers). */
 		int scaleX=1;
 		int scaleY=1;
-		/*! Flip guest-axis sign in new-mode Δ (and App poke equilibrium).
-		    Unused for MOS system integration. */
+	/*! GF: mirror guest Phys in axis span for Δ (same 0..N→N..0 as DW write).
+	    DW: mirror write in axis range after clamp, before scale.
+	    Unused for MOS system integration. */
 		bool invertX=false;
 		bool invertY=false;
 		/*! New-mode only: wait for Phys/port ACK before the next gameport packet. */
@@ -560,13 +562,15 @@ public:
 	    unsigned int &minX,unsigned int &maxX,
 	    unsigned int &minY,unsigned int &maxY) const;
 
-	/*! WC-style: phys = LinToPhys(DS.base + dsOff).  dsSelector 0 = live DS. */
+	/*! WC-style: phys = LinToPhys(sel.base + dsOff).  Non-zero dsSelector uses
+	    MODE_NATIVE (same as built-in UW/WC).  0 = live DS. */
 	bool ResolveDsRelativePhys(
 	    unsigned int dsOff,unsigned int dsSelector,unsigned int &outPhys) const;
 	/*! Capture: phys → (dsOff, dsSelector) using live DS + PhysicalAddressToLinearAddress. */
 	bool CaptureDsRelativeFromPhys(
 	    unsigned int phys,unsigned int &outDsOff,unsigned int &outDsSelector) const;
-	/*! Re-resolve all activeProfile.pair[] with hasDsOff into physX/physY. */
+	/*! Re-resolve all activeProfile.pair[] with hasDsOff into physX/physY.
+	    Call on apply / CRTC-HST / profile load — not every mouse poll. */
 	void ResolveActiveProfileDsOffsets(void);
 
 	void SetProfileDirectory(const std::string &dir);
@@ -670,6 +674,69 @@ public:
 	    Soft (prof_px/py) is title ID / MOS reference — not written here.
 	    Returns false when no pair is configured. */
 	bool WriteAppCursorCoords(int mx,int my);
+	/*! First Valid pair scale for game-feedback Δ (defaults 1,1). */
+	bool GetGameFeedbackScale(int &scaleX,int &scaleY) const;
+	/*! screen → Phys stored word for one pair (bias + range/screen clamp
+	    [+ optional axis mirror] + scale). */
+	static void MapScreenToPairStored(
+	    const CoordPair &pr,int screenX,int screenY,int screenW,int screenH,
+	    int &writeX,int &writeY,
+	    bool invertX=false,bool invertY=false);
+	/*! Mirror a stored Phys axis into the same span DW uses (min/max or
+	    0..screen-1, then × scale). Used by GF invert. */
+	static int MirrorStoredAxis(
+	    int value,const CoordPair &pr,int screenSpan,bool axisX);
+	/*! Shared DW/GF host→stored transform for the first Valid pair.
+	    mapped/target match Direct Write; writeX/Y is what DW would StoreWord;
+	    guestX/Y are raw Phys words (signed). Returns false if no pair. */
+	bool ComputeFirstPairStoredFromHost(
+	    int rawHostX,int rawHostY,
+	    int &mappedX,int &mappedY,
+	    int &targetX,int &targetY,
+	    int &writeX,int &writeY,
+	    int &guestX,int &guestY,
+	    CoordPair &outPair) const;
+	/*! Last app-specific DW/GF apply, for mouse-integration debug (formula text). */
+	struct AppIntegDebug
+	{
+		bool valid=false;
+		bool isGf=false;
+		bool applying=false;
+		int rawHostX=0,rawHostY=0;
+		int mappedX=0,mappedY=0;
+		int scaleX=1,scaleY=1;
+		int offsetX=0,offsetY=0;
+		bool invertX=false,invertY=false;
+		int targetX=0,targetY=0;
+		int guestX=0,guestY=0;
+		int deltaX=0,deltaY=0;
+		struct PairLine
+		{
+			bool used=false;
+			unsigned int physX=0,physY=0;
+			int biasX=0,biasY=0;
+			int scaleX=1,scaleY=1;
+			int rangeMinX=0,rangeMaxX=0,rangeMinY=0,rangeMaxY=0;
+			bool hasRangeX=false,hasRangeY=false;
+			int writeX=0,writeY=0;
+		};
+		PairLine pair[MAX_COORD_PAIRS];
+	};
+	void NoteDirectWriteDebug(
+	    int rawHostX,int rawHostY,int mappedX,int mappedY,
+	    int offsetX,int offsetY,bool invertX,bool invertY,
+	    int targetX,int targetY);
+	void NoteGameFeedbackDebug(
+	    int rawHostX,int rawHostY,
+	    int mappedX,int mappedY,
+	    int offsetX,int offsetY,bool invertX,bool invertY,
+	    int targetX,int targetY,
+	    int writeX,int writeY,
+	    int guestX,int guestY,int deltaX,int deltaY,
+	    const CoordPair &pair0);
+	AppIntegDebug GetAppIntegDebug(void) const;
+	/*! Multi-line formula text for the mouse-integration debug window. */
+	std::string FormatAppIntegDebug(void) const;
 	unsigned int DirectWriteCount(void) const;
 	bool LastDirectWriteOk(void) const;
 	void GetLastDirectWrite(int &targetX,int &targetY) const;
@@ -893,6 +960,7 @@ private:
 	unsigned int directWriteCount=0;
 	int lastDirectTargetX=0;
 	int lastDirectTargetY=0;
+	AppIntegDebug appIntegDebug;
 	TargetWrite guestTargetWrite[NUM_TARGET_WRITE];
 	GuestWriterTrace guestWriterTrace;
 	enum { MAX_CHASE=8, MAX_FOLLOWED=8, MAX_CLEARED_CHASE=8 };

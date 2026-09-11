@@ -937,13 +937,13 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value.",
-      "translation": "任意の2組目 X/Y phys（下段）。メモリ書き込み時は各組の Scale をマップ後の値に乗算します。"
+      "source": "Optional second X/Y phys (below). Direct-write uses each row’s Scale on store; game-feedback uses Scale on host in Δ. Min/max are direct-write only.",
+      "translation": "任意の2組目 X/Y phys（下段）。メモリ書き込みは各組 Scale を書込み値に、ゲームフィードバックはホスト側Δに乗算。min/max はメモリ書き込み専用。"
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Multiplies the mapped write value for this Phys pair (0 = no multiply).",
-      "translation": "この Phys 組のマップ後書き込み値に乗算します（0 で乗算なし）。"
+      "source": "Direct-write: multiplies the mapped store value. Game-feedback: multiplies host in Δ (0 = no multiply).",
+      "translation": "メモリ書き込み: マップ後の書込み値に乗算。ゲームフィードバック: Δ内のホストに乗算（0 で乗算なし）。"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -987,8 +987,8 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "On: poke Game Phys in guest RAM (range clamp).\nOff: feed host−guest deltas through the gameport.",
-      "translation": "オン: Game Phys をゲスト RAM へ書き込み（範囲クランプ）。\nオフ: ホスト−ゲスト差分をゲームポート経由で入力。"
+      "source": "On: poke Game Phys in guest RAM (min/max clamp + scale on store).\nOff: gameport Δ = (host × scale) − guest (1:1 raw coords; min/max unused).",
+      "translation": "オン: Game Phys をゲスト RAM へ書き込み（min/max クランプ＋スケール）。\nオフ: ゲームポートΔ = (ホスト × scale) − ゲスト（1:1 生座標、min/max 未使用）。"
     },
     {
       "context": "MouseCoordProfilePage",

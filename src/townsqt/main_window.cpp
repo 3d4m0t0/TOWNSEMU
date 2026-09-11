@@ -4294,6 +4294,11 @@ void MainWindow::updateMouseDebugDisplay()
 			               .arg(bind)
 			               .arg(matched)
 			               .arg(apply);
+			const QString appInteg=guest.value(QStringLiteral("app_integ")).toString();
+			if(true!=appInteg.isEmpty())
+			{
+				meta_text+=QStringLiteral("\n%1").arg(appInteg);
+			}
 		}
 		meta_text+=QStringLiteral("\nSc:%1,%2 n:%3 Sp:%4 Nr:%5,%6 Hs:%7,%8")
 		               .arg(guest.value(QStringLiteral("spr_cx")).toInt())

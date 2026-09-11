@@ -308,7 +308,8 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 		edit->setToolTip(dsOffTip);
 	}
 	const QString phys2Tip=
-	    tr("Optional second X/Y phys (below). Direct-write uses each row’s Scale on the mapped value.");
+	    tr("Optional second X/Y phys (below). Direct-write uses each row’s Scale on store; "
+	       "game-feedback uses Scale on host in Δ. Min/max are direct-write only.");
 	game_phys2_x_->setToolTip(phys2Tip);
 	game_phys2_y_->setToolTip(phys2Tip);
 	game_min_x_=MakeRangeSpin(coords_box);
@@ -338,15 +339,20 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 		spin->setRange(-16,16);
 		spin->setValue(1);
 		spin->setToolTip(
-		    tr("Multiplies the mapped write value for this Phys pair (0 = no multiply)."));
+		    tr("Direct-write: multiplies the mapped store value. "
+		       "Game-feedback: multiplies host in Δ (0 = no multiply)."));
 	}
 	game_max_x_->setValue(0);
 	game_max_y_->setValue(0);
 
 	invert_x_=new QCheckBox(coords_box);
 	invert_y_=new QCheckBox(coords_box);
-	invert_x_->setToolTip(tr("Invert X"));
-	invert_y_->setToolTip(tr("Invert Y"));
+	invert_x_->setToolTip(
+	    tr("Mirror axis in range (e.g. 0..319 → 319..0). "
+	       "DW: write value.  GF: guest Phys used in Δ."));
+	invert_y_->setToolTip(
+	    tr("Mirror axis in range (e.g. 0..319 → 319..0). "
+	       "DW: write value.  GF: guest Phys used in Δ."));
 
 	grid->addWidget(new QLabel(tr("X"),coords_box),1,0);
 	grid->addWidget(game_phys_x_,1,1);
@@ -383,8 +389,8 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 	memory_write_=new QCheckBox(tr("Memory write"),this);
 	memory_write_->setChecked(false);
 	memory_write_->setToolTip(
-	    tr("On: poke Game Phys in guest RAM (range clamp).\n"
-	       "Off: feed host−guest deltas through the gameport."));
+	    tr("On: poke Game Phys (map→offset/invert→bias/range/scale).\n"
+	       "Off: same target as On; gameport Δ = write − Phys."));
 	wait_feedback_=new QCheckBox(tr("Wait for gameport input to apply"),this);
 	wait_feedback_->setChecked(true);
 	wait_feedback_->setToolTip(
@@ -531,10 +537,10 @@ void MouseCoordProfilePage::setEditorEnabled(bool enabled)
 	setOn(game_phys_y_,gamePhys);
 	setOn(game_phys2_x_,gamePhys);
 	setOn(game_phys2_y_,gamePhys);
-	setOn(game_min_x_,gamePhys);
-	setOn(game_max_x_,gamePhys);
-	setOn(game_min_y_,gamePhys);
-	setOn(game_max_y_,gamePhys);
+	setOn(game_min_x_,memWrite);
+	setOn(game_max_x_,memWrite);
+	setOn(game_min_y_,memWrite);
+	setOn(game_max_y_,memWrite);
 	setOn(offset_x_,gamePhys);
 	setOn(offset_y_,gamePhys);
 	setOn(scale_x_,gamePhys);
@@ -577,8 +583,8 @@ void MouseCoordProfilePage::updateModeNotes(void)
 			}
 		}
 	};
-	setWidgetsEnabled({game_phys_x_,game_phys_y_,game_phys2_x_,game_phys2_y_,
-	                   game_min_x_,game_max_x_,game_min_y_,game_max_y_},gamePhys);
+	setWidgetsEnabled({game_phys_x_,game_phys_y_,game_phys2_x_,game_phys2_y_},gamePhys);
+	setWidgetsEnabled({game_min_x_,game_max_x_,game_min_y_,game_max_y_},memWrite);
 	setWidgetsEnabled({offset_x_,offset_y_,scale_x_,scale_y_,scale2_x_,scale2_y_},gamePhys);
 	setWidgetsEnabled({invert_x_,invert_y_},gamePhys);
 	if(nullptr!=memory_write_)

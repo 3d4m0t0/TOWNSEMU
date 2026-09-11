@@ -701,8 +701,13 @@ bool MouseCoordWriteScan::ResolveDsRelativePhys(
 	unsigned int base=cpu.state.DS().baseLinearAddr;
 	if(0!=dsSelector)
 	{
+		// Match built-in UW/WC: always decode the captured selector as a
+		// protected-mode descriptor.  DevicePolling can run while the CPU is
+		// briefly in real/V86 (timer/BIOS); using cpu.state.mode there remaps
+		// 0x14 (etc.) to the wrong base → GF reads junk Phys → idle bounce.
 		i486DXCommon::SegmentRegister ds;
-		cpu.DebugLoadSegmentRegister(ds,dsSelector,townsPtr->mem,cpu.state.mode);
+		cpu.DebugLoadSegmentRegister(
+		    ds,dsSelector,townsPtr->mem,i486DXCommon::MODE_NATIVE);
 		base=ds.baseLinearAddr;
 	}
 	unsigned int exceptionType=i486DXCommon::EXCEPTION_NONE;
@@ -3346,6 +3351,203 @@ int MouseCoordWriteScan::MapAxisToRange(int host,int minV,int maxV,int /*hostSpa
 	return ClampInt(host,minV,maxV);
 }
 
+void MouseCoordWriteScan::MapScreenToPairStored(
+    const CoordPair &pr,int screenX,int screenY,int screenW,int screenH,
+    int &writeX,int &writeY,
+    bool invertX,bool invertY)
+{
+	writeX=screenX+pr.biasX;
+	writeY=screenY+pr.biasY;
+	int mirrorMinX=0,mirrorMaxX=0;
+	int mirrorMinY=0,mirrorMaxY=0;
+	bool haveMirrorX=false,haveMirrorY=false;
+	if(true==pr.hasRangeX && pr.rangeMinX!=pr.rangeMaxX)
+	{
+		writeX=MapAxisToRange(writeX,pr.rangeMinX,pr.rangeMaxX,0);
+		mirrorMinX=std::min(pr.rangeMinX,pr.rangeMaxX);
+		mirrorMaxX=std::max(pr.rangeMinX,pr.rangeMaxX);
+		haveMirrorX=true;
+	}
+	else if(0<screenW)
+	{
+		writeX=ClampInt(writeX,0,screenW-1);
+		mirrorMinX=0;
+		mirrorMaxX=screenW-1;
+		haveMirrorX=true;
+	}
+	if(true==pr.hasRangeY && pr.rangeMinY!=pr.rangeMaxY)
+	{
+		writeY=MapAxisToRange(writeY,pr.rangeMinY,pr.rangeMaxY,0);
+		mirrorMinY=std::min(pr.rangeMinY,pr.rangeMaxY);
+		mirrorMaxY=std::max(pr.rangeMinY,pr.rangeMaxY);
+		haveMirrorY=true;
+	}
+	else if(0<screenH)
+	{
+		writeY=ClampInt(writeY,0,screenH-1);
+		mirrorMinY=0;
+		mirrorMaxY=screenH-1;
+		haveMirrorY=true;
+	}
+	// DW invert: reverse progression inside the clamped span (0..319 → 319..0).
+	if(true==invertX && true==haveMirrorX)
+	{
+		writeX=mirrorMinX+mirrorMaxX-writeX;
+	}
+	if(true==invertY && true==haveMirrorY)
+	{
+		writeY=mirrorMinY+mirrorMaxY-writeY;
+	}
+	if(0!=pr.scaleX && 1!=pr.scaleX)
+	{
+		writeX*=pr.scaleX;
+	}
+	if(0!=pr.scaleY && 1!=pr.scaleY)
+	{
+		writeY*=pr.scaleY;
+	}
+}
+
+int MouseCoordWriteScan::MirrorStoredAxis(
+    int value,const CoordPair &pr,int screenSpan,bool axisX)
+{
+	int lo=0,hi=0;
+	bool have=false;
+	int scale=1;
+	if(true==axisX)
+	{
+		scale=pr.scaleX;
+		if(true==pr.hasRangeX && pr.rangeMinX!=pr.rangeMaxX)
+		{
+			lo=std::min(pr.rangeMinX,pr.rangeMaxX);
+			hi=std::max(pr.rangeMinX,pr.rangeMaxX);
+			have=true;
+		}
+		else if(0<screenSpan)
+		{
+			lo=0;
+			hi=screenSpan-1;
+			have=true;
+		}
+	}
+	else
+	{
+		scale=pr.scaleY;
+		if(true==pr.hasRangeY && pr.rangeMinY!=pr.rangeMaxY)
+		{
+			lo=std::min(pr.rangeMinY,pr.rangeMaxY);
+			hi=std::max(pr.rangeMinY,pr.rangeMaxY);
+			have=true;
+		}
+		else if(0<screenSpan)
+		{
+			lo=0;
+			hi=screenSpan-1;
+			have=true;
+		}
+	}
+	if(true!=have)
+	{
+		return value;
+	}
+	// Match DW: mirror in pre-scale span, then × scale for stored Phys space.
+	if(0!=scale && 1!=scale)
+	{
+		lo*=scale;
+		hi*=scale;
+	}
+	if(hi<lo)
+	{
+		std::swap(lo,hi);
+	}
+	return lo+hi-value;
+}
+
+bool MouseCoordWriteScan::ComputeFirstPairStoredFromHost(
+    int rawHostX,int rawHostY,
+    int &mappedX,int &mappedY,
+    int &targetX,int &targetY,
+    int &writeX,int &writeY,
+    int &guestX,int &guestY,
+    CoordPair &outPair) const
+{
+	Profile p;
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		if(true!=profileLoaded || nullptr==townsPtr)
+		{
+			return false;
+		}
+		p=activeProfile;
+	}
+	// Do not re-resolve DS→phys every poll.  Built-in UW/WC cache phys at
+	// identify / CRTC-HST; hot paths use the cached pair phys from apply/load.
+	const CoordPair *pr=nullptr;
+	for(const auto &cand : p.pair)
+	{
+		if(true==cand.Valid())
+		{
+			pr=&cand;
+			break;
+		}
+	}
+	if(nullptr==pr)
+	{
+		return false;
+	}
+	outPair=*pr;
+	mappedX=rawHostX;
+	mappedY=rawHostY;
+	MapHostToProfileCoords(mappedX,mappedY);
+	// Offset only here — GF invert is applied to guest in Δ (original GF).
+	targetX=mappedX+p.offsetX;
+	targetY=mappedY+p.offsetY;
+
+	int screenW=0,screenH=0;
+	int screenX=targetX,screenY=targetY;
+	if(true==TryGuestScreenSize(screenW,screenH))
+	{
+		screenX=ClampInt(targetX,0,screenW-1);
+		screenY=ClampInt(targetY,0,screenH-1);
+	}
+	// No DW-style axis mirror; same stored target DW would write with invert off.
+	MapScreenToPairStored(*pr,screenX,screenY,screenW,screenH,writeX,writeY,false,false);
+
+	const bool prev=townsPtr->var.suppressMosCoordReadProbe;
+	townsPtr->var.suppressMosCoordReadProbe=true;
+	guestX=(int)(short)townsPtr->mem.FetchWord(pr->physX);
+	guestY=(int)(short)townsPtr->mem.FetchWord(pr->physY);
+	townsPtr->var.suppressMosCoordReadProbe=prev;
+	return true;
+}
+
+bool MouseCoordWriteScan::GetGameFeedbackScale(int &scaleX,int &scaleY) const
+{
+	scaleX=1;
+	scaleY=1;
+	Profile p;
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		if(true!=profileLoaded)
+		{
+			return false;
+		}
+		p=activeProfile;
+	}
+	scaleX=p.scaleX;
+	scaleY=p.scaleY;
+	for(const auto &cand : p.pair)
+	{
+		if(true==cand.Valid())
+		{
+			scaleX=cand.scaleX;
+			scaleY=cand.scaleY;
+			return true;
+		}
+	}
+	return true;
+}
+
 bool MouseCoordWriteScan::TryGuestScreenSize(int &wid,int &hei) const
 {
 	if(nullptr==townsPtr)
@@ -3436,28 +3638,44 @@ bool MouseCoordWriteScan::ReadProfileCoords(int &mx,int &my) const
 		}
 		p=activeProfile;
 	}
-	// Prefer DS-relative recipe when present; fall back to stored absolute phys.
-	for(auto &pr : p.pair)
-	{
-		if(true==pr.hasDsOff)
-		{
-			(void)ResolveCoordPairDsOffLocked(pr);
-		}
-	}
-	// The app keeps its own cursor from BIOS deltas; when it is known, it — not the
-	// BIOS soft word — is what the on-screen cursor follows, so integrate against it.
+	// Cached phys only (DS recipe resolved at apply / CRTC-HST / SetActiveProfile).
 	const bool prev=townsPtr->var.suppressMosCoordReadProbe;
 	townsPtr->var.suppressMosCoordReadProbe=true;
 
+	// Game-feedback: guest owns the Phys range (often full render 0..639, not MOS
+	// soft 0..319). Never reject via soft-size usable() / soft-cursor fallback —
+	// that swapped in ~318 once X passed softW+64 (~385) and blew up the Δ.
+	if(true==p.HasGameFeedbackTarget())
+	{
+		for(const auto &pr : p.pair)
+		{
+			if(true!=pr.Valid())
+			{
+				continue;
+			}
+			mx=(int)(short)townsPtr->mem.FetchWord(pr.physX)-pr.biasX;
+			my=(int)(short)townsPtr->mem.FetchWord(pr.physY)-pr.biasY;
+			townsPtr->var.suppressMosCoordReadProbe=prev;
+			return true;
+		}
+		townsPtr->var.suppressMosCoordReadProbe=prev;
+		return false;
+	}
+
 	int screenW=0,screenH=0;
 	const bool haveScreen=TryGuestScreenSize(screenW,screenH);
+	const auto render=townsPtr->crtc.GetRenderSize();
+	const int renderW=std::max(2,render.x());
+	const int renderH=std::max(2,render.y());
+	// Accept soft space or full render (Game Phys is often render pixels).
+	const int maxW=haveScreen ? std::max(screenW,renderW) : renderW;
+	const int maxH=haveScreen ? std::max(screenH,renderH) : renderH;
 	const int slack=64;
 	// Words can hold junk before the app runs or after it relocates; feeding that
 	// back would produce a runaway delta, so fall back to the BIOS soft cursor.
 	auto usable=[&](int x,int y)->bool
 	{
-		return true!=haveScreen ||
-		       (-slack<=x && x<screenW+slack && -slack<=y && y<screenH+slack);
+		return (-slack<=x && x<maxW+slack && -slack<=y && y<maxH+slack);
 	};
 
 	for(const auto &pr : p.pair)
@@ -3553,13 +3771,6 @@ bool MouseCoordWriteScan::WriteAppCursorCoords(int mx,int my)
 			lastDirectWriteOk=false;
 			return false;
 		}
-		for(auto &pr : activeProfile.pair)
-		{
-			if(true==pr.hasDsOff)
-			{
-				(void)ResolveCoordPairDsOffLocked(pr);
-			}
-		}
 		p=activeProfile;
 	}
 
@@ -3579,41 +3790,44 @@ bool MouseCoordWriteScan::WriteAppCursorCoords(int mx,int my)
 	suppressOwnStore=true;
 	townsPtr->mem.storeGuardAllow=true;
 
-	// Per-pair mapped target; scale multiplies the value written to that pair.
+	AppIntegDebug::PairLine pairLines[MAX_COORD_PAIRS];
+	for(int i=0; i<MAX_COORD_PAIRS; ++i)
+	{
+		pairLines[i]=AppIntegDebug::PairLine();
+	}
+	int pairIdx=0;
 	for(const auto &pr : p.pair)
 	{
 		if(true!=pr.Valid())
 		{
 			continue;
 		}
-		int writeX=screenX+pr.biasX;
-		int writeY=screenY+pr.biasY;
-		if(true==pr.hasRangeX && pr.rangeMinX!=pr.rangeMaxX)
-		{
-			writeX=MapAxisToRange(writeX,pr.rangeMinX,pr.rangeMaxX,0);
-		}
-		else if(0<screenW)
-		{
-			writeX=ClampInt(writeX,0,screenW-1);
-		}
-		if(true==pr.hasRangeY && pr.rangeMinY!=pr.rangeMaxY)
-		{
-			writeY=MapAxisToRange(writeY,pr.rangeMinY,pr.rangeMaxY,0);
-		}
-		else if(0<screenH)
-		{
-			writeY=ClampInt(writeY,0,screenH-1);
-		}
-		if(0!=pr.scaleX && 1!=pr.scaleX)
-		{
-			writeX*=pr.scaleX;
-		}
-		if(0!=pr.scaleY && 1!=pr.scaleY)
-		{
-			writeY*=pr.scaleY;
-		}
+		int writeX=0,writeY=0;
+		MapScreenToPairStored(
+		    pr,screenX,screenY,screenW,screenH,writeX,writeY,
+		    p.invertX,p.invertY);
 		townsPtr->mem.StoreWord(pr.physX,(unsigned int)writeX);
 		townsPtr->mem.StoreWord(pr.physY,(unsigned int)writeY);
+		if(pairIdx<MAX_COORD_PAIRS)
+		{
+			auto &line=pairLines[pairIdx];
+			line.used=true;
+			line.physX=pr.physX;
+			line.physY=pr.physY;
+			line.biasX=pr.biasX;
+			line.biasY=pr.biasY;
+			line.scaleX=pr.scaleX;
+			line.scaleY=pr.scaleY;
+			line.rangeMinX=pr.rangeMinX;
+			line.rangeMaxX=pr.rangeMaxX;
+			line.rangeMinY=pr.rangeMinY;
+			line.rangeMaxY=pr.rangeMaxY;
+			line.hasRangeX=pr.hasRangeX;
+			line.hasRangeY=pr.hasRangeY;
+			line.writeX=writeX;
+			line.writeY=writeY;
+			++pairIdx;
+		}
 		wrote=true;
 	}
 	townsPtr->mem.storeGuardAllow=false;
@@ -3627,6 +3841,14 @@ bool MouseCoordWriteScan::WriteAppCursorCoords(int mx,int my)
 		if(true==wrote)
 		{
 			++directWriteCount;
+		}
+		if(true==appIntegDebug.valid && true!=appIntegDebug.isGf)
+		{
+			for(int i=0; i<MAX_COORD_PAIRS; ++i)
+			{
+				appIntegDebug.pair[i]=pairLines[i];
+			}
+			appIntegDebug.applying=true;
 		}
 	}
 
@@ -3652,13 +3874,6 @@ void MouseCoordWriteScan::SyncAppStoreGuard(bool on)
 		}
 		else
 		{
-			for(auto &pr : activeProfile.pair)
-			{
-				if(true==pr.hasDsOff)
-				{
-					(void)ResolveCoordPairDsOffLocked(pr);
-				}
-			}
 			p=activeProfile;
 		}
 	}
@@ -3707,6 +3922,196 @@ unsigned int MouseCoordWriteScan::AppStoreGuardBlockCount(void) const
 		return 0;
 	}
 	return memPtr->storeGuardBlockCount;
+}
+
+void MouseCoordWriteScan::NoteDirectWriteDebug(
+    int rawHostX,int rawHostY,int mappedX,int mappedY,
+    int offsetX,int offsetY,bool invertX,bool invertY,
+    int targetX,int targetY)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	appIntegDebug=AppIntegDebug();
+	appIntegDebug.valid=true;
+	appIntegDebug.isGf=false;
+	appIntegDebug.applying=true;
+	appIntegDebug.rawHostX=rawHostX;
+	appIntegDebug.rawHostY=rawHostY;
+	appIntegDebug.mappedX=mappedX;
+	appIntegDebug.mappedY=mappedY;
+	appIntegDebug.offsetX=offsetX;
+	appIntegDebug.offsetY=offsetY;
+	appIntegDebug.invertX=invertX;
+	appIntegDebug.invertY=invertY;
+	appIntegDebug.targetX=targetX;
+	appIntegDebug.targetY=targetY;
+}
+
+void MouseCoordWriteScan::NoteGameFeedbackDebug(
+    int rawHostX,int rawHostY,
+    int mappedX,int mappedY,
+    int offsetX,int offsetY,bool invertX,bool invertY,
+    int targetX,int targetY,
+    int writeX,int writeY,
+    int guestX,int guestY,int deltaX,int deltaY,
+    const CoordPair &pair0)
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	appIntegDebug=AppIntegDebug();
+	appIntegDebug.valid=true;
+	appIntegDebug.isGf=true;
+	appIntegDebug.applying=true;
+	appIntegDebug.rawHostX=rawHostX;
+	appIntegDebug.rawHostY=rawHostY;
+	appIntegDebug.mappedX=mappedX;
+	appIntegDebug.mappedY=mappedY;
+	appIntegDebug.scaleX=pair0.scaleX;
+	appIntegDebug.scaleY=pair0.scaleY;
+	appIntegDebug.offsetX=offsetX;
+	appIntegDebug.offsetY=offsetY;
+	appIntegDebug.invertX=invertX;
+	appIntegDebug.invertY=invertY;
+	appIntegDebug.targetX=targetX;
+	appIntegDebug.targetY=targetY;
+	appIntegDebug.guestX=guestX;
+	appIntegDebug.guestY=guestY;
+	appIntegDebug.deltaX=deltaX;
+	appIntegDebug.deltaY=deltaY;
+	auto &line=appIntegDebug.pair[0];
+	line.used=true;
+	line.physX=pair0.physX;
+	line.physY=pair0.physY;
+	line.biasX=pair0.biasX;
+	line.biasY=pair0.biasY;
+	line.scaleX=pair0.scaleX;
+	line.scaleY=pair0.scaleY;
+	line.hasRangeX=pair0.hasRangeX;
+	line.hasRangeY=pair0.hasRangeY;
+	line.rangeMinX=pair0.rangeMinX;
+	line.rangeMaxX=pair0.rangeMaxX;
+	line.rangeMinY=pair0.rangeMinY;
+	line.rangeMaxY=pair0.rangeMaxY;
+	line.writeX=writeX;
+	line.writeY=writeY;
+}
+
+MouseCoordWriteScan::AppIntegDebug MouseCoordWriteScan::GetAppIntegDebug(void) const
+{
+	std::lock_guard<std::mutex> lock(mtx);
+	return appIntegDebug;
+}
+
+std::string MouseCoordWriteScan::FormatAppIntegDebug(void) const
+{
+	AppIntegDebug d;
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		d=appIntegDebug;
+	}
+	if(true!=d.valid)
+	{
+		return "App: (idle)";
+	}
+	std::ostringstream oss;
+	if(true==d.isGf)
+	{
+		oss << "App GF:\n";
+		oss << "  host=" << d.rawHostX << "," << d.rawHostY
+		    << " → map " << d.mappedX << "," << d.mappedY << "\n";
+		oss << "  target=(" << d.mappedX << "+" << d.offsetX << ")=" << d.targetX
+		    << " , (" << d.mappedY << "+" << d.offsetY << ")=" << d.targetY << "\n";
+		const auto &pr=d.pair[0];
+		if(true==pr.used)
+		{
+			oss << "  P0 @" << cpputil::Uitox(pr.physX)
+			    << "/" << cpputil::Uitox(pr.physY) << "\n";
+			oss << "    writeX=(" << d.targetX << "+" << pr.biasX << ")";
+			if(true==pr.hasRangeX && pr.rangeMinX!=pr.rangeMaxX)
+			{
+				oss << " clamp[" << pr.rangeMinX << ".." << pr.rangeMaxX << "]";
+			}
+			if(0!=pr.scaleX && 1!=pr.scaleX)
+			{
+				oss << "*" << pr.scaleX;
+			}
+			oss << "=" << pr.writeX << "\n";
+			oss << "    writeY=(" << d.targetY << "+" << pr.biasY << ")";
+			if(true==pr.hasRangeY && pr.rangeMinY!=pr.rangeMaxY)
+			{
+				oss << " clamp[" << pr.rangeMinY << ".." << pr.rangeMaxY << "]";
+			}
+			if(0!=pr.scaleY && 1!=pr.scaleY)
+			{
+				oss << "*" << pr.scaleY;
+			}
+			oss << "=" << pr.writeY << "\n";
+			oss << "  guest Phys=" << d.guestX << "," << d.guestY;
+			if(true==d.invertX || true==d.invertY)
+			{
+				oss << " (mirrored for Δ)";
+			}
+			oss << "\n";
+			oss << "  Δx=(" << pr.writeX << ")-(" << d.guestX << ")=" << d.deltaX
+			    << "  Δy=(" << pr.writeY << ")-(" << d.guestY << ")=" << d.deltaY;
+		}
+		else
+		{
+			oss << "  guest=" << d.guestX << "," << d.guestY
+			    << "  Δ=" << d.deltaX << "," << d.deltaY;
+		}
+	}
+	else
+	{
+		oss << "App DW:\n";
+		oss << "  host=" << d.rawHostX << "," << d.rawHostY
+		    << " → map " << d.mappedX << "," << d.mappedY << "\n";
+		oss << "  target=(" << d.mappedX << "+" << d.offsetX << ")=" << d.targetX
+		    << " , (" << d.mappedY << "+" << d.offsetY << ")=" << d.targetY << "\n";
+		bool anyPair=false;
+		for(int i=0; i<MAX_COORD_PAIRS; ++i)
+		{
+			const auto &pr=d.pair[i];
+			if(true!=pr.used)
+			{
+				continue;
+			}
+			anyPair=true;
+			oss << "  P" << i << " @" << cpputil::Uitox(pr.physX)
+			    << "/" << cpputil::Uitox(pr.physY) << "\n";
+			oss << "    writeX=(" << d.targetX << "+" << pr.biasX << ")";
+			if(true==pr.hasRangeX && pr.rangeMinX!=pr.rangeMaxX)
+			{
+				oss << " clamp[" << pr.rangeMinX << ".." << pr.rangeMaxX << "]";
+			}
+			if(true==d.invertX)
+			{
+				oss << " mirror";
+			}
+			if(0!=pr.scaleX && 1!=pr.scaleX)
+			{
+				oss << "*" << pr.scaleX;
+			}
+			oss << "=" << pr.writeX << "\n";
+			oss << "    writeY=(" << d.targetY << "+" << pr.biasY << ")";
+			if(true==pr.hasRangeY && pr.rangeMinY!=pr.rangeMaxY)
+			{
+				oss << " clamp[" << pr.rangeMinY << ".." << pr.rangeMaxY << "]";
+			}
+			if(true==d.invertY)
+			{
+				oss << " mirror";
+			}
+			if(0!=pr.scaleY && 1!=pr.scaleY)
+			{
+				oss << "*" << pr.scaleY;
+			}
+			oss << "=" << pr.writeY << "\n";
+		}
+		if(true!=anyPair)
+		{
+			oss << "  (no pair write yet)";
+		}
+	}
+	return oss.str();
 }
 
 unsigned int MouseCoordWriteScan::DirectWriteCount(void) const
