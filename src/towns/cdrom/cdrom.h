@@ -297,19 +297,34 @@ public:
 		/*! TOC audio track (1-based) for CDDAWaveBaseTime; 0 if unknown. */
 		unsigned int CDDAWaveBaseTrack=0;
 		bool CDDAAudioOutput=false;  // Host mix only; never affects GETSTATE / StatusSecondByte
-		/*! Guest-visible disc HSG frozen at PAUSE (host mix may still advance CDDAPlayPointer). */
+		/*! Guest-visible disc HSG frozen at PAUSE. */
 		unsigned int CDDAPauseDiscHSG=0;
 		bool CDDAPauseDiscValid=false;
 
-		// After MODE bridge: sample grace may mute host if guest is idle/ended
-		// (STOP+MODE wait for PLAY). Do not mute while PLAYING or PAUSED.
-		// Once muted by grace, further MODE must not re-bridge until PLAY/RESUME.
-		// App→TMENU discards the wave (DiscardCacheOnAppExit); guest CDDAState stays.
+		// CDDA ↔ MODE (CDC model; cache ON/OFF):
+		//   PAUSED + any MODE (wave present) → stay PAUSED (ah=1), keep wave/mix
+		//   PLAYING + short/fixed-LBA MODE → stay PLAYING
+		//   PLAYING + long MODE → stop guest CDDA (cache ON may host-bridge)
+		// Do not promote IDLE→PLAYING from host mix alone (caused drive-not-ready).
+		// Soft often: PAUSE → short polls → larger MODE without RESUME/PLAY.
+		//
+		// PLAY → PAUSE (host keeps mix, await MODE) → MODE soon, or
+		//   standalone PAUSE (no MODE within grace) discards host cache.
 		uint64_t CDDAHostSamplesMixed=0;
-		uint64_t CDDACacheStopAfterHostSamples=0; // 0=inactive; else mute host when HostSamplesMixed reaches this
+		uint64_t CDDACacheStopAfterHostSamples=0; // 0=inactive; else act when HostSamplesMixed reaches this
 		bool CDDACacheHostStoppedByGrace=false;
 		bool CDDACacheBridgingDataRead=false;
-		unsigned int CDDAStateBeforeDataRead=CDDA_IDLE; // burst snapshot for logs / grace only
+		/*! PAUSE with cache: waiting for a quick MODE to form a bridge. */
+		bool CDDACacheAwaitModeAfterPause=false;
+		/*! First MODE of a burst: guest was PLAYING/PAUSED (host bridge context). */
+		unsigned int CDDAStateBeforeDataRead=CDDA_IDLE;
+		/*! Guest+host: short fixed-LBA MODE poll with BGM continuing. */
+		bool CDDAFixedLbaPolling=false;
+		enum { MODE_POLL_RING=16 };
+		unsigned int modePollHsg[MODE_POLL_RING]={0};
+		unsigned int modePollSectors[MODE_POLL_RING]={0};
+		unsigned int modePollRingUsed=0;
+		unsigned int modePollRingNext=0;
 
 		// MODE1/2/RAW sector transfer in progress (protect schedule from GETSTATE).
 		bool dataTransferActive=false;
@@ -361,8 +376,8 @@ public:
 
 		unsigned int sectorReadTimeDelay=0;
 
-		// Host-only: keep mixing cached CDDA through short MODE1/2/RAW reads.
-		// Guest CDDAState/status always follow the hardware model (unaffected).
+		// Host-only: keep mixing cached CDDA through longer MODE1/2/RAW reads.
+		// Short fixed-LBA polls keep guest CDDA regardless of this flag.
 		bool cddaCacheDuringDataRead=true;
 		unsigned int cddaCachePostReadGraceSec=3;
 
@@ -428,6 +443,8 @@ public:
 private:
 	void UpdateCDDAStateInternal(long long int townsTime);
 	void RebuildAudioTrackTable(void);
+	/*! TOC audio track (1-based) from mount-time audioTrackTable, or 0. */
+	unsigned int CacheAudioTrackFromHSG(unsigned int hsg) const;
 	/*! TOC audio track (1-based) containing disc-time MSF, or 0 if none/not audio. */
 	unsigned int CacheAudioTrackFromMSF(DiscImage::MinSecFrm msf) const;
 	bool CacheSameTrack(DiscImage::MinSecFrm msfBegin,DiscImage::MinSecFrm msfEnd) const;
@@ -435,8 +452,18 @@ private:
 	bool CacheHostMixAfterDataRead(void);
 	void CacheClearStopDeadline(void);
 	void CacheArmStopIfNoPlay(void);
+	void CacheArmAwaitModeAfterPause(void);
+	/*! Sample-deadline reached: await-MODE miss → discard; else grace mute. */
+	void CacheOnStopDeadlineReached(void);
 	void CacheOnDataReadStarted(unsigned int numSectors);
 	void CacheOnDataReadFinished(void);
+	/*! Short MODE (≤8 sectors): candidate for fixed-LBA poll / keep-CDDA. */
+	bool ModeIsShortPollRead(unsigned int numSectors) const;
+	void ModePollClear(void);
+	/*! Note a short MODE HSG; update fixed-LBA poll detection. */
+	bool ModePollNoteShortRead(unsigned int hsg0,unsigned int numSectors);
+	/*! True if this MODE should keep guest CDDA (PLAYING or PAUSED) + wave. */
+	bool ModePollShouldKeepCDDA(unsigned int hsg0,unsigned int hsg1,unsigned int numSectors,unsigned int guestBefore);
 	void PushGetStateStatus(void);
 	bool TryHandleGetStateWithoutStealingSchedule(unsigned char newCmdByte,unsigned char keepCmd);
 	void LogMonitorLine(const std::string &line);
