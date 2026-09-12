@@ -95,7 +95,7 @@ constexpr char kHddEnabledKeySuffix[]="/enabled";
 constexpr char kSnapMouseIntegrationLegacyKey[]="debug/snap_mouse_integration";
 constexpr char kSnapMouseWarmupFramesLegacyKey[]="debug/snap_mouse_warmup_frames";
 constexpr int kSnapMouseWarmupFramesDefault=10;
-constexpr int kCddaCachePostReadGraceSecDefault=3;
+constexpr int kCddaCachePostReadGraceSecDefault=1;
 constexpr int kCpuFreqDefaultMhz=33;
 constexpr int kCpuCustomFreqMinMhz=33;
 constexpr int kCpuCustomFreqMaxMhz=60;
@@ -1611,13 +1611,13 @@ bool TownsQtSettings::snapMouseIntegration()
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	if(settings.contains(QString::fromLatin1(kSnapMouseIntegrationKey)))
 	{
-		return settings.value(QString::fromLatin1(kSnapMouseIntegrationKey),false).toBool();
+		return settings.value(QString::fromLatin1(kSnapMouseIntegrationKey),true).toBool();
 	}
 	if(settings.contains(QString::fromLatin1(kSnapMouseIntegrationLegacyKey)))
 	{
-		return settings.value(QString::fromLatin1(kSnapMouseIntegrationLegacyKey),false).toBool();
+		return settings.value(QString::fromLatin1(kSnapMouseIntegrationLegacyKey),true).toBool();
 	}
-	return false;
+	return true;
 }
 
 void TownsQtSettings::setSnapMouseIntegration(bool enabled)

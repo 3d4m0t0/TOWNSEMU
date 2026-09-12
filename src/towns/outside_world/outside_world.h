@@ -153,7 +153,7 @@ public:
 	/*! TownsQt: drive mouse motion with image-space deltas when differential integration is off. */
 	bool qtImageDeltaMouseMotion=false;
 	/*! Test mode: set guest mouse coordinate equal to host in one step (memory write). */
-	bool snapMouseIntegration=false;
+	bool snapMouseIntegration=true;
 	/*! Gradual integration frames before snap engages (layout / BIOS settle). */
 	int snapMouseWarmupRemaining=0;
 	int snapMouseWarmupFrames=30;

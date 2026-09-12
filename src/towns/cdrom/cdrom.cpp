@@ -493,7 +493,7 @@ void TownsCDROM::CacheClearStopDeadline(void)
 
 void TownsCDROM::CacheArmStopIfNoPlay(void)
 {
-	const unsigned int graceSec=0<var.cddaCachePostReadGraceSec ? var.cddaCachePostReadGraceSec : 3u;
+	const unsigned int graceSec=0<var.cddaCachePostReadGraceSec ? var.cddaCachePostReadGraceSec : 1u;
 	// Count real host-mixed audio, not townsTime (payback can skip seconds of VM time
 	// while the wave pointer barely moves — that was discarding mid-bridge).
 	const uint64_t graceSamples=static_cast<uint64_t>(graceSec)*static_cast<uint64_t>(CDDA_SAMPLING_RATE);
@@ -837,7 +837,7 @@ void TownsCDROM::CacheOnDataReadFinished(void)
 	{
 		std::ostringstream oss;
 		oss << "[CACHE] host mix after MODE arm grace sec="
-		    << (0<var.cddaCachePostReadGraceSec ? var.cddaCachePostReadGraceSec : 3u)
+		    << (0<var.cddaCachePostReadGraceSec ? var.cddaCachePostReadGraceSec : 1u)
 		    << " before=" << before
 		    << " cdda=" << state.CDDAState
 		    << " ptr=" << state.CDDAPlayPointer << "/" << state.CDDAWave.size();

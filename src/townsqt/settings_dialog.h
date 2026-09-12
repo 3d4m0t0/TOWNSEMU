@@ -82,10 +82,10 @@ public:
 		int mouseIntegrationSpeed=256;
 		bool considerVRAMOffsetInMouseIntegration=true;
 		bool autoDifferentialOnMosUnused=false;
-		bool snapMouseIntegration=false;
+		bool snapMouseIntegration=true;
 		int snapMouseWarmupFrames=10;
 		bool cddaCacheDuringDataRead=true;
-		int cddaCachePostReadGraceSec=3;
+		int cddaCachePostReadGraceSec=1;
 		int mouseMinX=0;
 		int mouseMinY=0;
 		int mouseMaxX=1023;

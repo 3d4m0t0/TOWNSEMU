@@ -349,10 +349,10 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.mouseIntegrationSpeed=256;
 	v.considerVRAMOffsetInMouseIntegration=true;
 	v.autoDifferentialOnMosUnused=false;
-	v.snapMouseIntegration=false;
+	v.snapMouseIntegration=true;
 	v.snapMouseWarmupFrames=10;
 	v.cddaCacheDuringDataRead=true;
-	v.cddaCachePostReadGraceSec=3;
+	v.cddaCachePostReadGraceSec=1;
 	v.mouseMinX=TownsStartParameters::DEFAULT_MOUSE_MINX;
 	v.mouseMinY=TownsStartParameters::DEFAULT_MOUSE_MINY;
 	v.mouseMaxX=TownsStartParameters::DEFAULT_MOUSE_MAXX;

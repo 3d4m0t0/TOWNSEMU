@@ -379,7 +379,7 @@ public:
 		// Host-only: keep mixing cached CDDA through longer MODE1/2/RAW reads.
 		// Short fixed-LBA polls keep guest CDDA regardless of this flag.
 		bool cddaCacheDuringDataRead=true;
-		unsigned int cddaCachePostReadGraceSec=3;
+		unsigned int cddaCachePostReadGraceSec=1;
 
 		// If debugBreakOnCommandWrite==true and 0xffff!=debugBreakOnSpecificCommand,
 		// it breaks the VM only if a specific command is sent.
