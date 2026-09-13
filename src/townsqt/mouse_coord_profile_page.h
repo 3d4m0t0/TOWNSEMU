@@ -22,7 +22,7 @@ public:
 	explicit MouseCoordProfilePage(QWidget *parent=nullptr);
 
 	void setProfile(const QVariantMap &profile);
-	/*! CD fingerprint from mouseCoordWriteScanState — enables Preset when a match exists. */
+	/*! CD fingerprint from mouseCoordWriteScanState — enables preset load when a match exists. */
 	void setDiscFingerprint(unsigned int fingerprintHash32);
 	/*! Gray out Mouse integration unless Mouse BIOS soft cursor is resolvable. */
 	void setMouseBiosActive(bool active);
@@ -57,7 +57,8 @@ private:
 	void updateAppExecLabels(void);
 	void bindLiveAppExec(void);
 	void refreshPresetButtons(void);
-	void applyMousePreset(void);
+	void applySystemMousePreset(void);
+	void applyUserMousePreset(void);
 	void saveMousePreset(void);
 	bool hasAppSpecificSettings(void) const;
 	int selectedMode(void) const;
@@ -100,10 +101,12 @@ private:
 	QLabel *app_exec_bound_label_=nullptr;
 	QPushButton *bind_app_exec_btn_=nullptr;
 	QPushButton *phys_search_btn_=nullptr;
-	QPushButton *preset_btn_=nullptr;
+	QPushButton *system_preset_btn_=nullptr;
+	QPushButton *user_preset_load_btn_=nullptr;
 	QPushButton *preset_save_btn_=nullptr;
 	unsigned int disc_fingerprint_hash32_=0;
-	bool has_mouse_preset_=false;
+	bool has_system_mouse_preset_=false;
+	bool has_user_mouse_preset_=false;
 	QString live_app_exec_name_;
 	unsigned int live_app_exec_hash_=0;
 	QString bound_app_exec_name_;

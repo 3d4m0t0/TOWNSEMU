@@ -19,14 +19,19 @@ QString FileNameForFingerprint(unsigned int fingerprintHash32)
 	    .arg(fingerprintHash32,8,16,QLatin1Char('0'));
 }
 
-QStringList SearchDirs(void)
+QString UserPresetDir(void)
+{
+	return TownsQtPaths::mousePresetsDir();
+}
+
+QString UserPresetPath(unsigned int fingerprintHash32)
+{
+	return UserPresetDir()+QLatin1Char('/')+FileNameForFingerprint(fingerprintHash32);
+}
+
+QStringList SystemSearchDirs(void)
 {
 	QStringList dirs;
-	const QString user=TownsQtPaths::mousePresetsDir();
-	if(!dirs.contains(user))
-	{
-		dirs << user;
-	}
 	const QStringList dataDirs=
 	    QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
 	for(const QString &dataDir : dataDirs)
@@ -265,14 +270,23 @@ QString PresetIniFromProfile(unsigned int fingerprintHash32,const QVariantMap &p
 }
 }
 
-bool TownsQtMousePreset::Exists(unsigned int fingerprintHash32)
+bool TownsQtMousePreset::ExistsUser(unsigned int fingerprintHash32)
+{
+	if(0==fingerprintHash32)
+	{
+		return false;
+	}
+	return QFile::exists(UserPresetPath(fingerprintHash32));
+}
+
+bool TownsQtMousePreset::ExistsSystem(unsigned int fingerprintHash32)
 {
 	if(0==fingerprintHash32)
 	{
 		return false;
 	}
 	const QString name=FileNameForFingerprint(fingerprintHash32);
-	for(const QString &dir : SearchDirs())
+	for(const QString &dir : SystemSearchDirs())
 	{
 		if(true==QFile::exists(dir+QLatin1Char('/')+name))
 		{
@@ -280,6 +294,11 @@ bool TownsQtMousePreset::Exists(unsigned int fingerprintHash32)
 		}
 	}
 	return QFile::exists(QStringLiteral(":/mouse_presets/")+name);
+}
+
+bool TownsQtMousePreset::Exists(unsigned int fingerprintHash32)
+{
+	return true==ExistsUser(fingerprintHash32) || true==ExistsSystem(fingerprintHash32);
 }
 
 bool TownsQtMousePreset::Save(
@@ -297,7 +316,7 @@ bool TownsQtMousePreset::Save(
 		}
 		return false;
 	}
-	const QString dir=TownsQtPaths::mousePresetsDir();
+	const QString dir=UserPresetDir();
 	if(true!=QDir().mkpath(dir))
 	{
 		if(nullptr!=errorOut)
@@ -306,7 +325,7 @@ bool TownsQtMousePreset::Save(
 		}
 		return false;
 	}
-	const QString path=dir+QLatin1Char('/')+FileNameForFingerprint(fingerprintHash32);
+	const QString path=UserPresetPath(fingerprintHash32);
 	QFile file(path);
 	if(true!=file.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text))
 	{
@@ -328,7 +347,19 @@ bool TownsQtMousePreset::Save(
 	return true;
 }
 
-bool TownsQtMousePreset::Load(unsigned int fingerprintHash32,QVariantMap &out)
+bool TownsQtMousePreset::LoadUser(unsigned int fingerprintHash32,QVariantMap &out)
+{
+	out.clear();
+	if(0==fingerprintHash32)
+	{
+		return false;
+	}
+	QByteArray bytes;
+	return true==ReadUtf8File(UserPresetPath(fingerprintHash32),bytes) &&
+	       true==ParsePresetBytes(bytes,fingerprintHash32,out);
+}
+
+bool TownsQtMousePreset::LoadSystem(unsigned int fingerprintHash32,QVariantMap &out)
 {
 	out.clear();
 	if(0==fingerprintHash32)
@@ -337,7 +368,7 @@ bool TownsQtMousePreset::Load(unsigned int fingerprintHash32,QVariantMap &out)
 	}
 	const QString name=FileNameForFingerprint(fingerprintHash32);
 	QByteArray bytes;
-	for(const QString &dir : SearchDirs())
+	for(const QString &dir : SystemSearchDirs())
 	{
 		if(true==ReadUtf8File(dir+QLatin1Char('/')+name,bytes) &&
 		   true==ParsePresetBytes(bytes,fingerprintHash32,out))
@@ -345,10 +376,15 @@ bool TownsQtMousePreset::Load(unsigned int fingerprintHash32,QVariantMap &out)
 			return true;
 		}
 	}
-	if(true==ReadUtf8File(QStringLiteral(":/mouse_presets/")+name,bytes) &&
-	   true==ParsePresetBytes(bytes,fingerprintHash32,out))
+	return true==ReadUtf8File(QStringLiteral(":/mouse_presets/")+name,bytes) &&
+	       true==ParsePresetBytes(bytes,fingerprintHash32,out);
+}
+
+bool TownsQtMousePreset::Load(unsigned int fingerprintHash32,QVariantMap &out)
+{
+	if(true==LoadUser(fingerprintHash32,out))
 	{
 		return true;
 	}
-	return false;
+	return LoadSystem(fingerprintHash32,out);
 }

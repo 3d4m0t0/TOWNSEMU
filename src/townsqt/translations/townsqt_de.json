@@ -872,18 +872,28 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load preset",
-      "translation": "Preset laden"
+      "source": "Load system preset",
+      "translation": "System-Voreinstellung laden"
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile.",
-      "translation": "Maus-Preset für diesen CD-Fingerprint laden.\nAktiv wenn mouse_XXXXXXXX.ini existiert. Übernehmen/OK speichert ins Disc-Profil."
+      "source": "Load the bundled/system mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found under share or in the binary.\nApply or OK saves it to the disc profile.",
+      "translation": "Lädt die System-/Bundle-Mausintegration für diesen CD-Fingerprint.\nAktiv, wenn mouse_XXXXXXXX.ini unter share oder im Binary liegt.\nÜbernehmen/OK speichert ins Disc-Profil."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load from file",
+      "translation": "Aus Datei laden"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load ~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini for this CD fingerprint.\nEnabled when that file exists. Apply or OK saves it to the disc profile.",
+      "translation": "Lädt ~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini für diesen Fingerprint.\nAktiv, wenn die Datei existiert. Übernehmen/OK speichert ins Profil."
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Save to file",
-      "translation": "In Datei"
+      "translation": "In Datei speichern"
     },
     {
       "context": "MouseCoordProfilePage",

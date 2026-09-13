@@ -872,13 +872,23 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load preset",
-      "translation": "載入預設"
+      "source": "Load system preset",
+      "translation": "載入系統預設"
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile.",
-      "translation": "載入此 CD 指紋的滑鼠預設。\n找到 mouse_XXXXXXXX.ini 時可用。套用/OK 寫入光碟設定檔。"
+      "source": "Load the bundled/system mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found under share or in the binary.\nApply or OK saves it to the disc profile.",
+      "translation": "載入此 CD 指紋的內建／系統滑鼠整合預設。\n在 share 或二進位中找到 mouse_XXXXXXXX.ini 時可用。\n套用或確定後寫入光碟設定檔。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load from file",
+      "translation": "從檔案載入"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load ~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini for this CD fingerprint.\nEnabled when that file exists. Apply or OK saves it to the disc profile.",
+      "translation": "從此 CD 指紋的\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini 載入。\n該檔案存在時可用。套用或確定後寫入光碟設定檔。"
     },
     {
       "context": "MouseCoordProfilePage",

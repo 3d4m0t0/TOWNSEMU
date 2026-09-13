@@ -872,18 +872,28 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load preset",
-      "translation": "プリセット読込み"
+      "source": "Load system preset",
+      "translation": "システムプリセット読込み"
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile.",
-      "translation": "このCDフィンガープリント向けのマウス統合プリセットを読み込みます。\nmouse_XXXXXXXX.ini があるとき有効です。適用またはOKでディスクプロファイルへ保存します。"
+      "source": "Load the bundled/system mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found under share or in the binary.\nApply or OK saves it to the disc profile.",
+      "translation": "このCDフィンガープリント向けの同梱／システム・マウス統合プリセットを読み込みます。\nshare またはバイナリ内に mouse_XXXXXXXX.ini があるとき有効です。\n適用またはOKでディスクプロファイルへ保存します。"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load from file",
+      "translation": "ファイル読込み"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load ~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini for this CD fingerprint.\nEnabled when that file exists. Apply or OK saves it to the disc profile.",
+      "translation": "このCDフィンガープリント向けの\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini を読み込みます。\nファイルがあるとき有効です。適用またはOKでディスクプロファイルへ保存します。"
     },
     {
       "context": "MouseCoordProfilePage",
       "source": "Save to file",
-      "translation": "ファイルへ保存"
+      "translation": "ファイル保存"
     },
     {
       "context": "MouseCoordProfilePage",

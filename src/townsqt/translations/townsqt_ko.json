@@ -872,13 +872,23 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load preset",
-      "translation": "프리셋 불러오기"
+      "source": "Load system preset",
+      "translation": "시스템 프리셋 불러오기"
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Load a mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile.",
-      "translation": "이 CD 지문용 마우스 프리셋 로드.\nmouse_XXXXXXXX.ini가 있으면 활성. 적용/OK로 디스크 프로필에 저장."
+      "source": "Load the bundled/system mouse-integration preset for this CD fingerprint.\nEnabled when mouse_XXXXXXXX.ini is found under share or in the binary.\nApply or OK saves it to the disc profile.",
+      "translation": "이 CD 지문용 번들/시스템 마우스 통합 프리셋을 불러옵니다.\nshare 또는 바이너리에 mouse_XXXXXXXX.ini가 있을 때 활성.\n적용 또는 확인 시 디스크 프로필에 저장."
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load from file",
+      "translation": "파일에서 불러오기"
+    },
+    {
+      "context": "MouseCoordProfilePage",
+      "source": "Load ~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini for this CD fingerprint.\nEnabled when that file exists. Apply or OK saves it to the disc profile.",
+      "translation": "이 CD 지문의\n~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini를 불러옵니다.\n파일이 있을 때 활성. 적용/확인 시 디스크 프로필에 저장."
     },
     {
       "context": "MouseCoordProfilePage",

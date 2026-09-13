@@ -225,13 +225,22 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 	connect(phys_search_btn_,&QPushButton::clicked,this,[this](){
 		Q_EMIT openMemoryScanRequested();
 	});
-	preset_btn_=new QPushButton(tr("Load preset"),this);
-	preset_btn_->setEnabled(false);
-	preset_btn_->setToolTip(
-	    tr("Load a mouse-integration preset for this CD fingerprint.\n"
-	       "Enabled when mouse_XXXXXXXX.ini is found. Apply or OK saves it to the disc profile."));
-	connect(preset_btn_,&QPushButton::clicked,this,[this](){
-		applyMousePreset();
+	system_preset_btn_=new QPushButton(tr("Load system preset"),this);
+	system_preset_btn_->setEnabled(false);
+	system_preset_btn_->setToolTip(
+	    tr("Load the bundled/system mouse-integration preset for this CD fingerprint.\n"
+	       "Enabled when mouse_XXXXXXXX.ini is found under share or in the binary.\n"
+	       "Apply or OK saves it to the disc profile."));
+	connect(system_preset_btn_,&QPushButton::clicked,this,[this](){
+		applySystemMousePreset();
+	});
+	user_preset_load_btn_=new QPushButton(tr("Load from file"),this);
+	user_preset_load_btn_->setEnabled(false);
+	user_preset_load_btn_->setToolTip(
+	    tr("Load ~/.config/townsqt/mouse_presets/mouse_XXXXXXXX.ini for this CD fingerprint.\n"
+	       "Enabled when that file exists. Apply or OK saves it to the disc profile."));
+	connect(user_preset_load_btn_,&QPushButton::clicked,this,[this](){
+		applyUserMousePreset();
 	});
 	preset_save_btn_=new QPushButton(tr("Save to file"),this);
 	preset_save_btn_->setEnabled(false);
@@ -244,27 +253,38 @@ MouseCoordProfilePage::MouseCoordProfilePage(QWidget *parent)
 	});
 	{
 		const QFontMetrics fm(font());
-		int w=0;
-		for(const QString &s : {
-		        tr("Phys search"),QStringLiteral("Phys search"),QStringLiteral("phys検索"),
-		        tr("Load preset"),QStringLiteral("Load preset"),QStringLiteral("プリセット読込み"),
-		        tr("Save to file"),QStringLiteral("Save to file"),QStringLiteral("ファイルへ保存"),
-		        tr("Clear"),QStringLiteral("Clear"),QStringLiteral("クリア")})
+		auto minW=[&](std::initializer_list<QString> samples)->int
 		{
-			w=std::max(w,fm.horizontalAdvance(s));
-		}
-		w+=16;
-		for(QPushButton *btn : {phys_search_btn_,preset_btn_,preset_save_btn_,clear_btn_})
+			int w=0;
+			for(const QString &s : samples)
+			{
+				w=std::max(w,fm.horizontalAdvance(s));
+			}
+			return w+16;
+		};
+		phys_search_btn_->setMinimumWidth(minW({
+		    tr("Phys search"),QStringLiteral("Phys search"),QStringLiteral("phys検索")}));
+		system_preset_btn_->setMinimumWidth(minW({
+		    tr("Load system preset"),QStringLiteral("Load system preset"),
+		    QStringLiteral("システムプリセット読込み")}));
+		user_preset_load_btn_->setMinimumWidth(minW({
+		    tr("Load from file"),QStringLiteral("Load from file"),QStringLiteral("ファイル読込み")}));
+		preset_save_btn_->setMinimumWidth(minW({
+		    tr("Save to file"),QStringLiteral("Save to file"),QStringLiteral("ファイル保存")}));
+		clear_btn_->setMinimumWidth(minW({
+		    tr("Clear"),QStringLiteral("Clear"),QStringLiteral("クリア")}));
+		for(QPushButton *btn : {phys_search_btn_,system_preset_btn_,user_preset_load_btn_,
+		                        preset_save_btn_,clear_btn_})
 		{
 			btn->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-			btn->setMinimumWidth(w);
 		}
 	}
 	auto *phys_row=new QHBoxLayout();
 	phys_row->setContentsMargins(0,0,0,0);
 	phys_row->setSpacing(8);
 	phys_row->addWidget(phys_search_btn_,1);
-	phys_row->addWidget(preset_btn_,1);
+	phys_row->addWidget(system_preset_btn_,1);
+	phys_row->addWidget(user_preset_load_btn_,1);
 	phys_row->addWidget(preset_save_btn_,1);
 	phys_row->addWidget(clear_btn_,1);
 	root->addLayout(phys_row);
@@ -557,7 +577,8 @@ void MouseCoordProfilePage::setEditorEnabled(bool enabled)
 	setOn(app_exec_live_label_,gamePhys);
 	setOn(app_exec_bound_label_,gamePhys);
 	setOn(phys_search_btn_,true);
-	setOn(preset_btn_,has_mouse_preset_);
+	setOn(system_preset_btn_,has_system_mouse_preset_);
+	setOn(user_preset_load_btn_,has_user_mouse_preset_);
 	setOn(preset_save_btn_,0!=disc_fingerprint_hash32_ && hasAppSpecificSettings());
 	if(nullptr!=mode_note_)
 	{
@@ -1173,12 +1194,17 @@ bool MouseCoordProfilePage::hasAppSpecificSettings(void) const
 
 void MouseCoordProfilePage::refreshPresetButtons(void)
 {
-	has_mouse_preset_=TownsQtMousePreset::Exists(disc_fingerprint_hash32_);
+	has_system_mouse_preset_=TownsQtMousePreset::ExistsSystem(disc_fingerprint_hash32_);
+	has_user_mouse_preset_=TownsQtMousePreset::ExistsUser(disc_fingerprint_hash32_);
 	const bool pageOn=
 	    isEnabled() && (nullptr==mode_combo_ || mode_combo_->isEnabled());
-	if(nullptr!=preset_btn_)
+	if(nullptr!=system_preset_btn_)
 	{
-		preset_btn_->setEnabled(pageOn && has_mouse_preset_);
+		system_preset_btn_->setEnabled(pageOn && has_system_mouse_preset_);
+	}
+	if(nullptr!=user_preset_load_btn_)
+	{
+		user_preset_load_btn_->setEnabled(pageOn && has_user_mouse_preset_);
 	}
 	if(nullptr!=preset_save_btn_)
 	{
@@ -1187,10 +1213,27 @@ void MouseCoordProfilePage::refreshPresetButtons(void)
 	}
 }
 
-void MouseCoordProfilePage::applyMousePreset(void)
+void MouseCoordProfilePage::applySystemMousePreset(void)
 {
 	QVariantMap preset;
-	if(true!=TownsQtMousePreset::Load(disc_fingerprint_hash32_,preset))
+	if(true!=TownsQtMousePreset::LoadSystem(disc_fingerprint_hash32_,preset))
+	{
+		refreshPresetButtons();
+		return;
+	}
+	const unsigned int fp=disc_fingerprint_hash32_;
+	const QString liveName=live_app_exec_name_;
+	const unsigned int liveHash=live_app_exec_hash_;
+	setProfile(preset);
+	setLiveAppExec(liveName,liveHash);
+	setDiscFingerprint(fp);
+	emitContentChanged();
+}
+
+void MouseCoordProfilePage::applyUserMousePreset(void)
+{
+	QVariantMap preset;
+	if(true!=TownsQtMousePreset::LoadUser(disc_fingerprint_hash32_,preset))
 	{
 		refreshPresetButtons();
 		return;
