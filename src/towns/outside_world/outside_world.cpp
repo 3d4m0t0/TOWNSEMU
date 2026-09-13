@@ -1349,6 +1349,21 @@ void Outside_World::ResetSnapMouseWarmup(void)
 	mouseStationaryCount=MOUSE_STATIONARY_COUNT;
 }
 
+void Outside_World::AfterVMStateLoad(class FMTownsCommon &towns)
+{
+	// Pre-load exotic/desktop latch + MOS serial must not fire a false
+	// HandleAppToDesktopReturn against the restored CRTC/MOS.
+	spriteOffsetSeenInExoticMode_=false;
+	mouseDesktopSnapshotValid_=false;
+	mouseDesktopSnapApplied_=false;
+	mouseInfoRepairFrames_=0;
+	lastMouseBIOSStartSerial_=towns.state.mouseBIOSStartSerial;
+	mouseBIOSStartSerialInited_=true;
+	mouseIntegrationActive=false;
+	mouseStationaryCount=MOUSE_STATIONARY_COUNT;
+	UpdateEffectiveDifferentialMouseIntegration(towns);
+}
+
 void Outside_World::LogHostMessage(const std::string &message)
 {
 	if(false==hostLogPrefix.empty())

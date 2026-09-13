@@ -158,6 +158,8 @@ public:
 	int snapMouseWarmupRemaining=0;
 	int snapMouseWarmupFrames=30;
 	void ResetSnapMouseWarmup(void);
+	/*! After LoadState: drop host mouse latch left from the previous session. */
+	void AfterVMStateLoad(class FMTownsCommon &towns);
 
 	// Wing Commander and Strike Commander series can be configured to use mouse as joystick.
 	bool mouseByFlightstickAvailable=false;

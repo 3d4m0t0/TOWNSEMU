@@ -5532,6 +5532,21 @@ void MouseCoordWriteScan::SyncAfterStateLoad(void)
 		return;
 	}
 	std::lock_guard<std::mutex> lock(mtx);
+	// Host Memory flags survive LoadState; drop residual DW store-guard.
+	if(nullptr!=memPtr)
+	{
+		memPtr->storeGuardActive=false;
+		memPtr->storeGuardCount=0;
+	}
+	// Apply is cleared below without NoteMouseProfileApply(false).  If
+	// loggedProfileApply stayed true, the next apply ON skipped the rising-edge
+	// DS→phys re-resolve — DW poked stale Phys until a mode switch (GF) reloaded
+	// the profile and resolved again.
+	loggedProfileApply=false;
+	townsPtr->var.mouseCoordProfileApply=false;
+	townsPtr->var.profileDeltaInFlight=false;
+	townsPtr->DontControlMouse();
+
 	if(true!=profileLoaded || true!=activeProfile.verified)
 	{
 		return;
@@ -5557,6 +5572,8 @@ void MouseCoordWriteScan::SyncAfterStateLoad(void)
 	appExecSoftTrackedHost=false;
 	appExecSoftTrackSampleValid=false;
 	appExecSoftStuckHostMotion=0;
+	// Best-effort now; rising apply ON (loggedProfileApply was cleared) re-resolves
+	// again once the VM is running with restored CPU segments.
 	for(auto &pr : activeProfile.pair)
 	{
 		if(true==pr.hasDsOff)
@@ -5586,6 +5603,4 @@ void MouseCoordWriteScan::SyncAfterStateLoad(void)
 	    << " hash=0x" << cpputil::Uitox(activeAppExecHash32)
 	    << (true==activeAppExtender ? " extender=1" : "");
 	LogAppMonitorLine(oss.str());
-	townsPtr->var.mouseCoordProfileApply=false;
-	townsPtr->DontControlMouse();
 }

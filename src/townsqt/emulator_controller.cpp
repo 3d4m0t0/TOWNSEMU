@@ -261,6 +261,10 @@ void EmulatorController::run()
 			if(true==towns.LoadState(startupStateFName))
 			{
 				startupStateLoaded=true;
+				if(nullptr!=impl_->outside_world)
+				{
+					impl_->outside_world->AfterVMStateLoad(towns);
+				}
 				if(nullptr!=framebuffer_)
 				{
 					framebuffer_->ClearQueue();
@@ -1737,6 +1741,10 @@ bool EmulatorController::loadStateFromFile(const QString &path)
 	}
 	else
 	{
+		if(nullptr!=impl_->outside_world)
+		{
+			impl_->outside_world->AfterVMStateLoad(*towns_);
+		}
 		// Discard frames stamped with the pre-load townsTime so PresentOneDueFrame
 		// is not stuck behind a larger vsync_index after the clock jumps.
 		if(nullptr!=framebuffer_)
