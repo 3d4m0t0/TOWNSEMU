@@ -1002,7 +1002,7 @@ bool TownsARGV::AnalyzeCommandParameter(int argc,char *argv[])
 		}
 		else if("-MAXSNDDBLBUF"==ARG)
 		{
-			maximumSoundDoubleBuffering=true;
+			// Legacy no-op (sound double-buffering flag removed).
 		}
 		else if("-ICM"==ARG && i+1<argc)
 		{

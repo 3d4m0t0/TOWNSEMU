@@ -425,7 +425,6 @@ void QtSyncSoundConnection::Stop(void)
 	played_frames_.store(0,std::memory_order_relaxed);
 	primed_frames_remaining_=0;
 	beep_active_.store(false,std::memory_order_relaxed);
-	cdda_active_.store(false,std::memory_order_relaxed);
 }
 
 void QtSyncSoundConnection::RequestRestartOutput(void)
@@ -437,71 +436,42 @@ void QtSyncSoundConnection::Polling(void)
 {
 	if(true==restart_output_requested_.exchange(false,std::memory_order_acq_rel))
 	{
-		const float vol_l=cdda_vol_l_;
-		const float vol_r=cdda_vol_r_;
 		Stop();
 		Start();
-		CDDASetVolume(vol_l,vol_r);
 	}
 	CatchUpContract();
 }
 
-void QtSyncSoundConnection::CDDAPlay(const DiscImage &discImg,DiscImage::MinSecFrm from,DiscImage::MinSecFrm to,bool repeat,unsigned int,unsigned int)
+/* CDDA present path unused on TownsQt: wave is mixed in TownsSound::ProcessSound
+   via cdrom->AddWaveForNumSamples. Keep Outside_World::Sound overrides as no-ops. */
+void QtSyncSoundConnection::CDDAPlay(const DiscImage &,DiscImage::MinSecFrm,DiscImage::MinSecFrm,bool,unsigned int,unsigned int)
 {
-	auto wave=discImg.GetWave(from,to);
-	const size_t num_samples=wave.size()/4;
-	{
-		std::lock_guard<std::mutex> lock(mix_aux_mutex_);
-		cdda_samples_.clear();
-		AppendSigned16Stereo(wave.data(),num_samples,cdda_samples_);
-		cdda_pos_.store(0,std::memory_order_relaxed);
-		cdda_active_.store(0<cdda_samples_.size()/2,std::memory_order_relaxed);
-		cdda_start_hsg_=from.ToHSG();
-	}
-	(void)repeat;
 }
 
-void QtSyncSoundConnection::CDDASetVolume(float leftVol,float rightVol)
+void QtSyncSoundConnection::CDDASetVolume(float,float)
 {
-	cdda_vol_l_=leftVol;
-	cdda_vol_r_=rightVol;
 }
 
 void QtSyncSoundConnection::CDDAStop(void)
 {
-	cdda_active_.store(false,std::memory_order_relaxed);
-	cdda_pos_.store(0,std::memory_order_relaxed);
 }
 
 void QtSyncSoundConnection::CDDAPause(void)
 {
-	cdda_active_.store(false,std::memory_order_relaxed);
 }
 
 void QtSyncSoundConnection::CDDAResume(void)
 {
-	std::lock_guard<std::mutex> lock(mix_aux_mutex_);
-	if(false==cdda_samples_.empty())
-	{
-		cdda_active_.store(true,std::memory_order_relaxed);
-	}
 }
 
 bool QtSyncSoundConnection::CDDAIsPlaying(void)
 {
-	return cdda_active_.load(std::memory_order_relaxed);
+	return false;
 }
 
 DiscImage::MinSecFrm QtSyncSoundConnection::CDDACurrentPosition(void)
 {
-	const size_t pos=cdda_pos_.load(std::memory_order_relaxed);
-	const double sec=static_cast<double>(pos)/static_cast<double>(sample_rate_);
-	const unsigned long long sec_hsg=static_cast<unsigned long long>(sec*75.0);
-	const unsigned long long pos_in_disc=sec_hsg+cdda_start_hsg_;
-
-	DiscImage::MinSecFrm msf;
-	msf.FromHSG(pos_in_disc);
-	return msf;
+	return DiscImage::MinSecFrm::Zero();
 }
 
 void QtSyncSoundConnection::FMPCMPlay(std::vector<unsigned char> &wave)
@@ -637,26 +607,6 @@ void QtSyncSoundConnection::FillAudio(int16_t *stream,int frame_count)
 	}
 
 	MixBeep(stream,frame_count);
-
-	if(true==cdda_active_.load(std::memory_order_relaxed))
-	{
-		std::lock_guard<std::mutex> lock(mix_aux_mutex_);
-		size_t pos=cdda_pos_.load(std::memory_order_relaxed);
-		for(int i=0; i<frame_count; ++i)
-		{
-			if(pos*2+1>=cdda_samples_.size())
-			{
-				cdda_active_.store(false,std::memory_order_relaxed);
-				break;
-			}
-			const int l=static_cast<int>(cdda_samples_[pos*2]*cdda_vol_l_);
-			const int r=static_cast<int>(cdda_samples_[pos*2+1]*cdda_vol_r_);
-			stream[i*2]=Clamp16(stream[i*2]+l);
-			stream[i*2+1]=Clamp16(stream[i*2+1]+r);
-			++pos;
-		}
-		cdda_pos_.store(pos,std::memory_order_relaxed);
-	}
 
 #if defined(__linux__)
 	MidiFluidSynthHost::MixInterleavedS16(stream,frame_count);

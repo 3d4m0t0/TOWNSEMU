@@ -374,8 +374,17 @@ void TownsSound::ProcessSound(void)
 	{
 		const unsigned int WAVE_OUT_SAMPLING_RATE=YM2612::WAVE_SAMPLING_RATE; // Align with YM2612.
 		const uint32_t numSamplesPerWave=FM_PCM_MILLISEC_PER_WAVE*WAVE_OUT_SAMPLING_RATE/1000;
+		const size_t waveBytes=static_cast<size_t>(numSamplesPerWave)*4u;
+		auto EnsureMuteScratch=[&](void)->unsigned char *
+		{
+			if(var.muteScratchWave.size()<waveBytes)
+			{
+				var.muteScratchWave.resize(waveBytes);
+			}
+			return var.muteScratchWave.data();
+		};
 
-		nextFMPCMWave.resize(numSamplesPerWave*4);
+		nextFMPCMWave.resize(waveBytes);
 		memset(nextFMPCMWave.data(),0,nextFMPCMWave.size());
 
 		bool wavGenerated=false;
@@ -391,17 +400,13 @@ void TownsSound::ProcessSound(void)
 				else
 				{
 					// Even when YM2612 is muted, it needs to MakeWaveForNSamples because it does update time-dependent state variables.
-					std::vector <unsigned char> dummy;
-					dummy.resize(numSamplesPerWave*4);
-					state.ym2612.MakeWaveForNSamples(dummy.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
+					state.ym2612.MakeWaveForNSamples(EnsureMuteScratch(),numSamplesPerWave,lastFMPCMWaveGenTime);
 				}
 				wavGenerated=true;
 				realSourceWave=true;
 			}
 			if(true==IsPCMPlaying())
 			{
-				const unsigned int WAVE_OUT_SAMPLING_RATE=YM2612::WAVE_SAMPLING_RATE; // Align with YM2612.
-
 				// Brandish expects PCM interrupt even when muted.
 				// Therefore, PCM wave must be generated and played for making IRQ.
 				if(0!=(state.muteFlag&1) && 0!=(state.audioFlag&64))
@@ -411,9 +416,7 @@ void TownsSound::ProcessSound(void)
 				else
 				{
 					// AddWaveForNumSamples will set IRQAfterThisPlayBack flag.
-					std::vector <unsigned char> dummy;
-					dummy.resize(numSamplesPerWave*4);
-					state.rf5c68.AddWaveForNumSamples(dummy.data(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE,lastFMPCMWaveGenTime);
+					state.rf5c68.AddWaveForNumSamples(EnsureMuteScratch(),numSamplesPerWave,WAVE_OUT_SAMPLING_RATE,lastFMPCMWaveGenTime);
 				}
 
 				for(unsigned int chNum=0; chNum<RF5C68::NUM_CHANNELS; ++chNum)
@@ -496,9 +499,7 @@ void TownsSound::ProcessSound(void)
 		}
 		if(true==ym2612WarmKeepalive)
 		{
-			std::vector <unsigned char> dummy;
-			dummy.resize(numSamplesPerWave*4);
-			state.ym2612.MakeWaveForNSamples(dummy.data(),numSamplesPerWave,lastFMPCMWaveGenTime);
+			state.ym2612.MakeWaveForNSamples(EnsureMuteScratch(),numSamplesPerWave,lastFMPCMWaveGenTime);
 			wavGenerated=true;
 		}
 		if(true==wavGenerated)

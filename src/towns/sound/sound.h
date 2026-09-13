@@ -43,8 +43,9 @@ public:
 		BEEP_MILLISEC_PER_WAVE=20,
 		WAVE_STREAMING_SAFETY_BUFFER=10,
 #elif defined(TOWNSQT_AUDIO_20MS)
-		FM_PCM_MILLISEC_PER_WAVE=20,
-		BEEP_MILLISEC_PER_WAVE=20,
+		// TownsQt: match DAC period (~12 ms in towns_audio_period.h). Macro name kept for CMake.
+		FM_PCM_MILLISEC_PER_WAVE=12,
+		BEEP_MILLISEC_PER_WAVE=12,
 		WAVE_STREAMING_SAFETY_BUFFER=10,
 #else
 		FM_PCM_MILLISEC_PER_WAVE=40, // Maybe because I am developing on VirtualBox, I am getting outrageously slow latency of 80ms (40ms*2).
@@ -84,7 +85,8 @@ public:
 		bool vgmRecordingArmed=false;
 		VGMRecorder vgmRecorder;
 
-		bool maximumDoubleBuffering=false;
+		/*! Reused by ProcessSound mute / YM2612 keepalive (avoid per-chunk alloc). */
+		std::vector <unsigned char> muteScratchWave;
 
 		/*! Host-side CDDA volume multiplier (0.0–1.0), applied when mixing CD audio into FM/PCM output. */
 		float cddaUserGain=1.0f;

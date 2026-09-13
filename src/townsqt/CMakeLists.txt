@@ -138,7 +138,7 @@ target_link_libraries(${TARGET_NAME}
 
 target_compile_definitions(${TARGET_NAME} PRIVATE QT_NO_KEYWORDS)
 
-# Phase 1: 20 ms FM/PCM chunks (lower latency than default 40 ms on Linux).
+# TownsQt: FM/PCM synthesis chunk matches DAC period (~12 ms; see sound.h TOWNSQT_AUDIO_20MS).
 target_compile_definitions(townssound PRIVATE TOWNSQT_AUDIO_20MS=1)
 target_compile_definitions(towns PRIVATE TOWNSQT_SMOOTH_TIMING=1)
 

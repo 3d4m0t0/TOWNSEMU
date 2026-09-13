@@ -80,18 +80,11 @@ private:
 	std::vector<int16_t> pending_pcm_;
 	size_t pending_read_frame_=0;
 
-	/*! Guards beep_samples_ / cdda_samples_ against VM writers vs miniaudio Mix*. */
+	/*! Guards beep_samples_ against VM writers vs miniaudio MixBeep. */
 	mutable std::mutex mix_aux_mutex_;
 	std::vector<int16_t> beep_samples_;
 	std::atomic<size_t> beep_pos_{0};
 	std::atomic<bool> beep_active_{false};
-
-	std::vector<int16_t> cdda_samples_;
-	std::atomic<size_t> cdda_pos_{0};
-	std::atomic<bool> cdda_active_{false};
-	float cdda_vol_l_=1.0f;
-	float cdda_vol_r_=1.0f;
-	unsigned long long cdda_start_hsg_=0;
 
 	std::atomic<bool> restart_output_requested_{false};
 };

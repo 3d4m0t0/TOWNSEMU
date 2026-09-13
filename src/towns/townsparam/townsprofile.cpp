@@ -259,10 +259,6 @@ std::vector <std::string> TownsProfile::Serialize(void) const
 	text.push_back(sstream.str());
 
 	sstream.str("");
-	sstream << "SNDDBLBF " << (maximumSoundDoubleBuffering ? "MAX" : "NORMAL");
-	text.push_back(sstream.str());
-
-	sstream.str("");
 	sstream << "MIDICARD " << nMidiCards;
 	text.push_back(sstream.str());
 
@@ -739,14 +735,7 @@ bool TownsProfile::Deserialize(const std::vector <std::string> &text)
 		}
 		else if(argv[0]=="SNDDBLBF")
 		{
-			if(2<=argv.size() && argv[1]=="MAX")
-			{
-				maximumSoundDoubleBuffering=true;
-			}
-			else
-			{
-				maximumSoundDoubleBuffering=false;
-			}
+			// Legacy: sound double-buffering flag is unused after scheduling rewrite.
 		}
 		else if(argv[0]=="MIDICARD")
 		{
@@ -1286,11 +1275,6 @@ std::vector <std::string> TownsProfile::MakeArgv(void) const
 	{
 		argv.push_back("-RSTCP");
 		argv.push_back(RS232CtoTCPAddr);
-	}
-
-	if(true==maximumSoundDoubleBuffering)
-	{
-		argv.push_back("-MAXSNDDBLBUF");
 	}
 
 	argv.push_back("-MIDI");
