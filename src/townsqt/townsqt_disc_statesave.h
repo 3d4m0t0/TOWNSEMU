@@ -14,6 +14,6 @@ bool ProfileExistsForDiscPath(const QString &cdPath);
 QString StartupStateSavePathForDisc(const QString &cdPath);
 /*! state0_XXXXXXXX.TState for the disc (resume slot 0), whether or not the file exists. */
 QString ResumeStatePathForDisc(const QString &cdPath);
-/*! Manual slots 1..9: <stateSaveDir>/stateN.TState */
-QString ManualStateSlotPath(int slot);
+/*! Manual slots 1..9: <stateSaveDir>/stateN_XXXXXXXX.TState (per disc fingerprint). */
+QString ManualStateSlotPath(int slot,unsigned int fingerprintHash32);
 }

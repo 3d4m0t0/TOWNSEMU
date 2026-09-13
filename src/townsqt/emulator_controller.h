@@ -155,9 +155,9 @@ public Q_SLOTS:
 	Q_INVOKABLE bool saveStateToFile(const QString &path,bool resume_run_after=true);
 	/*! Load VM state from path (emulator thread only). Pauses the VM first. */
 	Q_INVOKABLE bool loadStateFromFile(const QString &path);
-	/*! Load state slot 0 = resume (state0_*); slots 1..9 = manual stateN.TState. */
+	/*! Load state slot 0 = resume (state0_*); slots 1..9 = per-disc stateN_XXXXXXXX.TState. */
 	Q_INVOKABLE bool loadStateSlot(int slot);
-	/*! Save manual state slot 1..9 (slot 0 is resume-only). */
+	/*! Save manual state slot 1..9 per mounted disc (slot 0 is resume-only). */
 	Q_INVOKABLE bool saveStateSlot(int slot);
 	/*! Save state0_XXXXXXXX.TState when a disc profile is active (emulator thread only). */
 	Q_INVOKABLE bool saveDiscStateSaveIfProfiled(bool resume_run_after=true);
@@ -215,6 +215,8 @@ private:
 	void runPendingStateSaveOnVmThread(FMTownsCommon &towns);
 	/*! When disc profiles are enabled and loaded, write current FD0/FD1 paths into fp_*.ini. */
 	void persistFdMountsToDiscProfile(void);
+	/*! Mounted CD fingerprint (profile or live identity); 0 if unknown. */
+	unsigned int CurrentMountedDiscFingerprintHash32(void) const;
 	/*! Active CMOS path for this boot (profile or global). */
 	QString activeCmosFilePath() const;
 	/*! Copy CMOSRAM or file into buf[TOWNS_CMOS_SIZE]; false if unavailable. */

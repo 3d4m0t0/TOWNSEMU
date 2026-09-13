@@ -580,6 +580,7 @@ void MainWindow::clearDiscProfileOverride(void)
 	cached_disc_fingerprint_hash32_=0;
 	disc_profile_override_active_=false;
 	disc_profile_machine_override_.clear();
+	syncStateMenus();
 }
 
 bool MainWindow::loadDiscProfileOverrideForPath(const QString &cdPath)
@@ -601,6 +602,7 @@ bool MainWindow::loadDiscProfileOverrideForPath(const QString &cdPath)
 	// Profile presence (not non-empty [machine]) owns CMOS / FD / HDD for this CD.
 	disc_profile_override_active_=cached_disc_profile_loaded_;
 	disc_profile_machine_override_=disc_profile_override_active_ ? machine : QVariantMap();
+	syncStateMenus();
 	return cached_disc_profile_loaded_;
 }
 
@@ -1070,8 +1072,8 @@ void MainWindow::setupMenuBar()
 	auto *settingsAction=toolsMenu->addAction(tr("&Settings…"));
 	connect(settingsAction,&QAction::triggered,this,&MainWindow::openSettingsDialog);
 	toolsMenu->addSeparator();
-	auto *stateMenu=toolsMenu->addMenu(tr("&State"));
-	auto *stateLoadMenu=stateMenu->addMenu(tr("&Load"));
+	state_menu_=toolsMenu->addMenu(tr("&State"));
+	auto *stateLoadMenu=state_menu_->addMenu(tr("&Load"));
 	for(int slot=0; slot<=9; ++slot)
 	{
 		auto *loadSlotAction=stateLoadMenu->addAction(tr("Slot %1").arg(slot));
@@ -1079,7 +1081,7 @@ void MainWindow::setupMenuBar()
 			loadStateSlotFromMenu(slot);
 		});
 	}
-	auto *stateSaveMenu=stateMenu->addMenu(tr("&Save"));
+	auto *stateSaveMenu=state_menu_->addMenu(tr("&Save"));
 	for(int slot=1; slot<=9; ++slot)
 	{
 		auto *saveSlotAction=stateSaveMenu->addAction(tr("Slot %1").arg(slot));
@@ -1087,6 +1089,11 @@ void MainWindow::setupMenuBar()
 			saveStateSlotFromMenu(slot);
 		});
 	}
+	state_menu_->setToolTip(
+	    tr("Save and load VM states for the current disc profile.\n"
+	       "Available only when a disc profile is loaded."));
+	connect(state_menu_,&QMenu::aboutToShow,this,&MainWindow::syncStateMenus);
+	syncStateMenus();
 	toolsMenu->addSeparator();
 	auto *audioMixerAction=toolsMenu->addAction(tr("Audio mixer…"));
 	connect(audioMixerAction,&QAction::triggered,this,&MainWindow::openAudioMixerDialog);
@@ -3206,6 +3213,7 @@ void MainWindow::applyRuntimeDiscProfileOverrides(bool retainOverrideIfUnprofile
 	    Q_ARG(bool,midi));
 
 	updateWindowTitle();
+	syncStateMenus();
 }
 
 void MainWindow::openCdImage()
@@ -3498,6 +3506,33 @@ void MainWindow::syncEjectMenus()
 		{
 			eject_fd_action_[drive]->setEnabled(
 			    fd_drive_available_[drive] && !fd_path_[drive].isEmpty());
+		}
+	}
+}
+
+void MainWindow::syncStateMenus()
+{
+	if(nullptr==state_menu_)
+	{
+		return;
+	}
+	const bool enabled=true==cached_disc_profile_loaded_;
+	state_menu_->setEnabled(enabled);
+	for(QAction *action : state_menu_->actions())
+	{
+		if(nullptr!=action)
+		{
+			action->setEnabled(enabled);
+			if(nullptr!=action->menu())
+			{
+				for(QAction *slotAction : action->menu()->actions())
+				{
+					if(nullptr!=slotAction)
+					{
+						slotAction->setEnabled(enabled);
+					}
+				}
+			}
 		}
 	}
 }
@@ -5294,6 +5329,7 @@ void MainWindow::refreshMouseUiState()
 		}
 		updateMouseModeIndicator();
 		updateWindowTitle();
+		syncStateMenus();
 		return;
 	}
 	cached_differential_integration_=state.value(QStringLiteral("diff")).toBool();
@@ -5324,6 +5360,7 @@ void MainWindow::refreshMouseUiState()
 	}
 	updateMouseModeIndicator();
 	updateWindowTitle();
+	syncStateMenus();
 }
 
 void MainWindow::updateMouseModeIndicator()
@@ -6015,6 +6052,11 @@ void MainWindow::completeEmulatorStop()
 
 void MainWindow::loadStateSlotFromMenu(int slot)
 {
+	if(true!=cached_disc_profile_loaded_)
+	{
+		statusBar()->showMessage(tr("State save requires a disc profile"),5000);
+		return;
+	}
 	if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
 	{
 		statusBar()->showMessage(tr("Emulator is not running"),5000);
@@ -6042,12 +6084,17 @@ void MainWindow::loadStateSlotFromMenu(int slot)
 	}
 	else
 	{
-		statusBar()->showMessage(tr("Failed to load state slot %1").arg(slot),5000);
+		statusBar()->showMessage(tr("No state for this disc in slot %1").arg(slot),5000);
 	}
 }
 
 void MainWindow::saveStateSlotFromMenu(int slot)
 {
+	if(true!=cached_disc_profile_loaded_)
+	{
+		statusBar()->showMessage(tr("State save requires a disc profile"),5000);
+		return;
+	}
 	if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
 	{
 		statusBar()->showMessage(tr("Emulator is not running"),5000);

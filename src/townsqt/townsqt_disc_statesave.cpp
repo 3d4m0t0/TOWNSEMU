@@ -93,14 +93,14 @@ QString ResumeStatePathForDisc(const QString &cdPath)
 	return PathForFingerprint(fp);
 }
 
-QString ManualStateSlotPath(int slot)
+QString ManualStateSlotPath(int slot,unsigned int fingerprintHash32)
 {
-	if(slot<1 || 9<slot)
+	if(slot<1 || 9<slot || 0==fingerprintHash32)
 	{
 		return QString();
 	}
-	char name[16];
-	snprintf(name,sizeof(name),"state%d",slot);
+	char name[40];
+	snprintf(name,sizeof(name),"state%d_%08x",slot,fingerprintHash32);
 	return TownsQtPaths::stateSaveDir()
 	    +QStringLiteral("/")
 	    +QString::fromLatin1(name)

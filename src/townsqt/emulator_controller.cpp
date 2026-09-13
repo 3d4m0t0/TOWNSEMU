@@ -1778,6 +1778,10 @@ bool EmulatorController::loadStateSlot(int slot)
 	{
 		return false;
 	}
+	if(true!=towns_->mouseCoordWriteScan.DiscProfileLoaded())
+	{
+		return false;
+	}
 	QString path;
 	if(0==slot)
 	{
@@ -1790,7 +1794,12 @@ bool EmulatorController::loadStateSlot(int slot)
 	}
 	else
 	{
-		path=TownsQtDiscStateSave::ManualStateSlotPath(slot);
+		const unsigned int fp=CurrentMountedDiscFingerprintHash32();
+		if(0==fp)
+		{
+			return false;
+		}
+		path=TownsQtDiscStateSave::ManualStateSlotPath(slot,fp);
 	}
 	return loadStateFromFile(path);
 }
@@ -1801,7 +1810,16 @@ bool EmulatorController::saveStateSlot(int slot)
 	{
 		return false;
 	}
-	const QString path=TownsQtDiscStateSave::ManualStateSlotPath(slot);
+	if(nullptr==towns_ || true!=towns_->mouseCoordWriteScan.DiscProfileLoaded())
+	{
+		return false;
+	}
+	const unsigned int fp=CurrentMountedDiscFingerprintHash32();
+	if(0==fp)
+	{
+		return false;
+	}
+	const QString path=TownsQtDiscStateSave::ManualStateSlotPath(slot,fp);
 	if(path.isEmpty())
 	{
 		return false;
@@ -1819,33 +1837,10 @@ bool EmulatorController::saveDiscStateSaveIfProfiled(bool resume_run_after)
 	{
 		return false;
 	}
-	const std::string discPath=towns_->cdrom.state.GetDisc().fName;
-	if(true==discPath.empty())
-	{
-		return false;
-	}
-	unsigned int fingerprint=0;
-	if(true==towns_->mouseCoordWriteScan.DiscProfileLoaded())
-	{
-		const auto profile=towns_->mouseCoordWriteScan.GetActiveProfile();
-		if(true==profile.HasFingerprint())
-		{
-			fingerprint=profile.discFingerprintHash32;
-		}
-	}
+	const unsigned int fingerprint=CurrentMountedDiscFingerprintHash32();
 	if(0==fingerprint)
 	{
-		const auto &disc=towns_->cdrom.state.GetDisc();
-		DiscIdentity discId=disc.ComputeIdentity(false);
-		if(true!=discId.hasFingerprint)
-		{
-			discId=disc.ComputeIdentity(true);
-		}
-		if(true!=discId.hasFingerprint)
-		{
-			return false;
-		}
-		fingerprint=discId.fingerprintHash32;
+		return false;
 	}
 	if(true!=TownsQtDiscStateSave::ProfileExistsForFingerprint(fingerprint))
 	{
@@ -1861,6 +1856,38 @@ bool EmulatorController::saveDiscStateSaveIfProfiled(bool resume_run_after)
 		return false;
 	}
 	return saveStateToFile(statePath,resume_run_after);
+}
+
+unsigned int EmulatorController::CurrentMountedDiscFingerprintHash32(void) const
+{
+	if(nullptr==towns_)
+	{
+		return 0;
+	}
+	if(true==towns_->mouseCoordWriteScan.DiscProfileLoaded())
+	{
+		const auto profile=towns_->mouseCoordWriteScan.GetActiveProfile();
+		if(true==profile.HasFingerprint())
+		{
+			return profile.discFingerprintHash32;
+		}
+	}
+	const std::string discPath=towns_->cdrom.state.GetDisc().fName;
+	if(true==discPath.empty())
+	{
+		return 0;
+	}
+	const auto &disc=towns_->cdrom.state.GetDisc();
+	DiscIdentity discId=disc.ComputeIdentity(false);
+	if(true!=discId.hasFingerprint)
+	{
+		discId=disc.ComputeIdentity(true);
+	}
+	if(true!=discId.hasFingerprint)
+	{
+		return 0;
+	}
+	return discId.fingerprintHash32;
 }
 
 void EmulatorController::applyDisplayOptions(bool damperWireLine,bool scanLineEffectIn15KHz,int spriteTransferMode)

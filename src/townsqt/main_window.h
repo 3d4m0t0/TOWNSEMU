@@ -62,6 +62,7 @@ private Q_SLOTS:
 	void syncFdWriteProtectMenuChecks();
 	void syncFdDriveMenus();
 	void syncEjectMenus();
+	void syncStateMenus();
 	void openSettingsDialog();
 	void openHddSettingsDialog();
 	void openAudioMixerDialog();
@@ -211,6 +212,7 @@ private:
 	QMenu *disk_menu_=nullptr;
 	QMenu *cdrom_menu_=nullptr;
 	QMenu *cd_recent_menu_=nullptr;
+	QMenu *state_menu_=nullptr;
 	QAction *open_cd_action_=nullptr;
 	QAction *eject_cd_action_=nullptr;
 	QMenu *fd_recent_menu_[2]={nullptr,nullptr};
