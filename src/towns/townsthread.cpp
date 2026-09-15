@@ -93,6 +93,16 @@ void TownsThread::VMMainLoopTemplate(
 		if(TownsThread::RUNMODE_PAUSE==runModeCopy)
 		{
 			hostPauseAcknowledged_.store(true,std::memory_order_release);
+			if(true!=pauseHostAudioFlushed_)
+			{
+				/*! Drop already-mixed CDDA/PCM so host cache playback and Ptr stay frozen. */
+				if(nullptr!=sound)
+				{
+					sound->FMPCMPlayStop();
+					sound->BeepPlayStop();
+				}
+				pauseHostAudioFlushed_=true;
+			}
 			if(onPauseTick_)
 			{
 				onPauseTick_(*townsPtr);
@@ -101,6 +111,7 @@ void TownsThread::VMMainLoopTemplate(
 		else
 		{
 			hostPauseAcknowledged_.store(false,std::memory_order_release);
+			pauseHostAudioFlushed_=false;
 		}
 
 		bool clockTicking=false;  // Will be made true if VM is running.

@@ -36,6 +36,8 @@ private:
 	bool returnOnPause=false;
 	std::atomic<bool> hostPauseAcknowledged_{false};
 	std::function<void(FMTownsCommon &)> onPauseTick_;
+	/*! Cleared when leaving PAUSE; set after one-shot host PCM flush on PAUSE entry. */
+	bool pauseHostAudioFlushed_=false;
 
 	// This will be used for virtually slwoing down CPU when VM is lagging.
 	long long int timeDeficit=0;
