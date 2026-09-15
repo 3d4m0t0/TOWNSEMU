@@ -9,6 +9,7 @@
 #include <functional>
 
 #include "emu_view.h"
+#include "content_browser_widget.h"
 #include "qt_input_queue.h"
 #include "settings_dialog.h"
 #include "shared_rgba_framebuffer.h"
@@ -21,6 +22,7 @@ class QActionGroup;
 class EmulatorController;
 class QLabel;
 class QMenu;
+class QStackedWidget;
 class DebugTextWindow;
 class CpuDebugWindow;
 class CdromMonitorWindow;
@@ -76,6 +78,14 @@ private Q_SLOTS:
 	void showAboutDialog();
 	void loadStateSlotFromMenu(int slot);
 	void saveStateSlotFromMenu(int slot);
+	void saveScreenshotFromMenu();
+	void syncScreenshotAction();
+	void openContentBrowser();
+	void closeContentBrowser();
+	void toggleContentBrowser();
+	void onContentBrowserLaunch(unsigned int fingerprint,const QString &cdImagePath,int stateSlot);
+	void onContentBrowserSaveState(unsigned int fingerprint,int stateSlot);
+	void onContentBrowserDeleteState(unsigned int fingerprint,int stateSlot);
 
 Q_SIGNALS:
 	void fdLoadRequested(int drive,const QString &path);
@@ -197,7 +207,9 @@ private:
 	TownsARGV argv_;
 	SharedRgbaFramebuffer framebuffer_;
 	QtInputQueue inputQueue_;
+	QStackedWidget *central_stack_=nullptr;
 	EmuView *view_=nullptr;
+	ContentBrowserWidget *content_browser_=nullptr;
 	EmulatorController *controller_=nullptr;
 	QThread *emu_thread_=nullptr;
 	QTimer poll_timer_;
@@ -206,13 +218,22 @@ private:
 	QString cd_path_at_last_boot_;
 	/*! CD path to mount on the next startEmulator (set by open/recent before stop→start). */
 	QString pending_boot_cd_path_;
+	/*! Content-browser boot: -2=default auto-resume, -1=cold, 0..9=explicit state slot. */
+	int pending_boot_state_slot_=-2;
+	/*! After boot, load this manual slot (1..9); -1 = none. */
+	int pending_post_boot_state_slot_=-1;
+	bool content_browser_open_=false;
+	/*! True if the browser paused a live VM — Close unpauses; Launch tears down. */
+	bool content_browser_resume_on_close_=false;
+	/*! Startup deferred boot: Close cold-starts with global HD (no last CD/FD). */
+	bool content_browser_start_ini_on_close_=false;
 	QString fd_path_[2];
 	bool fd_drive_available_[2]={true,true};
 
 	QMenu *disk_menu_=nullptr;
 	QMenu *cdrom_menu_=nullptr;
 	QMenu *cd_recent_menu_=nullptr;
-	QMenu *state_menu_=nullptr;
+	QAction *screenshot_action_=nullptr;
 	QAction *open_cd_action_=nullptr;
 	QAction *eject_cd_action_=nullptr;
 	QMenu *fd_recent_menu_[2]={nullptr,nullptr};

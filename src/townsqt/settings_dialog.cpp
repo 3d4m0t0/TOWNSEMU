@@ -361,6 +361,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.useDiscProfiles=true;
 	v.autoResumeEnabled=true;
 	v.stateDataCompressionEnabled=false;
+	v.openContentBrowserOnStartup=false;
 	v.discMounted=false;
 	v.discProfileAvailable=false;
 	v.discProfileCreateRequested=false;
@@ -1242,12 +1243,20 @@ void SettingsDialog::buildUi()
 		auto *v=new QVBoxLayout(page);
 		CompactVBox(v);
 
+		open_content_browser_on_startup_=
+		    new QCheckBox(tr("Open content browser on startup"),page);
+		v->addWidget(open_content_browser_on_startup_);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("When off, cold-start with global settings (HD configuration is kept;\n"
+		       "CD / FD are not remounted). When on, open the content browser on startup.")));
+
 		auto_resume_enabled_=new QCheckBox(tr("Enable auto-resume"),page);
 		v->addWidget(auto_resume_enabled_);
 		v->addWidget(MakeIndentedNote(
 		    page,
 		    tr("When a disc profile exists for the mounted CD image, automatically save\n"
-		       "per-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
+		       "per-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
 		       "and auto-resume on the next load. Manual restart with the same CD does not\n"
 		       "load a saved state. When off, state saves are neither auto-written nor auto-loaded.")));
 
@@ -1937,23 +1946,50 @@ void SettingsDialog::applyProfileEditAppearance(void)
 	const bool editing=editingDiscProfile();
 	if(nullptr!=profile_fields_box_)
 	{
-		// Borderless container: amber fill only while editing a disc profile.
-		// Use palette (not stylesheet) so children keep the dialog font/size.
+		// QSS background wash; pin font-size in the sheet so children keep the
+		// dialog's reduced font (bare setStyleSheet breaks setFont propagation).
+		profile_fields_box_->setAutoFillBackground(false);
+		profile_fields_box_->setPalette(QApplication::palette(profile_fields_box_));
 		if(true==editing)
 		{
-			profile_fields_box_->setAutoFillBackground(true);
-			QPalette pal=QApplication::palette(profile_fields_box_);
-			const QColor amber(255,243,220);
-			pal.setColor(QPalette::Window,amber);
-			pal.setColor(QPalette::Base,amber);
-			profile_fields_box_->setPalette(pal);
+			const QColor sel=
+			    QApplication::palette(profile_fields_box_).color(QPalette::Highlight);
+			int pt=font().pointSize();
+			if(pt<=0)
+			{
+				pt=9;
+			}
+			profile_fields_box_->setStyleSheet(
+			    QStringLiteral(
+			        "QWidget#profileFieldsBox {"
+			        " background-color: rgba(%1,%2,%3,70);"
+			        " border-radius: 4px;"
+			        " font-size: %4pt;"
+			        "}"
+			        "QWidget#profileFieldsBox QWidget {"
+			        " font-size: %4pt;"
+			        "}")
+			        .arg(sel.red())
+			        .arg(sel.green())
+			        .arg(sel.blue())
+			        .arg(pt));
 		}
 		else
 		{
-			profile_fields_box_->setAutoFillBackground(false);
-			profile_fields_box_->setPalette(QApplication::palette(profile_fields_box_));
+			profile_fields_box_->setStyleSheet(QString());
 		}
 		profile_fields_box_->setFont(font());
+		/*! Spin boxes keep fixed font from construction; QSS font-size alone. */
+		const QFont mono=QFontDatabase::systemFont(QFontDatabase::FixedFont);
+		for(QSpinBox *spin : profile_fields_box_->findChildren<QSpinBox*>())
+		{
+			QFont spinFont=mono;
+			if(0<font().pointSize())
+			{
+				spinFont.setPointSize(font().pointSize());
+			}
+			spin->setFont(spinFont);
+		}
 	}
 
 	if(nullptr!=basics_footer_label_)
@@ -1961,7 +1997,7 @@ void SettingsDialog::applyProfileEditAppearance(void)
 		if(true==editing)
 		{
 			basics_footer_label_->setText(
-			    tr("Editing the disc profile (fp_XXXXXXXX.ini, amber block).\n"
+			    tr("Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\n"
 			       "Apply or OK saves clock, boot drive, memory, ports, options,\n"
 			       "and FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\n"
 			       "CMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\n"
@@ -2414,10 +2450,14 @@ void SettingsDialog::loadFromValues(const Values &values)
 	if(nullptr!=auto_resume_enabled_)
 	{
 		auto_resume_enabled_->setChecked(values.autoResumeEnabled);
+		if(nullptr!=state_data_compression_enabled_)
+		{
+			state_data_compression_enabled_->setChecked(values.stateDataCompressionEnabled);
+		}
 	}
-	if(nullptr!=state_data_compression_enabled_)
+	if(nullptr!=open_content_browser_on_startup_)
 	{
-		state_data_compression_enabled_->setChecked(values.stateDataCompressionEnabled);
+		open_content_browser_on_startup_->setChecked(values.openContentBrowserOnStartup);
 	}
 	updateProfileTabControls();
 	updateFunctionTab();
@@ -2535,6 +2575,8 @@ void SettingsDialog::applyToValues(Values &out) const
 		out.autoDifferentialOnMosUnused=auto_diff_on_mos_unused_->isChecked();
 	}
 	out.useDiscProfiles=true;
+	out.openContentBrowserOnStartup=
+	    nullptr!=open_content_browser_on_startup_ && open_content_browser_on_startup_->isChecked();
 	out.autoResumeEnabled=nullptr!=auto_resume_enabled_ && auto_resume_enabled_->isChecked();
 	out.stateDataCompressionEnabled=
 	    nullptr!=state_data_compression_enabled_ && state_data_compression_enabled_->isChecked();
@@ -2704,14 +2746,19 @@ void SettingsDialog::resetCurrentTabToDefaults()
 	}
 	else if(page==function_page_)
 	{
+		if(nullptr!=open_content_browser_on_startup_)
+		{
+			open_content_browser_on_startup_->setChecked(
+			    default_values_.openContentBrowserOnStartup);
+		}
 		if(nullptr!=auto_resume_enabled_)
 		{
 			auto_resume_enabled_->setChecked(default_values_.autoResumeEnabled);
-		}
-		if(nullptr!=state_data_compression_enabled_)
-		{
-			state_data_compression_enabled_->setChecked(
-			    default_values_.stateDataCompressionEnabled);
+			if(nullptr!=state_data_compression_enabled_)
+			{
+				state_data_compression_enabled_->setChecked(
+				    default_values_.stateDataCompressionEnabled);
+			}
 		}
 		if(nullptr!=idle_inhibit_)
 		{

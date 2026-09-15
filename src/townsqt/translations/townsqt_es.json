@@ -51,6 +51,176 @@
       "translation": "Caché CDDA"
     },
     {
+      "context": "ContentBrowserWidget",
+      "source": "None",
+      "translation": "None"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "App",
+      "translation": "App"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "MOS",
+      "translation": "MOS"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "%1 · (unreadable)",
+      "translation": "%1 · (unreadable)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "%1 MB",
+      "translation": "%1 MB"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "%1 · RAM %2 · %3 · Mouse: %4",
+      "translation": "%1 · RAM %2 · %3 · Mouse: %4"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Content browser",
+      "translation": "Content browser"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Register new",
+      "translation": "Register new"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Close",
+      "translation": "Close"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Register the current CD in the content library.",
+      "translation": "Register the current CD in the content library."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Requires a mounted CD with a disc profile (fp_XXXXXXXX.ini).",
+      "translation": "Requires a mounted CD with a disc profile (fp_XXXXXXXX.ini)."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "No library entries. Mount a CD with a disc profile, then Register new.",
+      "translation": "No library entries. Mount a CD with a disc profile, then Register new."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Double-click to resume",
+      "translation": "Double-click to resume"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Last autosave",
+      "translation": "Last autosave"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "AUTOSAVE · %1 — double-click to resume",
+      "translation": "AUTOSAVE · %1 — double-click to resume"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Cold start",
+      "translation": "Cold start"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Change icon…",
+      "translation": "Change icon…"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Rename",
+      "translation": "Rename"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Remove",
+      "translation": "Remove"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Click: select\nDouble-click: expand / collapse states\nRight-click: entry menu",
+      "translation": "Click: select\nDouble-click: expand / collapse states\nRight-click: entry menu"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Save",
+      "translation": "Save"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Delete",
+      "translation": "Delete"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Could not compute a disc fingerprint for this image.",
+      "translation": "Could not compute a disc fingerprint for this image."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Failed to register:\n%1",
+      "translation": "Failed to register:\n%1"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Select icon image",
+      "translation": "Select icon image"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)",
+      "translation": "Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Change icon",
+      "translation": "Change icon"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Failed:\n%1",
+      "translation": "Failed:\n%1"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Display name:",
+      "translation": "Display name:"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Remove this entry from the content library?\n(Disc profile and state saves are kept.)",
+      "translation": "Remove this entry from the content library?\n(Disc profile and state saves are kept.)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Locate CD image",
+      "translation": "Locate CD image"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "CD images (*.cue *.iso *.mds *.ccd *.bin);;All files (*)",
+      "translation": "CD images (*.cue *.iso *.mds *.ccd *.bin);;All files (*)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Launch",
+      "translation": "Launch"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Selected image fingerprint does not match this library entry.",
+      "translation": "Selected image fingerprint does not match this library entry."
+    },
+    {
       "context": "DebugTextWindow",
       "source": "Clear",
       "translation": "Borrar"
@@ -272,6 +442,16 @@
     },
     {
       "context": "MainWindow",
+      "source": "State slot %1 loaded",
+      "translation": "Slot %1 cargado"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to load state slot %1",
+      "translation": "Error al cargar slot %1"
+    },
+    {
+      "context": "MainWindow",
       "source": "Failed to load CD image",
       "translation": "Error al cargar CD"
     },
@@ -402,23 +582,23 @@
     },
     {
       "context": "MainWindow",
-      "source": "&State",
-      "translation": "&State"
+      "source": "Content browser",
+      "translation": "Explorador de contenidos"
     },
     {
       "context": "MainWindow",
-      "source": "&Load",
-      "translation": "&Cargar"
+      "source": "Pause the emulator and browse registered disc profiles / state saves.\nClose resumes the current session; choosing an entry ends it and boots that title.\nShortcut: Alt+Z (toggle).",
+      "translation": "Pause the emulator and browse registered disc profiles / state saves.\nClose resumes the current session; choosing an entry ends it and boots that title.\nShortcut: Alt+Z (toggle)."
     },
     {
       "context": "MainWindow",
-      "source": "Slot %1",
-      "translation": "Slot %1"
+      "source": "Screenshot",
+      "translation": "Captura de pantalla"
     },
     {
       "context": "MainWindow",
-      "source": "&Save",
-      "translation": "&Guardar"
+      "source": "Save a PNG under the Pictures folder (XDG Pictures)\nas screenshotNN_<disc fingerprint>.png (NN=00..99).",
+      "translation": "Guarda un PNG en la carpeta Imágenes (XDG Pictures)\ncomo screenshotNN_<huella de disco>.png (NN=00..99)."
     },
     {
       "context": "MainWindow",
@@ -787,23 +967,23 @@
     },
     {
       "context": "MainWindow",
+      "source": "State save requires a disc profile",
+      "translation": "State save requires a disc profile"
+    },
+    {
+      "context": "MainWindow",
       "source": "Emulator is not running",
       "translation": "Emulador no activo"
     },
     {
       "context": "MainWindow",
-      "source": "Failed to load state slot %1",
-      "translation": "Error al cargar slot %1"
-    },
-    {
-      "context": "MainWindow",
-      "source": "State slot %1 loaded",
-      "translation": "Slot %1 cargado"
-    },
-    {
-      "context": "MainWindow",
       "source": "No resume state for the mounted CD (slot 0)",
       "translation": "Sin estado resume (slot 0)"
+    },
+    {
+      "context": "MainWindow",
+      "source": "No state for this disc in slot %1",
+      "translation": "No state for this disc in slot %1"
     },
     {
       "context": "MainWindow",
@@ -814,6 +994,51 @@
       "context": "MainWindow",
       "source": "State slot %1 saved",
       "translation": "Slot %1 guardado"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Screenshot requires a mounted CD with a fingerprint",
+      "translation": "La captura requiere un CD montado con huella"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to save screenshot",
+      "translation": "Error al guardar la captura"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Screenshot saved: %1",
+      "translation": "Captura guardada: %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State save requires the same disc profile as the running VM",
+      "translation": "Guardar estado requiere el mismo perfil de disco que la VM en ejecución"
+    },
+    {
+      "context": "MainWindow",
+      "source": "No state file to delete",
+      "translation": "No hay archivo de estado que eliminar"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Delete state",
+      "translation": "Eliminar estado"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Delete state slot %1 for this title?",
+      "translation": "¿Eliminar el slot de estado %1 de este título?"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to delete state slot %1",
+      "translation": "Error al eliminar el slot %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 deleted",
+      "translation": "Slot %1 eliminado"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -957,13 +1182,8 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Invert X",
-      "translation": "Invertir X"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Invert Y",
-      "translation": "Invertir Y"
+      "source": "Mirror axis in range (e.g. 0..319 → 319..0). DW: write value.  GF: guest Phys used in Δ.",
+      "translation": "Mirror axis in range (e.g. 0..319 → 319..0). DW: write value.  GF: guest Phys used in Δ."
     },
     {
       "context": "MouseCoordProfilePage",
@@ -997,8 +1217,8 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "On: poke Game Phys in guest RAM (min/max clamp + scale on store).\nOff: gameport Δ = (host × scale) − guest (1:1 raw coords; min/max unused).",
-      "translation": "On: poke Game Phys in guest RAM (min/max clamp + scale on store).\nOff: gameport Δ = (host × scale) − guest (1:1 raw coords; min/max unused)."
+      "source": "On: poke Game Phys (map→offset/invert→bias/range/scale).\nOff: same target as On; gameport Δ = write − Phys.",
+      "translation": "On: poke Game Phys (map→offset/invert→bias/range/scale).\nOff: same target as On; gameport Δ = write − Phys."
     },
     {
       "context": "MouseCoordProfilePage",
@@ -1487,13 +1707,23 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Open content browser on startup",
+      "translation": "Open content browser on startup"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup.",
+      "translation": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup."
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Enable auto-resume",
       "translation": "Auto-resume"
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
-      "translation": "Con perfil de disco: guardar slot 0 (state0_XXXXXXXX.TState) al expulsar CD y al salir;\nauto-resume en la próxima carga. Reinicio manual del mismo CD: no carga state.\nOff: sin auto guardado/carga."
+      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
+      "translation": "Con perfil de disco: guardar state0_XXXXXXXX.TState al expulsar CD y al salir;\nauto-resume en la próxima carga. Reinicio manual del mismo CD: no carga state.\nOff: sin auto guardado/carga."
     },
     {
       "context": "SettingsDialog",
@@ -1597,7 +1827,7 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
+      "source": "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
       "translation": "Editar perfil (fp_XXXXXXXX.ini, ámbar).\nAplicar/OK guarda reloj, boot, memoria, puertos, opciones\ny montajes FD0/FD1/HD0–HD6.\nCMOS: cmos/cmos_XXXXXXXX.bin — Towns SETUP.\nCPU/modelo siguen globales (townsqt.conf).\nMemoria/boot/fidelidad → reinicio."
     },
     {

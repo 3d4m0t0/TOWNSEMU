@@ -21,9 +21,19 @@ QString configFilePath();
 QString profilesDir();
 /*! User mouse-integration presets: <configDir>/mouse_presets/mouse_XXXXXXXX.ini */
 QString mousePresetsDir();
-/*! Per-disc VM state saves: <configDir>/statesave/state0_XXXXXXXX.TState */
+/*! Per-disc VM state saves: <configDir>/statesave/state0_XXXXXXXX.TState (auto-resume / slot 0) */
 QString stateSaveDir();
+/*! State-save screenshots: <configDir>/statesave/image/stateN_XXXXXXXX.png */
+QString stateSaveImageDir();
+/*! Manual Tools→Screenshot: XDG Pictures (QStandardPaths::PicturesLocation),
+    e.g. ~/Pictures or ~/ピクチャ — screenshotNN_XXXXXXXX.png */
+QString imageDir();
+/*! Content browser library JSON: <configDir>/content_library.json */
+QString contentLibraryFilePath();
+/*! Content browser icons: <configDir>/content_icons/ */
+QString contentIconsDir();
 
-/*! Create configDir, romsDir, blankFdDir, hddDir, cmosDir, profilesDir, mousePresetsDir, and stateSaveDir if missing. */
+/*! Create configDir, romsDir, blankFdDir, hddDir, cmosDir, profilesDir, mousePresetsDir,
+    stateSaveDir, stateSaveImageDir, Pictures (imageDir), and contentIconsDir if missing. */
 bool ensureLayout();
 }

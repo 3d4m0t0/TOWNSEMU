@@ -75,6 +75,10 @@ add_executable(${TARGET_NAME}
 	qt_to_fskey.cpp
 	townsqt_paths.cpp
 	townsqt_disc_statesave.cpp
+	townsqt_content_library.h
+	townsqt_content_library.cpp
+	content_browser_widget.h
+	content_browser_widget.cpp
 	townsqt_settings.cpp
 	townsqt_settings.h
 	townsqt_version.h

@@ -11,6 +11,7 @@
 #include "qt_sync_sound.h"
 #include "townsqt_paths.h"
 #include "townsqt_disc_statesave.h"
+#include "townsqt_content_library.h"
 #include "townsqt_cpu_profile.h"
 #include "townsqt_model_profile.h"
 #include "townsqt_settings.h"
@@ -18,6 +19,8 @@
 #include "townsthread.h"
 #include "townscmos_util.h"
 #include "townscommandutil.h"
+#include "townscommand.h"
+#include "render.h"
 #include "miscutil.h"
 
 #include "fssimplewindow_connection.h"
@@ -337,7 +340,6 @@ void EmulatorController::run()
 		if(""!=argv_.cdImgFName)
 		{
 			cd_path_=QString::fromStdString(argv_.cdImgFName);
-			TownsQtSettings::setLastCdImagePath(cd_path_);
 			Q_EMIT cdPathChanged(cd_path_);
 		}
 		for(int drive=0; drive<2; ++drive)
@@ -345,7 +347,6 @@ void EmulatorController::run()
 			if(""!=argv_.fdImgFName[drive])
 			{
 				fd_path_[drive]=QString::fromStdString(argv_.fdImgFName[drive]);
-				TownsQtSettings::setLastFdImagePath(drive,fd_path_[drive]);
 				Q_EMIT fdPathChanged(drive,fd_path_[drive]);
 			}
 			else
@@ -370,7 +371,7 @@ void EmulatorController::run()
 		});
 
 		// FD images are mounted via argv_.fdImgFName before boot
-		// (MainWindow::prepareArgvForNextBoot — profile override or lastFd).
+		// (MainWindow::prepareArgvForNextBoot — disc profile or session).
 
 		QEventLoop loop;
 		QTimer wait_timer;
@@ -484,6 +485,58 @@ bool WriteStateSaveFileForTowns(FMTownsCommon &towns,const std::string &stdPath)
 	}
 	return true;
 }
+
+void CaptureTownsPngScreenshot(
+    FMTownsCommon &towns,TownsCommandInterpreter &cmd,const std::string &pngPath)
+{
+	TownsRender render;
+	towns.RenderQuiet(
+	    render,
+	    towns.crtc.state.ShowPage(0),
+	    towns.crtc.state.ShowPage(1));
+	cmd.SaveScreenShot(towns,render,pngPath);
+}
+
+/*! Same basename as the .TState under statesave/image/ (CUI SS .png). */
+void WriteStateSaveScreenshot(
+    FMTownsCommon &towns,TownsCommandInterpreter &cmd,const std::string &statePath)
+{
+	const QString imageDir=TownsQtPaths::stateSaveImageDir();
+	if(true!=QDir().mkpath(imageDir))
+	{
+		std::cerr << "Tsugaru_QT: Failed to create state screenshot dir "
+		          << imageDir.toStdString() << std::endl;
+		return;
+	}
+	const QFileInfo fi(QString::fromStdString(statePath));
+	const QString pngPath=imageDir+QLatin1Char('/')+fi.completeBaseName()+QStringLiteral(".png");
+	CaptureTownsPngScreenshot(towns,cmd,pngPath.toStdString());
+}
+
+/*! Lowest free screenshotNN_<fp>.png under imageDir (NN=00..99); overwrite 00 if full. */
+QString AllocateManualScreenshotPath(unsigned int fingerprintHash32)
+{
+	const QString dir=TownsQtPaths::imageDir();
+	if(true!=QDir().mkpath(dir))
+	{
+		return {};
+	}
+	const QString hash=
+	    QStringLiteral("%1").arg(fingerprintHash32,8,16,QLatin1Char('0'));
+	for(int n=0; n<100; ++n)
+	{
+		const QString name=
+		    QStringLiteral("screenshot%1_%2.png")
+		        .arg(n,2,10,QLatin1Char('0'))
+		        .arg(hash);
+		const QString path=dir+QLatin1Char('/')+name;
+		if(true!=QFile::exists(path))
+		{
+			return path;
+		}
+	}
+	return dir+QLatin1Char('/')+QStringLiteral("screenshot00_")+hash+QStringLiteral(".png");
+}
 }
 
 void EmulatorController::loadCdImage(const QString &path)
@@ -537,7 +590,6 @@ void EmulatorController::ejectCd()
 		impl_->cmdThread.EnqueueCommand(*impl_->outside_world,"CDEJECT");
 	}
 	cd_path_.clear();
-	TownsQtSettings::clearLastCdImagePath();
 	Q_EMIT cdPathChanged(cd_path_);
 	QMetaObject::invokeMethod(this,[this](){
 		QTimer::singleShot(100,this,[this](){
@@ -590,7 +642,6 @@ bool EmulatorController::swapCdImage(const QString &path)
 
 	cd_path_=usePath;
 	TownsQtSettings::addRecentCdImagePath(cd_path_);
-	TownsQtSettings::setLastCdImagePath(cd_path_);
 	Q_EMIT cdPathChanged(cd_path_);
 	QMetaObject::invokeMethod(this,[this](){
 		QTimer::singleShot(100,this,[this](){
@@ -641,7 +692,6 @@ void EmulatorController::ejectFd(int drive)
 	if(nullptr!=impl_->outside_world)
 	{
 		fd_path_[drive].clear();
-		TownsQtSettings::clearLastFdImagePath(drive);
 		Q_EMIT fdPathChanged(drive,fd_path_[drive]);
 		impl_->cmdThread.EnqueueCommand(
 		    *impl_->outside_world,
@@ -1520,6 +1570,17 @@ QVariantMap EmulatorController::mouseUiState() const
 		result[QStringLiteral("profile_apply")]=towns_->var.mouseCoordProfileApply;
 		result[QStringLiteral("disc_profile_loaded")]=
 		    towns_->mouseCoordWriteScan.DiscProfileLoaded();
+		const unsigned int discFp=CurrentMountedDiscFingerprintHash32();
+		result[QStringLiteral("disc_fingerprint_hash32")]=static_cast<uint>(discFp);
+		if(true==towns_->mouseCoordWriteScan.DiscProfileLoaded())
+		{
+			const auto p=towns_->mouseCoordWriteScan.GetActiveProfile();
+			if(true==p.HasFingerprint())
+			{
+				result[QStringLiteral("prof_disc_fingerprint_hash32")]=
+				    static_cast<uint>(p.discFingerprintHash32);
+			}
+		}
 		// Capture-released keeps effectiveDifferential=false while still on the
 		// differential path (feeding paused). Prefer that over MOS absolute labels.
 		if(true==ow.effectiveDifferentialMouseIntegration ||
@@ -1685,6 +1746,10 @@ bool EmulatorController::saveStateToFile(const QString &path,bool resume_run_aft
 	{
 		std::cerr << "Tsugaru_QT: Failed to save state " << path.toStdString() << std::endl;
 	}
+	else
+	{
+		WriteStateSaveScreenshot(*towns_,impl_->cmdThread.cmdInterpreter,path.toStdString());
+	}
 
 	if(true==resume_run_after && TownsThread::RUNMODE_RUN==prior_mode)
 	{
@@ -1709,6 +1774,10 @@ void EmulatorController::runPendingStateSaveOnVmThread(FMTownsCommon &towns)
 		path=impl_->pending_state_save_path;
 	}
 	const bool ok=WriteStateSaveFileForTowns(towns,path);
+	if(true==ok)
+	{
+		WriteStateSaveScreenshot(towns,impl_->cmdThread.cmdInterpreter,path);
+	}
 	impl_->pending_state_save_success.store(ok,std::memory_order_release);
 	impl_->pending_state_save_requested.store(false,std::memory_order_release);
 	impl_->pending_state_save_completed.store(true,std::memory_order_release);
@@ -1783,31 +1852,18 @@ bool EmulatorController::loadStateSlot(int slot)
 	{
 		return false;
 	}
-	QString path;
-	if(0==slot)
+	const unsigned int fp=CurrentMountedDiscFingerprintHash32();
+	if(0==fp)
 	{
-		const std::string disc=towns_->cdrom.state.GetDisc().fName;
-		if(true==disc.empty())
-		{
-			return false;
-		}
-		path=TownsQtDiscStateSave::ResumeStatePathForDisc(QString::fromStdString(disc));
+		return false;
 	}
-	else
-	{
-		const unsigned int fp=CurrentMountedDiscFingerprintHash32();
-		if(0==fp)
-		{
-			return false;
-		}
-		path=TownsQtDiscStateSave::ManualStateSlotPath(slot,fp);
-	}
+	const QString path=TownsQtDiscStateSave::StateSlotPath(slot,fp);
 	return loadStateFromFile(path);
 }
 
 bool EmulatorController::saveStateSlot(int slot)
 {
-	if(slot<1 || 9<slot)
+	if(slot<0 || 9<slot)
 	{
 		return false;
 	}
@@ -1820,8 +1876,12 @@ bool EmulatorController::saveStateSlot(int slot)
 	{
 		return false;
 	}
-	const QString path=TownsQtDiscStateSave::ManualStateSlotPath(slot,fp);
+	const QString path=TownsQtDiscStateSave::StateSlotPath(slot,fp);
 	if(path.isEmpty())
+	{
+		return false;
+	}
+	if(true!=TownsQtPaths::ensureLayout())
 	{
 		return false;
 	}
@@ -1856,7 +1916,60 @@ bool EmulatorController::saveDiscStateSaveIfProfiled(bool resume_run_after)
 	{
 		return false;
 	}
-	return saveStateToFile(statePath,resume_run_after);
+	if(true!=saveStateToFile(statePath,resume_run_after))
+	{
+		return false;
+	}
+	(void)TownsQtContentLibrary::RecordLastAutosave(fingerprint);
+	return true;
+}
+
+QString EmulatorController::saveManualScreenshot(void)
+{
+	if(nullptr==towns_)
+	{
+		return {};
+	}
+	const unsigned int fingerprint=CurrentMountedDiscFingerprintHash32();
+	if(0==fingerprint)
+	{
+		return {};
+	}
+	if(true!=TownsQtPaths::ensureLayout())
+	{
+		return {};
+	}
+	const QString pngPath=AllocateManualScreenshotPath(fingerprint);
+	if(pngPath.isEmpty())
+	{
+		return {};
+	}
+
+	const int prior_mode=impl_->townsThread.GetRunMode();
+	impl_->townsThread.ClearHostPauseAcknowledged();
+	impl_->townsThread.SetRunMode(TownsThread::RUNMODE_PAUSE);
+	if(true!=impl_->townsThread.WaitForHostPauseAcknowledged(5000))
+	{
+		std::cerr << "Tsugaru_QT: VM pause timeout before screenshot" << std::endl;
+		if(TownsThread::RUNMODE_RUN==prior_mode)
+		{
+			impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+		}
+		return {};
+	}
+
+	CaptureTownsPngScreenshot(
+	    *towns_,impl_->cmdThread.cmdInterpreter,pngPath.toStdString());
+
+	if(TownsThread::RUNMODE_RUN==prior_mode)
+	{
+		impl_->townsThread.SetRunMode(TownsThread::RUNMODE_RUN);
+	}
+	if(true!=QFile::exists(pngPath))
+	{
+		return {};
+	}
+	return pngPath;
 }
 
 unsigned int EmulatorController::CurrentMountedDiscFingerprintHash32(void) const

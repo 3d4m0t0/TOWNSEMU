@@ -17,6 +17,8 @@
 #include "townsqt_model_profile.h"
 #include "townsqt_paths.h"
 #include "townsqt_disc_statesave.h"
+#include "townsqt_content_library.h"
+#include "content_browser_widget.h"
 #include "townsqt_rom_availability.h"
 #include "townsqt_app_profile.h"
 #include "townsqt_settings.h"
@@ -71,6 +73,7 @@
 #include <QResizeEvent>
 #include <QStatusBar>
 #include <QStringList>
+#include <QStackedWidget>
 #include <QTimer>
 #include <QVariantMap>
 #include <QVBoxLayout>
@@ -425,14 +428,23 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	: QMainWindow(parent),argv_(argv)
 {
 	setWindowTitle(QStringLiteral("Tsugaru_QT"));
-	view_=new EmuView(this);
+	central_stack_=new QStackedWidget(this);
+	view_=new EmuView(central_stack_);
 	view_->attachFramebuffer(&framebuffer_);
 	view_->attachInputQueue(&inputQueue_);
 	view_->setScale(scale);
 	view_->setVideoOptions(scale,false,true);
 	view_->setMinimumSize(640*scale,480*scale);
 	view_->setMaximumSize(640*scale,480*scale);
-	setCentralWidget(view_);
+	content_browser_=new ContentBrowserWidget(central_stack_);
+	central_stack_->addWidget(view_);
+	central_stack_->addWidget(content_browser_);
+	central_stack_->setCurrentWidget(view_);
+	setCentralWidget(central_stack_);
+	connect(content_browser_,&ContentBrowserWidget::closeRequested,this,&MainWindow::closeContentBrowser);
+	connect(content_browser_,&ContentBrowserWidget::launchRequested,this,&MainWindow::onContentBrowserLaunch);
+	connect(content_browser_,&ContentBrowserWidget::saveStateRequested,this,&MainWindow::onContentBrowserSaveState);
+	connect(content_browser_,&ContentBrowserWidget::deleteStateRequested,this,&MainWindow::onContentBrowserDeleteState);
 
 	setupMenuBar();
 	// Size follows EMU scale; user drag-resize is rejected in resizeEvent (no setFixedSize).
@@ -572,6 +584,32 @@ void MainWindow::startEmulator()
 			syncFdDriveMenus();
 		}
 	});
+	if(0<pending_post_boot_state_slot_)
+	{
+		const int slot=pending_post_boot_state_slot_;
+		pending_post_boot_state_slot_=-1;
+		QTimer::singleShot(1500,this,[this,slot]{
+			if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
+			{
+				return;
+			}
+			bool ok=false;
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "loadStateSlot",
+			    Qt::BlockingQueuedConnection,
+			    Q_RETURN_ARG(bool,ok),
+			    Q_ARG(int,slot));
+			if(true==ok)
+			{
+				statusBar()->showMessage(tr("State slot %1 loaded").arg(slot),5000);
+			}
+			else
+			{
+				statusBar()->showMessage(tr("Failed to load state slot %1").arg(slot),5000);
+			}
+		});
+	}
 }
 
 void MainWindow::clearDiscProfileOverride(void)
@@ -613,17 +651,14 @@ void MainWindow::prepareArgvForNextBoot(void)
 	{
 		TownsQtArgvFromSettings::Apply(argv_);
 		refresh_argv_from_settings_on_next_boot_=false;
-		// Restart: discard previous session FD mounts; profile / lastFd re-apply below.
+		// Restart: discard previous session FD mounts; profile re-applies below.
 		argv_.fdImgFName[0].clear();
 		argv_.fdImgFName[1].clear();
 	}
 
 	QString cdPath=pending_boot_cd_path_;
 	pending_boot_cd_path_.clear();
-	if(cdPath.isEmpty())
-	{
-		cdPath=TownsQtSettings::lastCdImagePath();
-	}
+	/*! No global last-CD remount — only explicit pending / current session path. */
 	if(cdPath.isEmpty() && !cd_path_.isEmpty())
 	{
 		cdPath=cd_path_;
@@ -645,16 +680,34 @@ void MainWindow::prepareArgvForNextBoot(void)
 		// A/C: mount CD → profile → state-save path for this boot only (not cached in argv after apply).
 		argv_.cdImgFName=cdPath.toStdString();
 		cd_path_=cdPath;
-		TownsQtSettings::setLastCdImagePath(cdPath);
 		loadDiscProfileOverrideForPath(cdPath);
 	}
 	else
 	{
 		argv_.cdImgFName.clear();
+		cd_path_.clear();
 		clearDiscProfileOverride();
 	}
 	argv_.startUpStateFName.clear();
-	if(!cdPath.isEmpty() && true==TownsQtSettings::autoResumeEnabled())
+	pending_post_boot_state_slot_=-1;
+	const int bootStateSlot=pending_boot_state_slot_;
+	pending_boot_state_slot_=-2;
+	if(!cdPath.isEmpty() && -2!=bootStateSlot)
+	{
+		// Content browser (or other) explicit boot choice.
+		if(0<=bootStateSlot && 9>=bootStateSlot)
+		{
+			const unsigned int fp=TownsQtDiscStateSave::FingerprintForDiscPath(cdPath);
+			const QString statePath=TownsQtDiscStateSave::StateSlotPath(bootStateSlot,fp);
+			if(!statePath.isEmpty() && QFile::exists(statePath))
+			{
+				// Manual slots 0..9: load at startup (same path as CUI LOADSTAT).
+				argv_.startUpStateFName=statePath.toStdString();
+			}
+		}
+		// bootStateSlot==-1 → cold start (leave startUpStateFName empty).
+	}
+	else if(!cdPath.isEmpty() && true==TownsQtSettings::autoResumeEnabled())
 	{
 		bool apply_startup_state_save=true;
 		if(true==refreshedFromSettings)
@@ -705,18 +758,10 @@ void MainWindow::prepareArgvForNextBoot(void)
 			fd_path_[drive]=QString::fromStdString(argv_.fdImgFName[drive]);
 			continue;
 		}
+		/*! No global last-FD remount — keep session argv only (cleared on settings refresh). */
 		if(!argv_.fdImgFName[drive].empty())
 		{
 			fd_path_[drive]=QString::fromStdString(argv_.fdImgFName[drive]);
-			continue;
-		}
-		const QString saved=TownsQtSettings::lastFdImagePath(drive);
-		if(!saved.isEmpty() && QFile::exists(saved))
-		{
-			const QString canonical=QFileInfo(saved).canonicalFilePath();
-			const QString usePath=canonical.isEmpty() ? saved : canonical;
-			argv_.fdImgFName[drive]=usePath.toStdString();
-			fd_path_[drive]=usePath;
 		}
 		else
 		{
@@ -767,7 +812,6 @@ void MainWindow::requestCdImageChange(const QString &path)
 		}
 		cd_path_=usePath;
 		argv_.cdImgFName=usePath.toStdString();
-		TownsQtSettings::setLastCdImagePath(usePath);
 		updateOpenCdMenuLabel();
 		syncEjectMenus();
 		applyRuntimeDiscProfileOverrides(true);
@@ -780,7 +824,6 @@ void MainWindow::requestCdImageChange(const QString &path)
 		statusBar()->showMessage(tr("CD: %1").arg(QFileInfo(usePath).fileName()),5000);
 		return;
 	}
-	TownsQtSettings::setLastCdImagePath(usePath);
 	cd_path_=usePath;
 	argv_.cdImgFName=usePath.toStdString();
 	updateOpenCdMenuLabel();
@@ -1072,28 +1115,21 @@ void MainWindow::setupMenuBar()
 	auto *settingsAction=toolsMenu->addAction(tr("&Settings…"));
 	connect(settingsAction,&QAction::triggered,this,&MainWindow::openSettingsDialog);
 	toolsMenu->addSeparator();
-	state_menu_=toolsMenu->addMenu(tr("&State"));
-	auto *stateLoadMenu=state_menu_->addMenu(tr("&Load"));
-	for(int slot=0; slot<=9; ++slot)
-	{
-		auto *loadSlotAction=stateLoadMenu->addAction(tr("Slot %1").arg(slot));
-		connect(loadSlotAction,&QAction::triggered,this,[this,slot]{
-			loadStateSlotFromMenu(slot);
-		});
-	}
-	auto *stateSaveMenu=state_menu_->addMenu(tr("&Save"));
-	for(int slot=1; slot<=9; ++slot)
-	{
-		auto *saveSlotAction=stateSaveMenu->addAction(tr("Slot %1").arg(slot));
-		connect(saveSlotAction,&QAction::triggered,this,[this,slot]{
-			saveStateSlotFromMenu(slot);
-		});
-	}
-	state_menu_->setToolTip(
-	    tr("Save and load VM states for the current disc profile.\n"
-	       "Available only when a disc profile is loaded."));
-	connect(state_menu_,&QMenu::aboutToShow,this,&MainWindow::syncStateMenus);
-	syncStateMenus();
+	auto *contentBrowserAction=toolsMenu->addAction(tr("Content browser"));
+	contentBrowserAction->setShortcut(QKeySequence(Qt::ALT|Qt::Key_Z));
+	contentBrowserAction->setShortcutContext(Qt::WindowShortcut);
+	contentBrowserAction->setToolTip(
+	    tr("Pause the emulator and browse registered disc profiles / state saves.\n"
+	       "Close resumes the current session; choosing an entry ends it and boots that title.\n"
+	       "Shortcut: Alt+Z (toggle)."));
+	addAction(contentBrowserAction);
+	connect(contentBrowserAction,&QAction::triggered,this,&MainWindow::toggleContentBrowser);
+	screenshot_action_=toolsMenu->addAction(tr("Screenshot"));
+	screenshot_action_->setToolTip(
+	    tr("Save a PNG under the Pictures folder (XDG Pictures)\n"
+	       "as screenshotNN_<disc fingerprint>.png (NN=00..99)."));
+	connect(screenshot_action_,&QAction::triggered,this,&MainWindow::saveScreenshotFromMenu);
+	syncScreenshotAction();
 	toolsMenu->addSeparator();
 	auto *audioMixerAction=toolsMenu->addAction(tr("Audio mixer…"));
 	connect(audioMixerAction,&QAction::triggered,this,&MainWindow::openAudioMixerDialog);
@@ -1943,6 +1979,7 @@ void MainWindow::openSettingsDialog()
 		initial.useDiscProfiles=true;
 		initial.autoResumeEnabled=TownsQtSettings::autoResumeEnabled();
 		initial.stateDataCompressionEnabled=TownsQtSettings::stateDataCompressionEnabled();
+		initial.openContentBrowserOnStartup=TownsQtSettings::openContentBrowserOnStartup();
 		for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
 		if(true==disc_profile_override_active_)
@@ -2587,6 +2624,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setAppSpecificSetting(effective.appSpecificSetting);
 	TownsQtSettings::setAutoResumeEnabled(effective.autoResumeEnabled);
 	TownsQtSettings::setStateDataCompressionEnabled(effective.stateDataCompressionEnabled);
+	TownsQtSettings::setOpenContentBrowserOnStartup(effective.openContentBrowserOnStartup);
 	updateWindowTitle();
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
@@ -3514,29 +3552,20 @@ void MainWindow::syncEjectMenus()
 
 void MainWindow::syncStateMenus()
 {
-	if(nullptr==state_menu_)
+	syncScreenshotAction();
+}
+
+void MainWindow::syncScreenshotAction()
+{
+	if(nullptr==screenshot_action_)
 	{
 		return;
 	}
-	const bool enabled=true==cached_disc_profile_loaded_;
-	state_menu_->setEnabled(enabled);
-	for(QAction *action : state_menu_->actions())
-	{
-		if(nullptr!=action)
-		{
-			action->setEnabled(enabled);
-			if(nullptr!=action->menu())
-			{
-				for(QAction *slotAction : action->menu()->actions())
-				{
-					if(nullptr!=slotAction)
-					{
-						slotAction->setEnabled(enabled);
-					}
-				}
-			}
-		}
-	}
+	const bool emuOn=
+	    nullptr!=controller_ && nullptr!=emu_thread_ && true==emu_thread_->isRunning();
+	// Prefer live fingerprint; fall back to disc-profile presence (fp resolved at save).
+	screenshot_action_->setEnabled(
+	    emuOn && (0!=cached_disc_fingerprint_hash32_ || true==cached_disc_profile_loaded_));
 }
 
 void MainWindow::updateOpenCdMenuLabel()
@@ -3588,7 +3617,6 @@ void MainWindow::onCdPathChanged(const QString &path)
 	else
 	{
 		argv_.cdImgFName=path.toStdString();
-		TownsQtSettings::setLastCdImagePath(path);
 	}
 	updateOpenCdMenuLabel();
 	syncEjectMenus();
@@ -4810,7 +4838,15 @@ void MainWindow::showEvent(QShowEvent *event)
 	if(!emu_started_)
 	{
 		emu_started_=true;
-		startEmulator();
+		if(true==TownsQtSettings::openContentBrowserOnStartup())
+		{
+			content_browser_start_ini_on_close_=true;
+			openContentBrowser();
+		}
+		else
+		{
+			startEmulator();
+		}
 		applyDisplayVsync();
 	}
 	if(!fullscreen_)
@@ -4974,6 +5010,11 @@ void MainWindow::applyFullscreenLayout()
 	{
 		view_->setMinimumSize(0,0);
 		view_->setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX);
+	}
+	if(nullptr!=content_browser_)
+	{
+		content_browser_->setMinimumSize(0,0);
+		content_browser_->setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX);
 	}
 	showFullScreen();
 	// Fullscreen: largest integer scale that fits the host display (may exceed windowed max).
@@ -5325,6 +5366,7 @@ void MainWindow::refreshMouseUiState()
 		cached_mouse_profile_apply_=false;
 		cached_integration_mode_=MouseCoordWriteScan::INTEGRATION_DIFFERENTIAL;
 		cached_disc_profile_loaded_=false;
+		cached_disc_fingerprint_hash32_=0;
 		if(nullptr!=view_)
 		{
 			view_->setMouseCaptureReleased(false);
@@ -5810,6 +5852,7 @@ void MainWindow::setDisplayScale(int scale)
 	TownsQtSettings::setDisplayScale(scale);
 	TownsQtSettings::setAutoScaling(false);
 	TownsQtSettings::setMaintainAspect(true);
+	// Shrink browser grid before window resize so QStackedWidget min size can drop to 1x.
 	// Windowed: apply chosen scale. Fullscreen: keep showing host-fit max (preference saved for restore).
 	if(!fullscreen_ && !isFullScreen())
 	{
@@ -5900,6 +5943,20 @@ void MainWindow::applyWindowScale(int scale)
 			view_->setMaximumSize(content_w,content_h);
 		}
 		view_->updateGeometry();
+	}
+	// Match stack pages: QStackedWidget::minimumSizeHint is max of all children.
+	if(nullptr!=content_browser_)
+	{
+		content_browser_->setMinimumSize(0,0);
+		content_browser_->setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX);
+		if(true==windowed)
+		{
+			content_browser_->setMinimumSize(content_w,content_h);
+			content_browser_->setMaximumSize(content_w,content_h);
+		}
+		content_browser_->updateGeometry();
+		/*! State grid + hover overlay follow the effective applied scale (incl. fullscreen). */
+		content_browser_->setWindowScale(scale);
 	}
 
 	if(true==windowed)
@@ -6115,6 +6172,237 @@ void MainWindow::saveStateSlotFromMenu(int slot)
 		return;
 	}
 	statusBar()->showMessage(tr("State slot %1 saved").arg(slot),5000);
+}
+
+void MainWindow::saveScreenshotFromMenu()
+{
+	if(0==cached_disc_fingerprint_hash32_ && true!=cached_disc_profile_loaded_)
+	{
+		statusBar()->showMessage(tr("Screenshot requires a mounted CD with a fingerprint"),5000);
+		return;
+	}
+	if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
+	{
+		statusBar()->showMessage(tr("Emulator is not running"),5000);
+		return;
+	}
+	QString path;
+	const bool invoked=QMetaObject::invokeMethod(
+	    controller_,
+	    "saveManualScreenshot",
+	    Qt::BlockingQueuedConnection,
+	    Q_RETURN_ARG(QString,path));
+	if(true!=invoked || path.isEmpty())
+	{
+		statusBar()->showMessage(tr("Failed to save screenshot"),5000);
+		return;
+	}
+	statusBar()->showMessage(tr("Screenshot saved: %1").arg(QFileInfo(path).fileName()),5000);
+}
+
+void MainWindow::openContentBrowser()
+{
+	if(nullptr==content_browser_ || nullptr==central_stack_)
+	{
+		return;
+	}
+	QString registerPath=cd_path_;
+	content_browser_->setRegisterCdPath(registerPath);
+	content_browser_->setActiveProfileFingerprint(
+	    (true==cached_disc_profile_loaded_) ? cached_disc_fingerprint_hash32_ : 0u);
+	/*! Prefer effective applied scale (fullscreen max, else settings). */
+	{
+		const int scale=
+		    (fullscreen_ || isFullScreen()) ?
+		        maxDisplayScaleForFullscreen() :
+		        TownsQtSettings::displayScale();
+		content_browser_->setWindowScale(scale);
+	}
+
+	content_browser_open_=true;
+	content_browser_->reload();
+	central_stack_->setCurrentWidget(content_browser_);
+	statusBar()->showMessage(tr("Content browser"),0);
+
+	if(nullptr!=controller_ && nullptr!=emu_thread_ && true==emu_thread_->isRunning())
+	{
+		content_browser_resume_on_close_=true;
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "setVmPaused",
+		    Qt::BlockingQueuedConnection,
+		    Q_ARG(bool,true));
+		return;
+	}
+	content_browser_resume_on_close_=false;
+}
+
+void MainWindow::toggleContentBrowser()
+{
+	if(true==content_browser_open_)
+	{
+		closeContentBrowser();
+	}
+	else
+	{
+		openContentBrowser();
+	}
+}
+
+void MainWindow::closeContentBrowser()
+{
+	if(nullptr==central_stack_ || nullptr==view_)
+	{
+		return;
+	}
+	content_browser_open_=false;
+	central_stack_->setCurrentWidget(view_);
+	statusBar()->clearMessage();
+
+	const bool unpause=content_browser_resume_on_close_;
+	content_browser_resume_on_close_=false;
+	const bool startIni=content_browser_start_ini_on_close_;
+	content_browser_start_ini_on_close_=false;
+	if(true==unpause)
+	{
+		if(nullptr==controller_ || nullptr==emu_thread_ || true!=emu_thread_->isRunning())
+		{
+			return;
+		}
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "setVmPaused",
+		    Qt::BlockingQueuedConnection,
+		    Q_ARG(bool,false));
+		return;
+	}
+	/*! Deferred first boot: cold start with global HD (no last CD/FD remount). */
+	if(true==startIni &&
+	   (nullptr==emu_thread_ || true!=emu_thread_->isRunning()))
+	{
+		pending_boot_cd_path_.clear();
+		pending_boot_state_slot_=-1;
+		cd_path_.clear();
+		argv_.cdImgFName.clear();
+		argv_.fdImgFName[0].clear();
+		argv_.fdImgFName[1].clear();
+		startEmulator();
+	}
+}
+
+void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &cdImagePath,int stateSlot)
+{
+	if(cdImagePath.isEmpty())
+	{
+		return;
+	}
+
+	content_browser_start_ini_on_close_=false;
+
+	const bool emuRunning=
+	    nullptr!=emu_thread_ && true==emu_thread_->isRunning();
+	const bool sameDisc=
+	    true==emuRunning &&
+	    0!=fingerprint &&
+	    true==cached_disc_profile_loaded_ &&
+	    fingerprint==cached_disc_fingerprint_hash32_;
+	/*! -2 auto-resume → slot 0; 0..9 manual slots. Cold (-1) still full reboot. */
+	const int loadSlot=(-2==stateSlot) ? 0 : stateSlot;
+	if(true==sameDisc && 0<=loadSlot && 9>=loadSlot)
+	{
+		content_browser_resume_on_close_=false;
+		content_browser_open_=false;
+		if(nullptr!=central_stack_ && nullptr!=view_)
+		{
+			central_stack_->setCurrentWidget(view_);
+		}
+		statusBar()->clearMessage();
+		loadStateSlotFromMenu(loadSlot);
+		if(nullptr!=controller_ && nullptr!=emu_thread_ && true==emu_thread_->isRunning())
+		{
+			QMetaObject::invokeMethod(
+			    controller_,
+			    "setVmPaused",
+			    Qt::BlockingQueuedConnection,
+			    Q_ARG(bool,false));
+		}
+		return;
+	}
+
+	// Different disc, cold start, or no running VM: tear down then boot.
+	content_browser_resume_on_close_=false;
+	content_browser_open_=false;
+	if(nullptr!=central_stack_ && nullptr!=view_)
+	{
+		central_stack_->setCurrentWidget(view_);
+	}
+	statusBar()->clearMessage();
+
+	pending_boot_cd_path_=cdImagePath;
+	pending_boot_state_slot_=stateSlot; // -2 auto-resume, -1 cold, 0..9 manual
+	if(true==emuRunning)
+	{
+		stopEmulatorAsync([this]{
+			startEmulator();
+		});
+		return;
+	}
+	startEmulator();
+}
+
+void MainWindow::onContentBrowserSaveState(unsigned int fingerprint,int stateSlot)
+{
+	if(0==fingerprint || stateSlot<0 || 9<stateSlot)
+	{
+		return;
+	}
+	if(true!=cached_disc_profile_loaded_ || fingerprint!=cached_disc_fingerprint_hash32_)
+	{
+		statusBar()->showMessage(tr("State save requires the same disc profile as the running VM"),5000);
+		return;
+	}
+	saveStateSlotFromMenu(stateSlot);
+	if(nullptr!=content_browser_)
+	{
+		content_browser_->refreshStateSlot(fingerprint,stateSlot);
+	}
+}
+
+void MainWindow::onContentBrowserDeleteState(unsigned int fingerprint,int stateSlot)
+{
+	if(0==fingerprint || stateSlot<0 || 9<stateSlot)
+	{
+		return;
+	}
+	const QString statePath=TownsQtDiscStateSave::StateSlotPath(stateSlot,fingerprint);
+	if(statePath.isEmpty() || true!=QFile::exists(statePath))
+	{
+		statusBar()->showMessage(tr("No state file to delete"),5000);
+		return;
+	}
+	const auto reply=QMessageBox::question(
+	    this,
+	    tr("Delete state"),
+	    tr("Delete state slot %1 for this title?").arg(stateSlot));
+	if(QMessageBox::Yes!=reply)
+	{
+		return;
+	}
+	if(true!=QFile::remove(statePath))
+	{
+		statusBar()->showMessage(tr("Failed to delete state slot %1").arg(stateSlot),5000);
+		return;
+	}
+	const QString imgPath=TownsQtDiscStateSave::StateSlotImagePath(stateSlot,fingerprint);
+	if(!imgPath.isEmpty() && QFile::exists(imgPath))
+	{
+		(void)QFile::remove(imgPath);
+	}
+	statusBar()->showMessage(tr("State slot %1 deleted").arg(stateSlot),5000);
+	if(nullptr!=content_browser_)
+	{
+		content_browser_->refreshStateSlot(fingerprint,stateSlot);
+	}
 }
 
 void MainWindow::maybeSaveDiscStateSaveBeforeStop(EmulatorController *controller)

@@ -155,12 +155,15 @@ public Q_SLOTS:
 	Q_INVOKABLE bool saveStateToFile(const QString &path,bool resume_run_after=true);
 	/*! Load VM state from path (emulator thread only). Pauses the VM first. */
 	Q_INVOKABLE bool loadStateFromFile(const QString &path);
-	/*! Load state slot 0 = resume (state0_*); slots 1..9 = per-disc stateN_XXXXXXXX.TState. */
+	/*! Load manual state slots 0..9 (stateN_*). Auto-resume is state0_* via saveDiscStateSaveIfProfiled. */
 	Q_INVOKABLE bool loadStateSlot(int slot);
-	/*! Save manual state slot 1..9 per mounted disc (slot 0 is resume-only). */
+	/*! Save manual state slots 0..9 (stateN_*). Auto-resume is state0_* via saveDiscStateSaveIfProfiled. */
 	Q_INVOKABLE bool saveStateSlot(int slot);
 	/*! Save state0_XXXXXXXX.TState when a disc profile is active (emulator thread only). */
 	Q_INVOKABLE bool saveDiscStateSaveIfProfiled(bool resume_run_after=true);
+	/*! Pause VM, capture PNG to XDG Pictures (screenshotNN_<fp>.png, NN=00..99).
+	    Returns the written path, or empty on failure. */
+	Q_INVOKABLE QString saveManualScreenshot(void);
 	/*! When disc profiles are enabled and loaded, write HD0 path into fp_*.ini. */
 	Q_INVOKABLE bool persistHddMountsToDiscProfile(const QStringList &hdd_paths);
 

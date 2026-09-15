@@ -25,7 +25,7 @@ QStringList recentCdImagePaths();
 void addRecentCdImagePath(const QString &path);
 void clearRecentCdImagePaths();
 
-/*! Last mounted FD image path per drive (stored in townsqt.conf [media] fd0_image / fd1_image). */
+/*! Legacy FD last-path keys (no longer used for remount; HD stays in hdd/*). */
 QString lastFdImagePath(int drive);
 void setLastFdImagePath(int drive,const QString &path);
 void clearLastFdImagePath(int drive);
@@ -241,6 +241,10 @@ void setAutoResumeEnabled(bool enabled);
 /*! zlib-compress .TState on save (Features). Load always accepts compressed and legacy. Default off. */
 bool stateDataCompressionEnabled();
 void setStateDataCompressionEnabled(bool enabled);
+
+/*! Open content browser on first show instead of remounting last-session media (Features). Default off. */
+bool openContentBrowserOnStartup();
+void setOpenContentBrowserOnStartup(bool enabled);
 
 /*! Hard-disk images for SCSI IDs 0..6 (TownsStartParameters::MAX_NUM_SCSI_DEVICES). */
 constexpr int kHddSlotCount=7;

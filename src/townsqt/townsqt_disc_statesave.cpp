@@ -4,6 +4,7 @@
 #include "discimg.h"
 
 #include <QFile>
+#include <QList>
 
 #include <cstdio>
 
@@ -30,16 +31,7 @@ unsigned int FingerprintForDiscPath(const QString &cdPath)
 
 QString PathForFingerprint(unsigned int fingerprintHash32)
 {
-	if(0==fingerprintHash32)
-	{
-		return QString();
-	}
-	char hex[32];
-	snprintf(hex,sizeof(hex),"state0_%08x",fingerprintHash32);
-	return TownsQtPaths::stateSaveDir()
-	    +QStringLiteral("/")
-	    +QString::fromLatin1(hex)
-	    +QStringLiteral(".TState");
+	return ManualStateSlotPath(0,fingerprintHash32);
 }
 
 QString ProfilePathForFingerprint(unsigned int fingerprintHash32)
@@ -95,7 +87,7 @@ QString ResumeStatePathForDisc(const QString &cdPath)
 
 QString ManualStateSlotPath(int slot,unsigned int fingerprintHash32)
 {
-	if(slot<1 || 9<slot || 0==fingerprintHash32)
+	if(slot<0 || 9<slot || 0==fingerprintHash32)
 	{
 		return QString();
 	}
@@ -105,5 +97,41 @@ QString ManualStateSlotPath(int slot,unsigned int fingerprintHash32)
 	    +QStringLiteral("/")
 	    +QString::fromLatin1(name)
 	    +QStringLiteral(".TState");
+}
+
+QString StateSlotPath(int slot,unsigned int fingerprintHash32)
+{
+	return ManualStateSlotPath(slot,fingerprintHash32);
+}
+
+QString StateSlotImagePath(int slot,unsigned int fingerprintHash32)
+{
+	if(slot<0 || 9<slot || 0==fingerprintHash32)
+	{
+		return QString();
+	}
+	char name[48];
+	snprintf(name,sizeof(name),"state%d_%08x.png",slot,fingerprintHash32);
+	return TownsQtPaths::stateSaveImageDir()
+	    +QStringLiteral("/")
+	    +QString::fromLatin1(name);
+}
+
+QList<int> ExistingStateSlots(unsigned int fingerprintHash32)
+{
+	QList<int> out;
+	if(0==fingerprintHash32)
+	{
+		return out;
+	}
+	for(int slot=0; slot<=9; ++slot)
+	{
+		const QString path=StateSlotPath(slot,fingerprintHash32);
+		if(!path.isEmpty() && QFile::exists(path))
+		{
+			out.append(slot);
+		}
+	}
+	return out;
 }
 }

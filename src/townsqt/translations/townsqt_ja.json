@@ -51,6 +51,176 @@
       "translation": "CDDAキャッシュ"
     },
     {
+      "context": "ContentBrowserWidget",
+      "source": "None",
+      "translation": "None"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "App",
+      "translation": "App"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "MOS",
+      "translation": "MOS"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "%1 · (unreadable)",
+      "translation": "%1 · (unreadable)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "%1 MB",
+      "translation": "%1 MB"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "%1 · RAM %2 · %3 · Mouse: %4",
+      "translation": "%1 · RAM %2 · %3 · Mouse: %4"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Content browser",
+      "translation": "コンテンツブラウザ"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Register new",
+      "translation": "Register new"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Close",
+      "translation": "閉じる"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Register the current CD in the content library.",
+      "translation": "Register the current CD in the content library."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Requires a mounted CD with a disc profile (fp_XXXXXXXX.ini).",
+      "translation": "Requires a mounted CD with a disc profile (fp_XXXXXXXX.ini)."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "No library entries. Mount a CD with a disc profile, then Register new.",
+      "translation": "No library entries. Mount a CD with a disc profile, then Register new."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Double-click to resume",
+      "translation": "ダブルクリックで再開"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Last autosave",
+      "translation": "最後の自動保存"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "AUTOSAVE · %1 — double-click to resume",
+      "translation": "AUTOSAVE · %1 — ダブルクリックで再開"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Cold start",
+      "translation": "Cold start"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Change icon…",
+      "translation": "Change icon…"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Rename",
+      "translation": "Rename"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Remove",
+      "translation": "外す"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Click: select\nDouble-click: expand / collapse states\nRight-click: entry menu",
+      "translation": "Click: select\nDouble-click: expand / collapse states\nRight-click: entry menu"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Save",
+      "translation": "Save"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Delete",
+      "translation": "Delete"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Could not compute a disc fingerprint for this image.",
+      "translation": "Could not compute a disc fingerprint for this image."
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Failed to register:\n%1",
+      "translation": "Failed to register:\n%1"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Select icon image",
+      "translation": "Select icon image"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)",
+      "translation": "Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Change icon",
+      "translation": "Change icon"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Failed:\n%1",
+      "translation": "Failed:\n%1"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Display name:",
+      "translation": "Display name:"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Remove this entry from the content library?\n(Disc profile and state saves are kept.)",
+      "translation": "Remove this entry from the content library?\n(Disc profile and state saves are kept.)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Locate CD image",
+      "translation": "Locate CD image"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "CD images (*.cue *.iso *.mds *.ccd *.bin);;All files (*)",
+      "translation": "CD images (*.cue *.iso *.mds *.ccd *.bin);;All files (*)"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Launch",
+      "translation": "Launch"
+    },
+    {
+      "context": "ContentBrowserWidget",
+      "source": "Selected image fingerprint does not match this library entry.",
+      "translation": "Selected image fingerprint does not match this library entry."
+    },
+    {
       "context": "DebugTextWindow",
       "source": "Clear",
       "translation": "クリア"
@@ -272,6 +442,16 @@
     },
     {
       "context": "MainWindow",
+      "source": "State slot %1 loaded",
+      "translation": "ステートスロット %1 を読み込みました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to load state slot %1",
+      "translation": "ステートスロット %1 の読み込みに失敗しました"
+    },
+    {
+      "context": "MainWindow",
       "source": "Failed to load CD image",
       "translation": "CD イメージの読み込みに失敗しました"
     },
@@ -402,23 +582,23 @@
     },
     {
       "context": "MainWindow",
-      "source": "&State",
-      "translation": "ステート(&S)"
+      "source": "Content browser",
+      "translation": "コンテンツブラウザ"
     },
     {
       "context": "MainWindow",
-      "source": "&Load",
-      "translation": "読み込み(&L)"
+      "source": "Pause the emulator and browse registered disc profiles / state saves.\nClose resumes the current session; choosing an entry ends it and boots that title.\nShortcut: Alt+Z (toggle).",
+      "translation": "エミュレータを一時停止し、登録済みディスクプロファイル／ステートを閲覧します。\n閉じると現在のセッションを再開、エントリ選択で終了してそのタイトルを起動します。\nショートカット: Alt+Z（開閉）。"
     },
     {
       "context": "MainWindow",
-      "source": "Slot %1",
-      "translation": "スロット %1"
+      "source": "Screenshot",
+      "translation": "スクリーンショット"
     },
     {
       "context": "MainWindow",
-      "source": "&Save",
-      "translation": "保存(&S)"
+      "source": "Save a PNG under the Pictures folder (XDG Pictures)\nas screenshotNN_<disc fingerprint>.png (NN=00..99).",
+      "translation": "ピクチャフォルダ（XDG Pictures）に PNG を保存します。\nファイル名は screenshotNN_<ディスク指紋>.png（NN=00..99）。"
     },
     {
       "context": "MainWindow",
@@ -787,23 +967,23 @@
     },
     {
       "context": "MainWindow",
+      "source": "State save requires a disc profile",
+      "translation": "State save requires a disc profile"
+    },
+    {
+      "context": "MainWindow",
       "source": "Emulator is not running",
       "translation": "エミュレーターは起動していません"
     },
     {
       "context": "MainWindow",
-      "source": "Failed to load state slot %1",
-      "translation": "ステートスロット %1 の読み込みに失敗しました"
-    },
-    {
-      "context": "MainWindow",
-      "source": "State slot %1 loaded",
-      "translation": "ステートスロット %1 を読み込みました"
-    },
-    {
-      "context": "MainWindow",
       "source": "No resume state for the mounted CD (slot 0)",
       "translation": "マウント中の CD のレジューム用ステート（スロット0）がありません"
+    },
+    {
+      "context": "MainWindow",
+      "source": "No state for this disc in slot %1",
+      "translation": "No state for this disc in slot %1"
     },
     {
       "context": "MainWindow",
@@ -814,6 +994,51 @@
       "context": "MainWindow",
       "source": "State slot %1 saved",
       "translation": "ステートスロット %1 を保存しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Screenshot requires a mounted CD with a fingerprint",
+      "translation": "スクリーンショットにはフィンガープリント付きのマウント中 CD が必要です"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to save screenshot",
+      "translation": "スクリーンショットの保存に失敗しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Screenshot saved: %1",
+      "translation": "スクリーンショットを保存しました: %1"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State save requires the same disc profile as the running VM",
+      "translation": "ステート保存には、実行中の VM と同じディスクプロファイルが必要です"
+    },
+    {
+      "context": "MainWindow",
+      "source": "No state file to delete",
+      "translation": "削除するステートファイルがありません"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Delete state",
+      "translation": "ステート削除"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Delete state slot %1 for this title?",
+      "translation": "このタイトルのステートスロット %1 を削除しますか？"
+    },
+    {
+      "context": "MainWindow",
+      "source": "Failed to delete state slot %1",
+      "translation": "ステートスロット %1 の削除に失敗しました"
+    },
+    {
+      "context": "MainWindow",
+      "source": "State slot %1 deleted",
+      "translation": "ステートスロット %1 を削除しました"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -893,7 +1118,7 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Save to file",
-      "translation": "ファイル保存"
+      "translation": "ファイルへ保存"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -957,13 +1182,8 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "Invert X",
-      "translation": "X を反転"
-    },
-    {
-      "context": "MouseCoordProfilePage",
-      "source": "Invert Y",
-      "translation": "Y を反転"
+      "source": "Mirror axis in range (e.g. 0..319 → 319..0). DW: write value.  GF: guest Phys used in Δ.",
+      "translation": "Mirror axis in range (e.g. 0..319 → 319..0). DW: write value.  GF: guest Phys used in Δ."
     },
     {
       "context": "MouseCoordProfilePage",
@@ -997,8 +1217,8 @@
     },
     {
       "context": "MouseCoordProfilePage",
-      "source": "On: poke Game Phys in guest RAM (min/max clamp + scale on store).\nOff: gameport Δ = (host × scale) − guest (1:1 raw coords; min/max unused).",
-      "translation": "オン: Game Phys をゲスト RAM へ書き込み（min/max クランプ＋スケール）。\nオフ: ゲームポートΔ = (ホスト × scale) − ゲスト（1:1 生座標、min/max 未使用）。"
+      "source": "On: poke Game Phys (map→offset/invert→bias/range/scale).\nOff: same target as On; gameport Δ = write − Phys.",
+      "translation": "On: poke Game Phys (map→offset/invert→bias/range/scale).\nOff: same target as On; gameport Δ = write − Phys."
     },
     {
       "context": "MouseCoordProfilePage",
@@ -1487,13 +1707,23 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Open content browser on startup",
+      "translation": "起動時にコンテンツブラウザを開く"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup.",
+      "translation": "オフのときはグローバル設定でコールドスタートします（HD構成は保持、CD / FDは再マウントしません）。\nオンのときは起動時にコンテンツブラウザを開きます。"
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Enable auto-resume",
       "translation": "オートレジューム有効"
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
-      "translation": "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了時に、\nディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n次回読み込み時に自動再開します。\n同じ CD の手動再起動ではステートセーブは読み込まれません。\nオフのときは、ステートセーブの自動保存・自動読み込みを行いません。"
+      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
+      "translation": "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了時に、\nディスクごとのオートレジューム（state0_XXXXXXXX.TState）を自動保存し、\n次回読み込み時に自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\nオフのときは、ステートセーブの自動保存・自動読み込みを行いません。"
     },
     {
       "context": "SettingsDialog",
@@ -1597,8 +1827,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
-      "translation": "ディスクプロファイル (fp_XXXXXXXX.ini、琥珀色の枠) を編集中です。\n適用または OK でクロック・起動ディスク・メモリ・ポート・オプション、\nおよび FD0 / FD1 / HD0–HD6 のマウント状態をプロファイルへ保存します（次回読込時に復元）。\nCMOS（ドライブレター・シングルドライブ）はこのディスク用の cmos/cmos_XXXXXXXX.bin を使います — Towns SETUP で設定。\nCPU とモデルは townsqt.conf のグローバル設定のままで、プロファイルには保存しません。\nメモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動します。"
+      "source": "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
+      "translation": "ディスクプロファイル (fp_XXXXXXXX.ini、選択色の枠) を編集中です。\n適用または OK でクロック・起動ディスク・メモリ・ポート・オプション、\nおよび FD0 / FD1 / HD0–HD6 のマウント状態をプロファイルへ保存します（次回読込時に復元）。\nCMOS（ドライブレター・シングルドライブ）はこのディスク用の cmos/cmos_XXXXXXXX.bin を使います — Towns SETUP で設定。\nCPU とモデルは townsqt.conf のグローバル設定のままで、プロファイルには保存しません。\nメモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動します。"
     },
     {
       "context": "SettingsDialog",

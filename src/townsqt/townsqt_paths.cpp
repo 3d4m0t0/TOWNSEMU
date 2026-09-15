@@ -1,6 +1,7 @@
 #include "townsqt_paths.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
 
@@ -68,6 +69,32 @@ QString TownsQtPaths::mousePresetsDir()
 QString TownsQtPaths::stateSaveDir()
 {
 	return configDir()+QStringLiteral("/statesave");
+}
+
+QString TownsQtPaths::stateSaveImageDir()
+{
+	return stateSaveDir()+QStringLiteral("/image");
+}
+
+QString TownsQtPaths::imageDir()
+{
+	/*! XDG Pictures: ~/.config/user-dirs.dirs → XDG_PICTURES_DIR (locale name). */
+	QString pictures=QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+	if(pictures.isEmpty())
+	{
+		pictures=QDir::homePath()+QStringLiteral("/Pictures");
+	}
+	return pictures;
+}
+
+QString TownsQtPaths::contentLibraryFilePath()
+{
+	return configDir()+QStringLiteral("/content_library.json");
+}
+
+QString TownsQtPaths::contentIconsDir()
+{
+	return configDir()+QStringLiteral("/content_icons");
 }
 
 bool TownsQtPaths::ensureLayout()
@@ -150,14 +177,64 @@ bool TownsQtPaths::ensureLayout()
 	}
 	{
 		QDir stateDir(stateSave);
-		const QFileInfoList legacyFiles=stateDir.entryInfoList(
-		    QStringList{QStringLiteral("snap0_*.TState")},
-		    QDir::Files);
-		for(const QFileInfo &fi : legacyFiles)
-		{
-			const QString newName=QStringLiteral("state0_")+fi.fileName().mid(6);
-			(void)QDir().rename(fi.absoluteFilePath(),stateSave+QStringLiteral("/")+newName);
-		}
+		const auto migratePrefix=[&](const QString &fromPrefix,const QString &toPrefix){
+			const QFileInfoList files=stateDir.entryInfoList(
+			    QStringList{fromPrefix+QStringLiteral("*.TState")},
+			    QDir::Files);
+			for(const QFileInfo &fi : files)
+			{
+				const QString base=fi.completeBaseName();
+				if(true!=base.startsWith(fromPrefix))
+				{
+					continue;
+				}
+				const QString newName=toPrefix+base.mid(fromPrefix.size())+QStringLiteral(".TState");
+				const QString dest=stateSave+QStringLiteral("/")+newName;
+				if(true!=QFile::exists(dest))
+				{
+					(void)QDir().rename(fi.absoluteFilePath(),dest);
+				}
+			}
+		};
+		// Legacy auto-resume names → state0_* (slot 0 / auto-resume).
+		migratePrefix(QStringLiteral("snap0_"),QStringLiteral("state0_"));
+		migratePrefix(QStringLiteral("stateauto_"),QStringLiteral("state0_"));
+	}
+	if(true!=dir.mkpath(stateSaveImageDir()))
+	{
+		return false;
+	}
+	{
+		QDir imgDir(stateSaveImageDir());
+		const auto migrateImgPrefix=[&](const QString &fromPrefix,const QString &toPrefix){
+			const QFileInfoList files=imgDir.entryInfoList(
+			    QStringList{fromPrefix+QStringLiteral("*.png")},
+			    QDir::Files);
+			for(const QFileInfo &fi : files)
+			{
+				const QString base=fi.completeBaseName();
+				if(true!=base.startsWith(fromPrefix))
+				{
+					continue;
+				}
+				const QString newName=toPrefix+base.mid(fromPrefix.size())+QStringLiteral(".png");
+				const QString dest=stateSaveImageDir()+QStringLiteral("/")+newName;
+				if(true!=QFile::exists(dest))
+				{
+					(void)QDir().rename(fi.absoluteFilePath(),dest);
+				}
+			}
+		};
+		migrateImgPrefix(QStringLiteral("snap0_"),QStringLiteral("state0_"));
+		migrateImgPrefix(QStringLiteral("stateauto_"),QStringLiteral("state0_"));
+	}
+	if(true!=dir.mkpath(imageDir()))
+	{
+		return false;
+	}
+	if(true!=dir.mkpath(contentIconsDir()))
+	{
+		return false;
 	}
 	return true;
 }

@@ -96,6 +96,7 @@ public:
 		bool useDiscProfiles=true;
 		bool autoResumeEnabled=true;
 		bool stateDataCompressionEnabled=false;
+		bool openContentBrowserOnStartup=false;
 		/*! Live disc profile state (not stored in townsqt.conf). */
 		bool discMounted=false;
 		bool discProfileAvailable=false;
@@ -257,6 +258,7 @@ private:
 	QWidget *profile_fields_box_=nullptr;
 	QLabel *basics_footer_label_=nullptr;
 
+	QCheckBox *open_content_browser_on_startup_=nullptr;
 	QCheckBox *auto_resume_enabled_=nullptr;
 	QCheckBox *state_data_compression_enabled_=nullptr;
 

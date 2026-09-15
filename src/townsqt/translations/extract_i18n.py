@@ -27,6 +27,7 @@ FILE_CONTEXT = {
     "townsqt_rom_availability": "TownsQtRomAvailability",
     "townsqt_model_profile": "TownsQtModelProfile",
     "townsqt_cpu_profile": "TownsQtCpuProfile",
+    "content_browser_widget": "ContentBrowserWidget",
 }
 
 
@@ -420,6 +421,15 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("MainWindow", "Could not delete disc profile."): "ディスクプロファイルを削除できませんでした。",
     ("MainWindow", "Disc profile deleted."): "ディスクプロファイルを削除しました。",
     ("MainWindow", "Disc profile clock updated."): "ディスクプロファイルのクロックを更新しました。",
+    (
+        "MainWindow",
+        "Pause the emulator and browse registered disc profiles / state saves.\n"
+        "Close resumes the current session; choosing an entry ends it and boots that title.\n"
+        "Shortcut: Alt+Z (toggle).",
+    ): "エミュレータを一時停止し、登録済みディスクプロファイル／ステートを閲覧します。\n"
+    "閉じると現在のセッションを再開、エントリ選択で終了してそのタイトルを起動します。\n"
+    "ショートカット: Alt+Z（開閉）。",
+    
     ("MainWindow", "Audio mixer…"): "オーディオミキサー…",
     ("MainWindow", "Mouse integration debug"): "マウス統合デバッグ",
     ("SettingsDialog", "Mouse integration"): "マウス統合",
@@ -469,9 +479,9 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ): "このディスクのプロファイルがありません。基本構成の内容から作成してください。",
     (
         "SettingsDialog",
-        "Editing disc profile (amber block). Clock, memory, ports and options save to the profile;\n"
+        "Editing disc profile (selection highlight). Clock, memory, ports and options save to the profile;\n"
         "CPU and model stay global.",
-    ): "ディスクプロファイル編集中（琥珀色の枠内）。クロック・メモリ・ポート・オプションはプロファイルへ保存し、\n"
+    ): "ディスクプロファイル編集中（選択色の枠内）。クロック・メモリ・ポート・オプションはプロファイルへ保存し、\n"
     "CPU とモデルはグローバルのままです。",
     (
         "SettingsDialog",
@@ -481,15 +491,28 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ): "ディスクプロファイル (fp_XXXXXXXX.ini) を編集中です。適用または OK でここに表示している項目\n"
     "（クロック、メモリ、ポート、オプション）をプロファイルへ保存します。CPU とモデルは\n"
     "グローバル (townsqt.conf) のままプロファイルには保存しません。メモリ／忠実度の変更は再起動します。",
+    ("SettingsDialog", "Open content browser on startup"): "起動時にコンテンツブラウザを開く",
+    (
+        "SettingsDialog",
+        "When off, cold-start with global settings (HD configuration is kept;\n"
+        "CD / FD are not remounted). When on, open the content browser on startup.",
+    ): "オフのときはグローバル設定でコールドスタートします（HD構成は保持、CD / FDは再マウントしません）。\n"
+    "オンのときは起動時にコンテンツブラウザを開きます。",
+    ("ContentBrowserWidget", "Last autosave"): "最後の自動保存",
+    ("ContentBrowserWidget", "Double-click to resume"): "ダブルクリックで再開",
+    (
+        "ContentBrowserWidget",
+        "AUTOSAVE · %1 — double-click to resume",
+    ): "AUTOSAVE · %1 — ダブルクリックで再開",
     ("SettingsDialog", "Enable auto-resume"): "オートレジューム有効",
     (
         "SettingsDialog",
         "When a disc profile exists for the mounted CD image, automatically save\n"
-        "per-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
+        "per-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
         "and auto-resume on the next load. Manual restart with the same CD does not\n"
         "load a saved state. When off, state saves are neither auto-written nor auto-loaded.",
     ): "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了時に、\n"
-    "ディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n"
+    "ディスクごとのオートレジューム（state0_XXXXXXXX.TState）を自動保存し、\n"
     "次回読み込み時に自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\n"
     "オフのときは、ステートセーブの自動保存・自動読み込みを行いません。",
     ("SettingsDialog", "Compress state data"): "ステートデータ圧縮",
@@ -535,13 +558,13 @@ JA_FORCE: dict[tuple[str, str], str] = {
     "（FD0 / FD1 / HD0–HD6 のマウントと cmos/cmos_XXXXXXXX.bin の CMOS）。",
     (
         "SettingsDialog",
-        "Editing the disc profile (fp_XXXXXXXX.ini, amber block).\n"
+        "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\n"
         "Apply or OK saves clock, boot drive, memory, ports, options,\n"
         "and FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\n"
         "CMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\n"
         "CPU and model stay global in townsqt.conf and are not stored in the profile.\n"
         "Memory, boot drive, and CPU fidelity changes restart the emulator.",
-    ): "ディスクプロファイル (fp_XXXXXXXX.ini、琥珀色の枠) を編集中です。\n"
+    ): "ディスクプロファイル (fp_XXXXXXXX.ini、選択色の枠) を編集中です。\n"
     "適用または OK でクロック・起動ディスク・メモリ・ポート・オプション、\n"
     "および FD0 / FD1 / HD0–HD6 のマウント状態をプロファイルへ保存します（次回読込時に復元）。\n"
     "CMOS（ドライブレター・シングルドライブ）はこのディスク用の cmos/cmos_XXXXXXXX.bin を使います — Towns SETUP で設定。\n"
