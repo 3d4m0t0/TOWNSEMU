@@ -1497,6 +1497,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Compress state data",
+      "translation": "Compress state data"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off.",
+      "translation": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off."
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Faster mouse integration",
       "translation": "Faster mouse integration"
     },

@@ -1942,6 +1942,7 @@ void MainWindow::openSettingsDialog()
 		initial.appSpecificSetting=TownsQtSettings::appSpecificSetting();
 		initial.useDiscProfiles=true;
 		initial.autoResumeEnabled=TownsQtSettings::autoResumeEnabled();
+		initial.stateDataCompressionEnabled=TownsQtSettings::stateDataCompressionEnabled();
 		for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{
 		if(true==disc_profile_override_active_)
@@ -2585,6 +2586,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setMouseMaxY(effective.mouseMaxY);
 	TownsQtSettings::setAppSpecificSetting(effective.appSpecificSetting);
 	TownsQtSettings::setAutoResumeEnabled(effective.autoResumeEnabled);
+	TownsQtSettings::setStateDataCompressionEnabled(effective.stateDataCompressionEnabled);
 	updateWindowTitle();
 	for(int slot=0; slot<TownsQtSettings::kHddSlotCount; ++slot)
 	{

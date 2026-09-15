@@ -95,6 +95,7 @@ public:
 		/*! Always true (disc profiles are always enabled). */
 		bool useDiscProfiles=true;
 		bool autoResumeEnabled=true;
+		bool stateDataCompressionEnabled=false;
 		/*! Live disc profile state (not stored in townsqt.conf). */
 		bool discMounted=false;
 		bool discProfileAvailable=false;
@@ -257,6 +258,7 @@ private:
 	QLabel *basics_footer_label_=nullptr;
 
 	QCheckBox *auto_resume_enabled_=nullptr;
+	QCheckBox *state_data_compression_enabled_=nullptr;
 
 	QSpinBox *display_scale_=nullptr;
 	QCheckBox *scanline_15k_=nullptr;

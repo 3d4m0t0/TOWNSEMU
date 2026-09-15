@@ -238,6 +238,10 @@ void setUseDiscProfiles(bool enabled);
 bool autoResumeEnabled();
 void setAutoResumeEnabled(bool enabled);
 
+/*! zlib-compress .TState on save (Features). Load always accepts compressed and legacy. Default off. */
+bool stateDataCompressionEnabled();
+void setStateDataCompressionEnabled(bool enabled);
+
 /*! Hard-disk images for SCSI IDs 0..6 (TownsStartParameters::MAX_NUM_SCSI_DEVICES). */
 constexpr int kHddSlotCount=7;
 bool hddEnabled(int slot);

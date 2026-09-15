@@ -1497,6 +1497,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Compress state data",
+      "translation": "스테이트 데이터 압축"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off.",
+      "translation": "켜면 새로 쓰는 .TState를 zlib로 압축(디스크 절약, 저장 시 CPU 약간 증가).\n로드는 압축/비압축 모두 지원. 기본값: 끔."
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Faster mouse integration",
       "translation": "고속 마우스 통합"
     },

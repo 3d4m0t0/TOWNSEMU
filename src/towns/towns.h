@@ -963,7 +963,7 @@ public:
 	using VMBase::GetScheduledTasksText;
 
 
-	bool SaveState(std::string fName) const;
+	bool SaveState(std::string fName,bool compress=false) const;
 	bool LoadState(std::string fName);
 
 	std::vector <uint8_t> SaveStateMem(void) const;

@@ -1497,6 +1497,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Compress state data",
+      "translation": "State-Daten komprimieren"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off.",
+      "translation": "Ein: neue .TState-Dateien mit zlib komprimieren (weniger Speicherplatz,\netwas mehr CPU beim Speichern). Laden akzeptiert komprimierte und\nältere unkomprimierte States. Standard: aus."
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Faster mouse integration",
       "translation": "Schnellere Maus-Int."
     },

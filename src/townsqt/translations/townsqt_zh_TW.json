@@ -1497,6 +1497,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Compress state data",
+      "translation": "壓縮狀態資料"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off.",
+      "translation": "開啟後，新寫入的 .TState 以 zlib 壓縮（較省磁碟，儲存時 CPU 略增）。\n載入同時支援壓縮與舊版未壓縮。預設關閉。"
+    },
+    {
+      "context": "SettingsDialog",
       "source": "Faster mouse integration",
       "translation": "更快的滑鼠整合"
     },

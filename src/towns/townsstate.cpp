@@ -1,6 +1,10 @@
 #include <fstream>
+#include <cstring>
+#include <vector>
 
 #include "towns.h"
+
+#include <zlib.h>
 
 // Disk-image (Disc-image) search rule:
 // (1) Hard-disk image is not auto-mounted.
@@ -10,70 +14,213 @@
 // (5) Try state path+file name
 // (6) If floppy-disk image, use image stored in the state file.
 
-
-bool FMTownsCommon::SaveState(std::string fName) const
+namespace
 {
-	auto &cpu=CPU();
-	std::ofstream ofp(fName,std::ios::binary);
-	if(true==ofp.is_open())
+/*! Compressed on-disk state: "TSTC" + u32le version + u32le rawLen + u32le cmpLen + zlib.
+    Legacy uncompressed .TState still loads. */
+constexpr char kStateCompressMagic[4]={'T','S','T','C'};
+constexpr uint32_t kStateCompressVersion=1;
+constexpr int kStateCompressLevel=6;
+
+bool WriteUint32LE(std::ostream &os,uint32_t v)
+{
+	const unsigned char b[4]={
+	    static_cast<unsigned char>(v&0xffu),
+	    static_cast<unsigned char>((v>>8)&0xffu),
+	    static_cast<unsigned char>((v>>16)&0xffu),
+	    static_cast<unsigned char>((v>>24)&0xffu)};
+	os.write(reinterpret_cast<const char *>(b),4);
+	return os.good();
+}
+
+bool ReadUint32LE(std::istream &is,uint32_t &v)
+{
+	unsigned char b[4];
+	is.read(reinterpret_cast<char *>(b),4);
+	if(true!=is.good())
 	{
-		for(auto devPtr : DevicesToSaveState())
+		return false;
+	}
+	v=static_cast<uint32_t>(b[0])|
+	  (static_cast<uint32_t>(b[1])<<8)|
+	  (static_cast<uint32_t>(b[2])<<16)|
+	  (static_cast<uint32_t>(b[3])<<24);
+	return true;
+}
+
+bool CompressStateBlob(const std::vector <uint8_t> &raw,std::vector <uint8_t> &out)
+{
+	if(true==raw.empty())
+	{
+		return false;
+	}
+	const uLong bound=compressBound(static_cast<uLong>(raw.size()));
+	out.resize(static_cast<size_t>(bound));
+	uLongf destLen=bound;
+	const int rc=compress2(
+	    out.data(),
+	    &destLen,
+	    raw.data(),
+	    static_cast<uLong>(raw.size()),
+	    kStateCompressLevel);
+	if(Z_OK!=rc)
+	{
+		out.clear();
+		return false;
+	}
+	out.resize(static_cast<size_t>(destLen));
+	return true;
+}
+
+bool DecompressStateBlob(
+    const std::vector <uint8_t> &cmp,uint32_t rawLen,std::vector <uint8_t> &out)
+{
+	if(true==cmp.empty() || 0==rawLen)
+	{
+		return false;
+	}
+	out.resize(rawLen);
+	uLongf destLen=rawLen;
+	const int rc=uncompress(
+	    out.data(),
+	    &destLen,
+	    cmp.data(),
+	    static_cast<uLong>(cmp.size()));
+	if(Z_OK!=rc || destLen!=rawLen)
+	{
+		out.clear();
+		return false;
+	}
+	return true;
+}
+}
+
+bool FMTownsCommon::SaveState(std::string fName,bool compress) const
+{
+	if(true!=compress)
+	{
+		std::ofstream ofp(fName,std::ios::binary);
+		if(true!=ofp.is_open())
+		{
+			return false;
+		}
+		for(auto *devPtr : DevicesToSaveState())
 		{
 			auto dat=devPtr->Serialize(fName);
 			uint32_t len=(uint32_t)dat.size();
-
 			ofp.write((char *)&len,4);
 			ofp.write((char *)dat.data(),len);
 		}
 		ofp.flush();
-		return true;
+		return ofp.good();
 	}
-	return false;
+
+	const std::vector <uint8_t> raw=SaveStateMem();
+	if(true==raw.empty())
+	{
+		return false;
+	}
+	std::vector <uint8_t> compressed;
+	if(true!=CompressStateBlob(raw,compressed))
+	{
+		return false;
+	}
+	std::ofstream ofp(fName,std::ios::binary);
+	if(true!=ofp.is_open())
+	{
+		return false;
+	}
+	ofp.write(kStateCompressMagic,4);
+	if(true!=WriteUint32LE(ofp,kStateCompressVersion) ||
+	   true!=WriteUint32LE(ofp,static_cast<uint32_t>(raw.size())) ||
+	   true!=WriteUint32LE(ofp,static_cast<uint32_t>(compressed.size())))
+	{
+		return false;
+	}
+	ofp.write(reinterpret_cast<const char *>(compressed.data()),
+	          static_cast<std::streamsize>(compressed.size()));
+	ofp.flush();
+	return ofp.good();
 }
+
 bool FMTownsCommon::LoadState(std::string fName)
 {
 	std::ifstream ifp(fName,std::ios::binary);
-	if(true==ifp.is_open())
+	if(true!=ifp.is_open())
 	{
-		highResPCM.state.enabled=false; // If not read must be made by an old version, keep it disabled.
-		midi.Stop();
-		midi.EnableCards(0); // If no data, leave all disabled.
+		return false;
+	}
 
-		rex3586.DisconnectAll();
-		rex3586.state.enabled=false; // If not read, disable it.
-
-		while(true!=ifp.eof())
+	char magic[4]={};
+	ifp.read(magic,4);
+	if(4==ifp.gcount() && 0==std::memcmp(magic,kStateCompressMagic,4))
+	{
+		uint32_t version=0,rawLen=0,cmpLen=0;
+		if(true!=ReadUint32LE(ifp,version) ||
+		   true!=ReadUint32LE(ifp,rawLen) ||
+		   true!=ReadUint32LE(ifp,cmpLen) ||
+		   kStateCompressVersion!=version ||
+		   0==rawLen ||
+		   0==cmpLen)
 		{
-			uint32_t len=0;
-			ifp.read((char *)&len,4);
-			if(0==len)
+			return false;
+		}
+		std::vector <uint8_t> compressed(cmpLen);
+		ifp.read(reinterpret_cast<char *>(compressed.data()),
+		         static_cast<std::streamsize>(cmpLen));
+		if(static_cast<std::streamsize>(cmpLen)!=ifp.gcount())
+		{
+			return false;
+		}
+		std::vector <uint8_t> raw;
+		if(true!=DecompressStateBlob(compressed,rawLen,raw))
+		{
+			return false;
+		}
+		return LoadStateMem(raw);
+	}
+
+	// Legacy uncompressed .TState
+	ifp.clear();
+	ifp.seekg(0,std::ios::beg);
+
+	highResPCM.state.enabled=false; // If not read must be made by an old version, keep it disabled.
+	midi.Stop();
+	midi.EnableCards(0); // If no data, leave all disabled.
+
+	rex3586.DisconnectAll();
+	rex3586.state.enabled=false; // If not read, disable it.
+
+	while(true!=ifp.eof())
+	{
+		uint32_t len=0;
+		ifp.read((char *)&len,4);
+		if(0==len || true!=ifp.good())
+		{
+			break;
+		}
+
+		std::vector <unsigned char> data;
+		data.resize(len);
+		ifp.read((char *)data.data(),len);
+
+		bool successful=false;
+		for(auto *devPtr : DevicesToLoadState())
+		{
+			if(true==devPtr->Deserialize(data,fName))
 			{
+				successful=true;
 				break;
 			}
-
-			std::vector <unsigned char> data;
-			data.resize(len);
-			ifp.read((char *)data.data(),len);
-
-			bool successful=false;
-			for(auto devPtr : DevicesToLoadState())
-			{
-				if(true==devPtr->Deserialize(data,fName))
-				{
-					successful=true;
-					break;
-				}
-			}
-
-			if(true!=successful)
-			{
-				return false;
-			}
 		}
-		LoadStatePostProcess();
-		return true;
+
+		if(true!=successful)
+		{
+			return false;
+		}
 	}
-	return false;
+	LoadStatePostProcess();
+	return true;
 }
 
 std::vector <uint8_t> FMTownsCommon::SaveStateMem(void) const

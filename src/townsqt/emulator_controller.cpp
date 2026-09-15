@@ -469,7 +469,8 @@ namespace
 bool WriteStateSaveFileForTowns(FMTownsCommon &towns,const std::string &stdPath)
 {
 	const std::string tmpPath=stdPath+".tmp";
-	if(true!=towns.SaveState(tmpPath))
+	const bool compress=TownsQtSettings::stateDataCompressionEnabled();
+	if(true!=towns.SaveState(tmpPath,compress))
 	{
 		(void)QFile::remove(QString::fromStdString(tmpPath));
 		return false;

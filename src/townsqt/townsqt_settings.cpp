@@ -71,6 +71,7 @@ constexpr char kDifferentialMouseKey[]="peripheral/differential_mouse";
 constexpr char kAutoDiffOnMosUnusedKey[]="peripheral/auto_diff_on_mos_unused";
 constexpr char kUseDiscProfilesKey[]="function/use_disc_profiles";
 constexpr char kAutoResumeKey[]="function/auto_resume";
+constexpr char kStateDataCompressionKey[]="function/state_data_compression";
 constexpr char kAutoDiffOnMosUnusedLegacyKey[]="peripheral/auto_diff_on_mouse_bios_stop";
 constexpr char kMouseMinXKey[]="peripheral/mouse_min_x";
 constexpr char kMouseMinYKey[]="peripheral/mouse_min_y";
@@ -1705,6 +1706,19 @@ void TownsQtSettings::setAutoResumeEnabled(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kAutoResumeKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::stateDataCompressionEnabled()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kStateDataCompressionKey),false).toBool();
+}
+
+void TownsQtSettings::setStateDataCompressionEnabled(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kStateDataCompressionKey),enabled);
 	settings.sync();
 }
 

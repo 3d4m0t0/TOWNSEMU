@@ -492,6 +492,15 @@ JA_FORCE: dict[tuple[str, str], str] = {
     "ディスクごとのステートセーブ0番（state0_XXXXXXXX.TState）を自動保存し、\n"
     "次回読み込み時に自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\n"
     "オフのときは、ステートセーブの自動保存・自動読み込みを行いません。",
+    ("SettingsDialog", "Compress state data"): "ステートデータ圧縮",
+    (
+        "SettingsDialog",
+        "When on, newly written .TState files are zlib-compressed (smaller on disk,\n"
+        "slightly more CPU on save). Loading always accepts both compressed and\n"
+        "legacy uncompressed states. Default is off.",
+    ): "オンにすると、新規保存の .TState を zlib 圧縮します（ディスク上は小さくなりますが、\n"
+    "保存時の CPU 負荷が少し増えます）。読み込みは圧縮／従来の非圧縮の両方に対応します。\n"
+    "デフォルトはオフです。",
     ("SettingsDialog", "Boot drive"): "起動ディスク",
     ("SettingsDialog", "Drive configuration"): "ドライブ構成",
     (

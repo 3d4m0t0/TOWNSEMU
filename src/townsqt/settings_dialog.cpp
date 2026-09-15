@@ -360,6 +360,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.appSpecificSetting=TOWNS_APPSPECIFIC_NONE;
 	v.useDiscProfiles=true;
 	v.autoResumeEnabled=true;
+	v.stateDataCompressionEnabled=false;
 	v.discMounted=false;
 	v.discProfileAvailable=false;
 	v.discProfileCreateRequested=false;
@@ -1249,6 +1250,14 @@ void SettingsDialog::buildUi()
 		       "per-disc state save slot 0 (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
 		       "and auto-resume on the next load. Manual restart with the same CD does not\n"
 		       "load a saved state. When off, state saves are neither auto-written nor auto-loaded.")));
+
+		state_data_compression_enabled_=new QCheckBox(tr("Compress state data"),page);
+		v->addWidget(state_data_compression_enabled_);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("When on, newly written .TState files are zlib-compressed (smaller on disk,\n"
+		       "slightly more CPU on save). Loading always accepts both compressed and\n"
+		       "legacy uncompressed states. Default is off.")));
 
 		snap_mouse_integration_=new QCheckBox(tr("Faster mouse integration"),page);
 		v->addWidget(snap_mouse_integration_);
@@ -2406,6 +2415,10 @@ void SettingsDialog::loadFromValues(const Values &values)
 	{
 		auto_resume_enabled_->setChecked(values.autoResumeEnabled);
 	}
+	if(nullptr!=state_data_compression_enabled_)
+	{
+		state_data_compression_enabled_->setChecked(values.stateDataCompressionEnabled);
+	}
 	updateProfileTabControls();
 	updateFunctionTab();
 	updateAudioTabMidiSection();
@@ -2523,6 +2536,8 @@ void SettingsDialog::applyToValues(Values &out) const
 	}
 	out.useDiscProfiles=true;
 	out.autoResumeEnabled=nullptr!=auto_resume_enabled_ && auto_resume_enabled_->isChecked();
+	out.stateDataCompressionEnabled=
+	    nullptr!=state_data_compression_enabled_ && state_data_compression_enabled_->isChecked();
 	out.discMounted=values_.discMounted;
 	out.discProfileAvailable=values_.discProfileAvailable;
 	out.discProfileFileName=values_.discProfileFileName;
@@ -2692,6 +2707,11 @@ void SettingsDialog::resetCurrentTabToDefaults()
 		if(nullptr!=auto_resume_enabled_)
 		{
 			auto_resume_enabled_->setChecked(default_values_.autoResumeEnabled);
+		}
+		if(nullptr!=state_data_compression_enabled_)
+		{
+			state_data_compression_enabled_->setChecked(
+			    default_values_.stateDataCompressionEnabled);
 		}
 		if(nullptr!=idle_inhibit_)
 		{
