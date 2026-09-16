@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QPixmap>
+#include <QHash>
 #include <QWidget>
 
 #include "townsqt_content_library.h"
@@ -77,6 +78,14 @@ private:
 	/*! Same slot as EmuView in the central stack — VM draw area in host coords. */
 	QRect vmDisplayRectInHost(void) const;
 	QRect hoverOverlayRect(void) const;
+	/*! Decode state PNG once per (fp,slot); reuse until path/mtime changes or forceReload. */
+	QPixmap stateImageSource(
+	    unsigned int fingerprint,
+	    int slot,
+	    const QString &imgPath,
+	    bool forceReload=false);
+	void clearStateImageCache(void);
+	void invalidateStateImageCache(unsigned int fingerprint);
 	void onRegisterClicked(void);
 	void updateRegisterButton(void);
 	void onChangeIcon(unsigned int fingerprint);
@@ -112,4 +121,11 @@ private:
 	/*! After dblclick launch, ignore the trailing release (and any show) until next press. */
 	bool hover_block_show_until_press_=false;
 	QPoint hover_show_global_pos_;
+	struct StateImageCacheEntry
+	{
+		QString path;
+		qint64 mtimeMs=0;
+		QPixmap source;
+	};
+	QHash<quint64,StateImageCacheEntry> state_image_cache_;
 };

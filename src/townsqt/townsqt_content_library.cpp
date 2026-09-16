@@ -70,11 +70,14 @@ unsigned int FingerprintFromJsonValue(const QJsonValue &v)
 	}
 	return static_cast<unsigned int>(v.toVariant().toULongLong());
 }
-}
 
-TownsQtContentLibrary::Document TownsQtContentLibrary::LoadDocument(void)
+TownsQtContentLibrary::Document g_doc;
+bool g_loaded=false;
+bool g_dirty=false;
+
+TownsQtContentLibrary::Document ReadDocumentFromDisk(void)
 {
-	Document doc;
+	TownsQtContentLibrary::Document doc;
 	const QString path=TownsQtPaths::contentLibraryFilePath();
 	QFile file(path);
 	if(true!=file.open(QIODevice::ReadOnly))
@@ -107,7 +110,7 @@ TownsQtContentLibrary::Document TownsQtContentLibrary::LoadDocument(void)
 		{
 			continue;
 		}
-		Entry e=EntryFromJson(v.toObject());
+		TownsQtContentLibrary::Entry e=EntryFromJson(v.toObject());
 		if(0==e.fingerprint)
 		{
 			continue;
@@ -117,7 +120,7 @@ TownsQtContentLibrary::Document TownsQtContentLibrary::LoadDocument(void)
 	return doc;
 }
 
-bool TownsQtContentLibrary::SaveDocument(const Document &doc,QString *errorOut)
+bool WriteDocumentToDisk(const TownsQtContentLibrary::Document &doc,QString *errorOut)
 {
 	if(nullptr!=errorOut)
 	{
@@ -132,7 +135,7 @@ bool TownsQtContentLibrary::SaveDocument(const Document &doc,QString *errorOut)
 		return false;
 	}
 	QJsonArray arr;
-	for(const Entry &e : doc.entries)
+	for(const TownsQtContentLibrary::Entry &e : doc.entries)
 	{
 		arr.append(EntryToJson(e));
 	}
@@ -169,6 +172,51 @@ bool TownsQtContentLibrary::SaveDocument(const Document &doc,QString *errorOut)
 	}
 	return true;
 }
+}
+
+void TownsQtContentLibrary::EnsureLoaded(void)
+{
+	if(true==g_loaded)
+	{
+		return;
+	}
+	g_doc=ReadDocumentFromDisk();
+	g_loaded=true;
+	g_dirty=false;
+}
+
+bool TownsQtContentLibrary::FlushDirty(QString *errorOut)
+{
+	EnsureLoaded();
+	if(true!=g_dirty)
+	{
+		return true;
+	}
+	if(true!=WriteDocumentToDisk(g_doc,errorOut))
+	{
+		return false;
+	}
+	g_dirty=false;
+	return true;
+}
+
+TownsQtContentLibrary::Document TownsQtContentLibrary::LoadDocument(void)
+{
+	EnsureLoaded();
+	return g_doc;
+}
+
+bool TownsQtContentLibrary::SaveDocument(const Document &doc,QString *errorOut)
+{
+	EnsureLoaded();
+	g_doc=doc;
+	if(true!=WriteDocumentToDisk(g_doc,errorOut))
+	{
+		return false;
+	}
+	g_dirty=false;
+	return true;
+}
 
 QVector<TownsQtContentLibrary::Entry> TownsQtContentLibrary::Load(void)
 {
@@ -177,9 +225,11 @@ QVector<TownsQtContentLibrary::Entry> TownsQtContentLibrary::Load(void)
 
 bool TownsQtContentLibrary::Save(const QVector<Entry> &entries,QString *errorOut)
 {
-	Document doc=LoadDocument();
-	doc.entries=entries;
-	return SaveDocument(doc,errorOut);
+	(void)errorOut;
+	EnsureLoaded();
+	g_doc.entries=entries;
+	g_dirty=true;
+	return true;
 }
 
 int TownsQtContentLibrary::IndexOfFingerprint(const QVector<Entry> &entries,unsigned int fingerprint)
@@ -296,12 +346,13 @@ bool TownsQtContentLibrary::AddOrUpdateEntry(
 			return false;
 		}
 	}
-	QVector<Entry> entries=Load();
-	const int idx=IndexOfFingerprint(entries,fingerprint);
+	EnsureLoaded();
+	const int idx=IndexOfFingerprint(g_doc.entries,fingerprint);
+	const bool isNew=(0>idx);
 	Entry e;
-	if(0<=idx)
+	if(true!=isNew)
 	{
-		e=entries[idx];
+		e=g_doc.entries[idx];
 	}
 	else
 	{
@@ -316,21 +367,27 @@ bool TownsQtContentLibrary::AddOrUpdateEntry(
 	{
 		e.iconPath=QFileInfo(iconDest).fileName();
 	}
-	if(0<=idx)
+	if(true!=isNew)
 	{
-		entries[idx]=e;
+		g_doc.entries[idx]=e;
+		g_dirty=true;
+		return true;
 	}
-	else
+	g_doc.entries.push_back(e);
+	/*! New registration: persist immediately so a crash before exit still keeps the entry. */
+	if(true!=WriteDocumentToDisk(g_doc,errorOut))
 	{
-		entries.push_back(e);
+		g_doc.entries.removeLast();
+		return false;
 	}
-	return Save(entries,errorOut);
+	g_dirty=false;
+	return true;
 }
 
 bool TownsQtContentLibrary::SetDisplayName(unsigned int fingerprint,const QString &displayName,QString *errorOut)
 {
-	QVector<Entry> entries=Load();
-	const int idx=IndexOfFingerprint(entries,fingerprint);
+	EnsureLoaded();
+	const int idx=IndexOfFingerprint(g_doc.entries,fingerprint);
 	if(0>idx)
 	{
 		if(nullptr!=errorOut)
@@ -339,13 +396,14 @@ bool TownsQtContentLibrary::SetDisplayName(unsigned int fingerprint,const QStrin
 		}
 		return false;
 	}
-	entries[idx].displayName=displayName.trimmed();
-	if(entries[idx].displayName.isEmpty())
+	g_doc.entries[idx].displayName=displayName.trimmed();
+	if(g_doc.entries[idx].displayName.isEmpty())
 	{
-		entries[idx].displayName=
-		    DefaultDisplayName(entries[idx].cdImagePath,fingerprint);
+		g_doc.entries[idx].displayName=
+		    DefaultDisplayName(g_doc.entries[idx].cdImagePath,fingerprint);
 	}
-	return Save(entries,errorOut);
+	g_dirty=true;
+	return true;
 }
 
 bool TownsQtContentLibrary::SetIcon(
@@ -355,8 +413,8 @@ bool TownsQtContentLibrary::SetIcon(
 	{
 		errorOut->clear();
 	}
-	QVector<Entry> entries=Load();
-	const int idx=IndexOfFingerprint(entries,fingerprint);
+	EnsureLoaded();
+	const int idx=IndexOfFingerprint(g_doc.entries,fingerprint);
 	if(0>idx)
 	{
 		if(nullptr!=errorOut)
@@ -367,22 +425,24 @@ bool TownsQtContentLibrary::SetIcon(
 	}
 	if(iconSourcePath.isEmpty())
 	{
-		entries[idx].iconPath.clear();
-		return Save(entries,errorOut);
+		g_doc.entries[idx].iconPath.clear();
+		g_dirty=true;
+		return true;
 	}
 	const QString iconDest=CopyIconForFingerprint(fingerprint,iconSourcePath,errorOut);
 	if(iconDest.isEmpty())
 	{
 		return false;
 	}
-	entries[idx].iconPath=QFileInfo(iconDest).fileName();
-	return Save(entries,errorOut);
+	g_doc.entries[idx].iconPath=QFileInfo(iconDest).fileName();
+	g_dirty=true;
+	return true;
 }
 
 bool TownsQtContentLibrary::RemoveEntry(unsigned int fingerprint,QString *errorOut)
 {
-	Document doc=LoadDocument();
-	const int idx=IndexOfFingerprint(doc.entries,fingerprint);
+	EnsureLoaded();
+	const int idx=IndexOfFingerprint(g_doc.entries,fingerprint);
 	if(0>idx)
 	{
 		if(nullptr!=errorOut)
@@ -391,32 +451,34 @@ bool TownsQtContentLibrary::RemoveEntry(unsigned int fingerprint,QString *errorO
 		}
 		return false;
 	}
-	doc.entries.removeAt(idx);
-	if(doc.lastAutosaveFingerprint==fingerprint)
+	g_doc.entries.removeAt(idx);
+	if(g_doc.lastAutosaveFingerprint==fingerprint)
 	{
-		doc.lastAutosaveFingerprint=0;
-		doc.lastAutosaveMs=0;
+		g_doc.lastAutosaveFingerprint=0;
+		g_doc.lastAutosaveMs=0;
 	}
-	return SaveDocument(doc,errorOut);
+	g_dirty=true;
+	return true;
 }
 
 bool TownsQtContentLibrary::TouchLastLaunched(unsigned int fingerprint)
 {
-	QVector<Entry> entries=Load();
-	const int idx=IndexOfFingerprint(entries,fingerprint);
+	EnsureLoaded();
+	const int idx=IndexOfFingerprint(g_doc.entries,fingerprint);
 	if(0>idx)
 	{
 		return false;
 	}
-	entries[idx].lastLaunchedMs=QDateTime::currentMSecsSinceEpoch();
-	return Save(entries,nullptr);
+	g_doc.entries[idx].lastLaunchedMs=QDateTime::currentMSecsSinceEpoch();
+	g_dirty=true;
+	return true;
 }
 
 bool TownsQtContentLibrary::UpdateCdImagePath(
     unsigned int fingerprint,const QString &cdImagePath,QString *errorOut)
 {
-	Document doc=LoadDocument();
-	const int idx=IndexOfFingerprint(doc.entries,fingerprint);
+	EnsureLoaded();
+	const int idx=IndexOfFingerprint(g_doc.entries,fingerprint);
 	if(0>idx)
 	{
 		if(nullptr!=errorOut)
@@ -425,8 +487,9 @@ bool TownsQtContentLibrary::UpdateCdImagePath(
 		}
 		return false;
 	}
-	doc.entries[idx].cdImagePath=cdImagePath;
-	return SaveDocument(doc,errorOut);
+	g_doc.entries[idx].cdImagePath=cdImagePath;
+	g_dirty=true;
+	return true;
 }
 
 bool TownsQtContentLibrary::RecordLastAutosave(unsigned int fingerprint)
@@ -435,17 +498,19 @@ bool TownsQtContentLibrary::RecordLastAutosave(unsigned int fingerprint)
 	{
 		return false;
 	}
-	Document doc=LoadDocument();
-	if(0>IndexOfFingerprint(doc.entries,fingerprint))
+	EnsureLoaded();
+	if(0>IndexOfFingerprint(g_doc.entries,fingerprint))
 	{
 		return false;
 	}
-	doc.lastAutosaveFingerprint=fingerprint;
-	doc.lastAutosaveMs=QDateTime::currentMSecsSinceEpoch();
-	return SaveDocument(doc,nullptr);
+	g_doc.lastAutosaveFingerprint=fingerprint;
+	g_doc.lastAutosaveMs=QDateTime::currentMSecsSinceEpoch();
+	g_dirty=true;
+	return true;
 }
 
 unsigned int TownsQtContentLibrary::LastAutosaveFingerprint(void)
 {
-	return LoadDocument().lastAutosaveFingerprint;
+	EnsureLoaded();
+	return g_doc.lastAutosaveFingerprint;
 }

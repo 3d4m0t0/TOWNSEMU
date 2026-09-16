@@ -1599,6 +1599,9 @@ std::vector <unsigned char> TownsSCSI::MakeTOCData(int scsiId,unsigned int start
 
 void TownsSCSI::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSamples,int outSamplingRate)
 {
+	constexpr unsigned windowFrames=75u*8u;
+	constexpr unsigned refillFrames=75u*3u;
+
 	for(auto &d : state.dev)
 	{
 		if(DiscImage::AUDIO_SAMPLING_RATE!=outSamplingRate)
@@ -1606,6 +1609,43 @@ void TownsSCSI::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSam
 			std::cout << "TownsSCSI::AddWaveForNumSamples does not support other than " << DiscImage::AUDIO_SAMPLING_RATE << "Hz" << std::endl;
 			d.CDDAState=CDDA_STOPPING;
 			continue;
+		}
+
+		/*! Extend the host wave toward CDDAEndTime when headroom is low (windowed resume). */
+		if((CDDA_PLAYING==d.CDDAState || CDDA_PAUSED==d.CDDAState) &&
+		   true!=d.CDDAWave.empty())
+		{
+			const unsigned endHSG=d.CDDAEndTime.ToHSG();
+			const unsigned baseHSG=d.CDDABeginTime.ToHSG();
+			const unsigned waveBytes=(d.CDDAWave.size()+3u)&~3u;
+			const unsigned filledSectors=waveBytes/DiscImage::AUDIO_SECTOR_SIZE;
+			const unsigned filledEndHSG=baseHSG+filledSectors;
+			if(0!=endHSG && filledEndHSG<endHSG)
+			{
+				const unsigned playSectors=
+				    static_cast<unsigned>(d.CDDAPlayPointer/DiscImage::AUDIO_SECTOR_SIZE);
+				const unsigned remaining=
+				    (filledSectors>playSectors) ? (filledSectors-playSectors) : 0u;
+				if(remaining<refillFrames)
+				{
+					DiscImage::MinSecFrm from,to;
+					from.FromHSG(filledEndHSG);
+					unsigned lim=filledEndHSG+windowFrames;
+					if(endHSG<lim)
+					{
+						lim=endHSG;
+					}
+					to.FromHSG(lim);
+					if(to.ToHSG()>from.ToHSG())
+					{
+						auto chunk=d.discImg.GetWave(from,to);
+						if(true!=chunk.empty())
+						{
+							d.CDDAWave.insert(d.CDDAWave.end(),chunk.begin(),chunk.end());
+						}
+					}
+				}
+			}
 		}
 
 		auto CDDAWaveSize=(d.CDDAWave.size()+3)&~3;  // Just in case, force it to be 4*N.
@@ -1658,18 +1698,84 @@ void TownsSCSI::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSam
 
 void TownsSCSI::ResumeCDDAAfterRestore(void)
 {
+	/*! Match internal CDROM: load a short window from the playhead, not the
+	    whole PLAY range. AddWaveForNumSamples extends toward CDDAEndTime. */
+	constexpr unsigned windowFrames=75u*8u;
+
 	for(auto &d : state.dev)
 	{
 		if(SCSIDEVICE_CDROM!=d.devType)
 		{
 			continue;
 		}
-		// Drop previous-session host wave; rebuild only when the state is playing/paused.
 		d.CDDAWave.clear();
-		if(CDDA_PLAYING==d.CDDAState || CDDA_PAUSED==d.CDDAState)
+		if(CDDA_PLAYING!=d.CDDAState && CDDA_PAUSED!=d.CDDAState)
 		{
-			d.CDDAWave=d.discImg.GetWave(d.CDDABeginTime,d.CDDAEndTime);
-			// state.CDDAPlayPointer should have already been set.
+			continue;
+		}
+
+		const unsigned beginHSG=d.CDDABeginTime.ToHSG();
+		const unsigned endHSG=d.CDDAEndTime.ToHSG();
+		if(0==endHSG || endHSG<=beginHSG)
+		{
+			d.CDDAPlayPointer=0;
+			continue;
+		}
+
+		unsigned playSectors=
+		    static_cast<unsigned>(d.CDDAPlayPointer/DiscImage::AUDIO_SECTOR_SIZE);
+		unsigned playHSG=beginHSG+playSectors;
+		if(playHSG>=endHSG)
+		{
+			playHSG=endHSG-1u;
+		}
+
+		unsigned baseHSG=beginHSG;
+		if(playHSG>baseHSG+windowFrames)
+		{
+			baseHSG=playHSG;
+			d.CDDABeginTime.FromHSG(baseHSG);
+			d.CDDAPlayPointer=0;
+		}
+
+		unsigned loadEnd=baseHSG+windowFrames;
+		if(endHSG<loadEnd)
+		{
+			loadEnd=endHSG;
+		}
+		if(playHSG>=loadEnd && playHSG<endHSG)
+		{
+			loadEnd=playHSG+windowFrames;
+			if(endHSG<loadEnd)
+			{
+				loadEnd=endHSG;
+			}
+		}
+
+		DiscImage::MinSecFrm from,to;
+		from.FromHSG(baseHSG);
+		to.FromHSG(loadEnd);
+		d.CDDAWave=d.discImg.GetWave(from,to);
+
+		const unsigned waveBytes=(d.CDDAWave.size()+3u)&~3u;
+		const unsigned sectors=waveBytes/DiscImage::AUDIO_SECTOR_SIZE;
+		if(0==sectors || playHSG<baseHSG)
+		{
+			d.CDDAPlayPointer=0;
+		}
+		else if(baseHSG==beginHSG)
+		{
+			unsigned rel=playHSG-baseHSG;
+			if(rel>=sectors)
+			{
+				rel=sectors-1u;
+			}
+			const unsigned off=rel*DiscImage::AUDIO_SECTOR_SIZE;
+			d.CDDAPlayPointer=(off<d.CDDAWave.size()) ? off : 0;
+		}
+		else
+		{
+			d.CDDAPlayPointer=0;
 		}
 	}
 }

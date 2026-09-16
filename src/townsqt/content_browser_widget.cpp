@@ -70,16 +70,10 @@ constexpr char kPropLaunchPath[]="townsqtLaunchPath";
 constexpr char kPropLaunchSlot[]="townsqtLaunchSlot";
 constexpr char kPropStateExists[]="townsqtStateExists";
 
-QPixmap ComposeThumb43(const QString &path,int w,int h)
+QPixmap ComposeThumb43FromPixmap(const QPixmap &pm,int w,int h)
 {
 	QPixmap canvas(w,h);
-	if(path.isEmpty())
-	{
-		canvas.fill(Qt::darkGray);
-		return canvas;
-	}
-	QPixmap pm;
-	if(true!=pm.load(path))
+	if(true==pm.isNull())
 	{
 		canvas.fill(Qt::darkGray);
 		return canvas;
@@ -91,6 +85,20 @@ QPixmap ComposeThumb43(const QString &path,int w,int h)
 	p.drawPixmap((w-scaled.width())/2,(h-scaled.height())/2,scaled);
 	p.end();
 	return canvas;
+}
+
+QPixmap ComposeThumb43(const QString &path,int w,int h)
+{
+	if(path.isEmpty())
+	{
+		return ComposeThumb43FromPixmap(QPixmap(),w,h);
+	}
+	QPixmap pm;
+	if(true!=pm.load(path))
+	{
+		return ComposeThumb43FromPixmap(QPixmap(),w,h);
+	}
+	return ComposeThumb43FromPixmap(pm,w,h);
 }
 
 /*! White fill with 1px black outline (offset draw; works at small pixel sizes). */
@@ -151,24 +159,15 @@ void PaintStateLabels(QPainter &p,int w,int h,int slot,const QString &timeText,i
 	DrawOutlinedText(p,timeR,timeText,Qt::AlignCenter);
 }
 
-QPixmap ComposeStateThumb(const QString &path,int w,int h,int slot,const QString &timeText,int fontPx)
+QPixmap ComposeStateThumbFromSource(
+    const QPixmap &source,int w,int h,int slot,const QString &timeText,int fontPx)
 {
-	QPixmap canvas=ComposeThumb43(path,w,h);
+	QPixmap canvas=ComposeThumb43FromPixmap(source,w,h);
 	QPainter p(&canvas);
 	p.setRenderHint(QPainter::TextAntialiasing,true);
 	PaintStateLabels(p,w,h,slot,timeText,fontPx);
 	p.end();
 	return canvas;
-}
-
-QPixmap LoadHoverSource(const QString &path)
-{
-	QPixmap pm;
-	if(path.isEmpty() || true!=pm.load(path))
-	{
-		return {};
-	}
-	return pm;
 }
 
 QString FormatStateTime(const QString &statePath)
@@ -409,7 +408,61 @@ int ContentBrowserWidget::stateGridColumns(const StateUiMetrics &metrics) const
 
 void ContentBrowserWidget::reload(void)
 {
+	clearStateImageCache();
 	rebuildList(false);
+}
+
+void ContentBrowserWidget::clearStateImageCache(void)
+{
+	state_image_cache_.clear();
+}
+
+void ContentBrowserWidget::invalidateStateImageCache(unsigned int fingerprint)
+{
+	if(0==fingerprint)
+	{
+		return;
+	}
+	for(int slot=0; slot<=9; ++slot)
+	{
+		state_image_cache_.remove((static_cast<quint64>(fingerprint)<<4)|static_cast<unsigned>(slot&15));
+	}
+}
+
+QPixmap ContentBrowserWidget::stateImageSource(
+    unsigned int fingerprint,
+    int slot,
+    const QString &imgPath,
+    bool forceReload)
+{
+	const quint64 key=(static_cast<quint64>(fingerprint)<<4)|static_cast<unsigned>(slot&15);
+	if(imgPath.isEmpty())
+	{
+		state_image_cache_.remove(key);
+		return {};
+	}
+	const QFileInfo fi(imgPath);
+	const qint64 mtimeMs=
+	    (true==fi.exists()) ? fi.lastModified().toMSecsSinceEpoch() : 0;
+	if(true!=forceReload)
+	{
+		const auto it=state_image_cache_.constFind(key);
+		if(it!=state_image_cache_.cend() &&
+		   it->path==imgPath &&
+		   it->mtimeMs==mtimeMs)
+		{
+			return it->source;
+		}
+	}
+	StateImageCacheEntry entry;
+	entry.path=imgPath;
+	entry.mtimeMs=mtimeMs;
+	if(true!=entry.source.load(imgPath))
+	{
+		entry.source=QPixmap();
+	}
+	state_image_cache_.insert(key,entry);
+	return entry.source;
 }
 
 void ContentBrowserWidget::refreshStateSlot(unsigned int fingerprint,int slot)
@@ -425,9 +478,11 @@ void ContentBrowserWidget::refreshStateSlot(unsigned int fingerprint,int slot)
 	const QString imgPath=exists ?
 	    TownsQtDiscStateSave::StateSlotImagePath(slot,fingerprint) : QString();
 	const QString timeText=FormatStateTime(exists ? statePath : QString());
-	const QPixmap thumbPm=ComposeStateThumb(
-	    imgPath,metrics.thumbW,metrics.thumbH,slot,timeText,metrics.fontPx);
-	const QPixmap hoverPm=LoadHoverSource(imgPath);
+	/*! State file changed — reload PNG into cache once, then derive thumb + hover. */
+	const QPixmap source=stateImageSource(fingerprint,slot,imgPath,true);
+	const QPixmap thumbPm=ComposeStateThumbFromSource(
+	    source,metrics.thumbW,metrics.thumbH,slot,timeText,metrics.fontPx);
+	const QPixmap &hoverPm=source;
 
 	for(QWidget *w : list_host_->findChildren<QWidget*>())
 	{
@@ -1071,15 +1126,15 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 
 				auto *thumb=new QLabel(pin);
 				thumb->setFixedSize(metrics.thumbW,metrics.thumbH);
-				thumb->setPixmap(ComposeStateThumb(
-				    imgPath,metrics.thumbW,metrics.thumbH,0,timeText,metrics.fontPx));
+				const QPixmap source=stateImageSource(last.fingerprint,0,imgPath,false);
+				thumb->setPixmap(ComposeStateThumbFromSource(
+				    source,metrics.thumbW,metrics.thumbH,0,timeText,metrics.fontPx));
 				thumb->setAlignment(Qt::AlignCenter);
 				thumb->setCursor(Qt::PointingHandCursor);
 				thumb->setToolTip(tr("Double-click to resume"));
-				const QPixmap hoverPm=LoadHoverSource(imgPath);
-				if(true!=hoverPm.isNull())
+				if(true!=source.isNull())
 				{
-					thumb->setProperty(kPropHoverPixmap,QVariant::fromValue(hoverPm));
+					thumb->setProperty(kPropHoverPixmap,QVariant::fromValue(source));
 					thumb->setProperty(kPropHoverSlot,0);
 					thumb->setProperty(kPropHoverTime,timeText);
 					thumb->setAttribute(Qt::WA_Hover,true);
@@ -1228,8 +1283,9 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 
 				auto *thumb=new QLabel(cell);
 				thumb->setFixedSize(metrics.thumbW,metrics.thumbH);
-				thumb->setPixmap(ComposeStateThumb(
-				    imgPath,metrics.thumbW,metrics.thumbH,slot,timeText,metrics.fontPx));
+				const QPixmap source=stateImageSource(e.fingerprint,slot,imgPath,false);
+				thumb->setPixmap(ComposeStateThumbFromSource(
+				    source,metrics.thumbW,metrics.thumbH,slot,timeText,metrics.fontPx));
 				thumb->setAlignment(Qt::AlignCenter);
 				thumb->setAttribute(Qt::WA_TransparentForMouseEvents);
 				lay->addWidget(thumb);
@@ -1241,10 +1297,9 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 				cell->setAttribute(Qt::WA_Hover,true);
 				cell->installEventFilter(this);
 
-				const QPixmap hoverPm=LoadHoverSource(imgPath);
-				if(true!=hoverPm.isNull())
+				if(true!=source.isNull())
 				{
-					cell->setProperty(kPropHoverPixmap,QVariant::fromValue(hoverPm));
+					cell->setProperty(kPropHoverPixmap,QVariant::fromValue(source));
 					cell->setProperty(kPropHoverSlot,slot);
 					cell->setProperty(kPropHoverTime,timeText);
 				}

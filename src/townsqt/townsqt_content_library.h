@@ -25,10 +25,18 @@ struct Document
 	qint64 lastAutosaveMs=0;
 };
 
+/*! Load JSON once into the in-memory pool (no-op if already loaded). */
+void EnsureLoaded(void);
+/*! Write the pool to disk if dirty (call on app exit). */
+bool FlushDirty(QString *errorOut=nullptr);
+
+/*! Snapshot of the in-memory pool (loads from disk on first use). */
 Document LoadDocument(void);
+/*! Replace the pool and write immediately. */
 bool SaveDocument(const Document &doc,QString *errorOut=nullptr);
 
 QVector<Entry> Load(void);
+/*! Replace entries in the pool; marks dirty (does not write until FlushDirty / new add). */
 bool Save(const QVector<Entry> &entries,QString *errorOut=nullptr);
 
 int IndexOfFingerprint(const QVector<Entry> &entries,unsigned int fingerprint);
@@ -38,7 +46,8 @@ QString DefaultDisplayName(const QString &cdImagePath,unsigned int fingerprint);
 /*! Copy image into content_icons/<fp>.<ext>; returns absolute dest or empty. */
 QString CopyIconForFingerprint(unsigned int fingerprint,const QString &sourceImagePath,QString *errorOut=nullptr);
 
-/*! Upsert by fingerprint. Requires existing disc profile. */
+/*! Upsert by fingerprint. Requires existing disc profile.
+    New entries are written to disk immediately; updates stay in-memory until FlushDirty. */
 bool AddOrUpdateEntry(
     unsigned int fingerprint,
     const QString &cdImagePath,

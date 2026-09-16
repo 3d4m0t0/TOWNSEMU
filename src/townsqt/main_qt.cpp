@@ -13,6 +13,7 @@
 #include "townsparam.h"
 #include "i486.h"
 #include "townsqt_argv_from_settings.h"
+#include "townsqt_content_library.h"
 #include "townsqt_i18n.h"
 #include "townsqt_cpu_profile.h"
 #include "townsqt_model_profile.h"
@@ -359,6 +360,7 @@ int main(int argc,char *argv[])
 		fprintf(stderr,"Tsugaru_QT: failed to create config directory.\n");
 		return 1;
 	}
+	TownsQtContentLibrary::EnsureLoaded();
 
 	TownsARGV townsArgv;
 	if(true!=townsArgv.AnalyzeCommandParameter(argc,argv))
@@ -530,6 +532,10 @@ int main(int argc,char *argv[])
 
 	MainWindow window(townsArgv,TownsQtSettings::displayScale());
 	window.show();
+
+	QObject::connect(&app,&QCoreApplication::aboutToQuit,[](){
+		TownsQtContentLibrary::FlushDirty(nullptr);
+	});
 
 	return app.exec();
 }

@@ -64,16 +64,35 @@ unsigned int TownsCDROM::AsyncWaveReader::GetState(void)
 void TownsCDROM::AsyncWaveReader::Start(DiscImage *discImg,DiscImage::MinSecFrm from,DiscImage::MinSecFrm to)
 {
 	auto st=GetState();
-	if(STATE_BUSY==st)
+	if(STATE_BUSY==st || STATE_DATAREADY==st)
 	{
 		stateLock.lock();
-		this->discImg=discImg;
-		this->from=from;
-		this->to=to;
-		restartRequested=true;
-		cancelRequested=false;
+		const bool sameRange=
+		    this->discImg==discImg &&
+		    this->from==from &&
+		    this->to==to &&
+		    true!=cancelRequested;
+		if(true==sameRange)
+		{
+			/*! Same window already filling or ready — do not discard and re-read. */
+			if(STATE_BUSY==st)
+			{
+				restartRequested=false;
+			}
+			stateLock.unlock();
+			return;
+		}
+		if(STATE_BUSY==st)
+		{
+			this->discImg=discImg;
+			this->from=from;
+			this->to=to;
+			restartRequested=true;
+			cancelRequested=false;
+			stateLock.unlock();
+			return;
+		}
 		stateLock.unlock();
-		return;
 	}
 	if(STATE_DATAREADY==st)
 	{
@@ -518,6 +537,8 @@ void TownsCDROM::DiscardCDDAWaveCache(void)
 	state.CDDAPrefetchWaitForMode=false;
 	state.modeDeferredSeekTime=0;
 	state.modeSectorEmptyRetries=0;
+	/*! Cancel first so we do not finish an in-flight window only to discard it. */
+	waveReader.RequestCancel();
 	WaitUntilAsyncWaveReaderFinished();
 }
 
@@ -537,6 +558,7 @@ void TownsCDROM::DiscardHostCDDACacheForStateLoad(void)
 	state.CDDAPrefetchWaitForMode=false;
 	state.modeDeferredSeekTime=0;
 	state.modeSectorEmptyRetries=0;
+	waveReader.RequestCancel();
 	WaitUntilAsyncWaveReaderFinished();
 }
 
