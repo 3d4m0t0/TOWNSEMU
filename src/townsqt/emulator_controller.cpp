@@ -31,6 +31,7 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QTimer>
 #include <QVariantMap>
@@ -513,29 +514,33 @@ void WriteStateSaveScreenshot(
 	CaptureTownsPngScreenshot(towns,cmd,pngPath.toStdString());
 }
 
-/*! Lowest free screenshotNN_<fp>.png under imageDir (NN=00..99); overwrite 00 if full. */
-QString AllocateManualScreenshotPath(unsigned int fingerprintHash32)
+/*! Lowest free <cdBase>_NN.png under imageDir (NN=00..99); overwrite _00 if full. */
+QString AllocateManualScreenshotPath(const QString &cdImagePath)
 {
 	const QString dir=TownsQtPaths::imageDir();
 	if(true!=QDir().mkpath(dir))
 	{
 		return {};
 	}
-	const QString hash=
-	    QStringLiteral("%1").arg(fingerprintHash32,8,16,QLatin1Char('0'));
+	QString base=QFileInfo(cdImagePath).completeBaseName();
+	if(true==base.isEmpty())
+	{
+		base=QStringLiteral("screenshot");
+	}
+	base.replace(QRegularExpression(QStringLiteral(R"([/\\:*?"<>|])")),QStringLiteral("_"));
 	for(int n=0; n<100; ++n)
 	{
 		const QString name=
-		    QStringLiteral("screenshot%1_%2.png")
-		        .arg(n,2,10,QLatin1Char('0'))
-		        .arg(hash);
+		    QStringLiteral("%1_%2.png")
+		        .arg(base)
+		        .arg(n,2,10,QLatin1Char('0'));
 		const QString path=dir+QLatin1Char('/')+name;
 		if(true!=QFile::exists(path))
 		{
 			return path;
 		}
 	}
-	return dir+QLatin1Char('/')+QStringLiteral("screenshot00_")+hash+QStringLiteral(".png");
+	return dir+QLatin1Char('/')+base+QStringLiteral("_00.png");
 }
 }
 
@@ -1975,7 +1980,12 @@ QString EmulatorController::saveManualScreenshot(void)
 	{
 		return {};
 	}
-	const QString pngPath=AllocateManualScreenshotPath(fingerprint);
+	QString cdPath=cd_path_;
+	if(true==cdPath.isEmpty())
+	{
+		cdPath=QString::fromStdString(towns_->cdrom.state.GetDisc().fName);
+	}
+	const QString pngPath=AllocateManualScreenshotPath(cdPath);
 	if(pngPath.isEmpty())
 	{
 		return {};

@@ -163,7 +163,7 @@ public Q_SLOTS:
 	Q_INVOKABLE bool saveStateSlot(int slot);
 	/*! Save state0_XXXXXXXX.TState when a disc profile is active (emulator thread only). */
 	Q_INVOKABLE bool saveDiscStateSaveIfProfiled(bool resume_run_after=true);
-	/*! Pause VM, capture PNG to XDG Pictures (screenshotNN_<fp>.png, NN=00..99).
+	/*! Pause VM, capture PNG to XDG Pictures (<cdBase>_NN.png, NN=00..99).
 	    Returns the written path, or empty on failure. */
 	Q_INVOKABLE QString saveManualScreenshot(void);
 	/*! When disc profiles are enabled and loaded, write HD0 path into fp_*.ini. */

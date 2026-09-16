@@ -26,7 +26,7 @@ QString stateSaveDir();
 /*! State-save screenshots: <configDir>/statesave/image/stateN_XXXXXXXX.png */
 QString stateSaveImageDir();
 /*! Manual Tools→Screenshot: XDG Pictures (QStandardPaths::PicturesLocation),
-    e.g. ~/Pictures or ~/ピクチャ — screenshotNN_XXXXXXXX.png */
+    e.g. ~/Pictures or ~/ピクチャ — <CDROM basename>_NN.png (NN=00..99) */
 QString imageDir();
 /*! Content browser library JSON: <configDir>/content_library.json */
 QString contentLibraryFilePath();

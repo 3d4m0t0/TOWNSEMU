@@ -1135,7 +1135,7 @@ void MainWindow::setupMenuBar()
 	screenshot_action_=toolsMenu->addAction(tr("Screenshot"));
 	screenshot_action_->setToolTip(
 	    tr("Save a PNG under the Pictures folder (XDG Pictures)\n"
-	       "as screenshotNN_<disc fingerprint>.png (NN=00..99)."));
+	       "as <CDROM filename>_NN.png (NN=00..99)."));
 	connect(screenshot_action_,&QAction::triggered,this,&MainWindow::saveScreenshotFromMenu);
 	syncScreenshotAction();
 	toolsMenu->addSeparator();

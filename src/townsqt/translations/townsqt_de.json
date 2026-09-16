@@ -597,7 +597,7 @@
     },
     {
       "context": "MainWindow",
-      "source": "Save a PNG under the Pictures folder (XDG Pictures)\nas screenshotNN_<disc fingerprint>.png (NN=00..99).",
+      "source": "Save a PNG under the Pictures folder (XDG Pictures)\nas <CDROM filename>_NN.png (NN=00..99).",
       "translation": "Speichert ein PNG im Bilder-Ordner (XDG Pictures)\nals screenshotNN_<Disc-Fingerprint>.png (NN=00..99)."
     },
     {

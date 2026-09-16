@@ -597,8 +597,8 @@
     },
     {
       "context": "MainWindow",
-      "source": "Save a PNG under the Pictures folder (XDG Pictures)\nas screenshotNN_<disc fingerprint>.png (NN=00..99).",
-      "translation": "ピクチャフォルダ（XDG Pictures）に PNG を保存します。\nファイル名は screenshotNN_<ディスク指紋>.png（NN=00..99）。"
+      "source": "Save a PNG under the Pictures folder (XDG Pictures)\nas <CDROM filename>_NN.png (NN=00..99).",
+      "translation": "ピクチャフォルダ（XDG Pictures）に PNG を保存します。\nファイル名は <CDROMファイル名>_NN.png（NN=00..99）。"
     },
     {
       "context": "MainWindow",
