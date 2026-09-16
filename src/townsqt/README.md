@@ -63,7 +63,7 @@ Main differences from `Tsugaru_CUI`:
 * **Mouse integration** — Writing coordinates into guest memory reduces pointer latency. App-specific mode can use a DS.base offset so CMOS and other environment changes are less likely to break mapping. Modes are simplified to **Default** and **Mouse capture** (Default priority: app Phys → Mouse BIOS (MOS) → capture). Middle button switches to capture even during app/MOS integration. Offset-aware presets are bundled.
 * **CPU core and memory wait** — Compatible and 16 MHz use i386 instruction timing; other speeds use i486-class timing. A separate per-instruction cycle table (distinct from i486) emulates i386 execution speed. RAM/VRAM waits are also modeled, bringing Compatible mode closer to real hardware (see table).
 * **Auto-resume** — When a disc profile is active, saves state on exit and restores it on the next launch.
-* **CDDA cache** — CD audio (CDDA) is prefetched so data-track reads do not interrupt playback.
+* **CDDA cache** — CD audio (CDDA) is read-ahead in short windows so data-track reads do not interrupt playback.
 * **CD images** — In addition to the CD-ROM image formats Tsugaru already supports, `.chd` is accepted.
 * **MIDI** — Software synthesis via FluidSynth (a separate package is required). Only GS-oriented SysEx is handled at present. A GS SoundFont is recommended.
 * **Wayland idle-inhibit** — Suppresses screen sleep / screensaver while running.

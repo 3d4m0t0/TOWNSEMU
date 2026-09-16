@@ -239,7 +239,7 @@ void setSnapMouseIntegration(bool enabled);
 int snapMouseWarmupFrames();
 void setSnapMouseWarmupFrames(int frames);
 
-/*! Bulk-prefetch CDDA and keep playing through data reads. */
+/*! Prefetch CDDA ahead of the play pointer and keep playing through data reads. */
 bool cddaCacheDuringDataRead();
 void setCddaCacheDuringDataRead(bool enabled);
 /*! Seconds until playback is considered finished after a data-read burst. */

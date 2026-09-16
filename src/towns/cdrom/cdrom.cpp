@@ -15,11 +15,33 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <iostream>
 #include <sstream>
 #include <math.h>
+#include <algorithm>
 #include "discimg.h"
 #include "cdrom.h"
 #include "townsdef.h"
 #include "towns.h"
 #include "cpputil.h"
+
+namespace
+{
+/*! Exclusive end MSF for a prefetch window starting at `from`, capped by play end. */
+DiscImage::MinSecFrm CDDAPrefetchWindowEnd(
+    DiscImage::MinSecFrm from,
+    DiscImage::MinSecFrm playEnd,
+    unsigned int windowFrames)
+{
+	const unsigned fromHSG=from.ToHSG();
+	const unsigned endHSG=playEnd.ToHSG();
+	unsigned lim=fromHSG+windowFrames;
+	if(endHSG<lim)
+	{
+		lim=endHSG;
+	}
+	DiscImage::MinSecFrm to;
+	to.FromHSG(lim);
+	return to;
+}
+}
 
 TownsCDROM::AsyncWaveReader::AsyncWaveReader()
 {
@@ -112,7 +134,8 @@ void TownsCDROM::AsyncWaveReader::RequestCancel(void)
 }
 void TownsCDROM::AsyncWaveReader::ThreadFunc(void)
 {
-	// Chunked prefetch so RequestCancel can release the disc for MODE.
+	// Chunked read so RequestCancel can release the disc for MODE between chunks.
+	// Callers pass a short window (not the whole PLAY range) to limit storage I/O.
 	// CUE/ISO: larger chunks (1s) — open/seek overhead dominates; cancel within ~1s is enough.
 	// CHD: keep small chunks — hunk decompress is slower per call.
 	for(;;)
@@ -331,6 +354,8 @@ void TownsCDROM::UpdateCDDAStateInternal(long long int townsTime)
 			state.CDDAAudioOutput=false;
 		}
 	}
+
+	ServiceCDDAWavePrefetch();
 }
 
 unsigned int TownsCDROM::GuestAbsHSG(long long int townsTime) const
@@ -1919,8 +1944,100 @@ void TownsCDROM::PrepareCDDAPlay(void)
 		state.CDDACacheAwaitModeAfterPause=false;
 	}
 
-	waveReader.Start(&state.GetDisc(),msfBegin,msfEnd);
+	waveReader.Start(
+	    &state.GetDisc(),
+	    msfBegin,
+	    CDDAPrefetchWindowEnd(msfBegin,msfEnd,CDDA_PREFETCH_WINDOW_FRAMES));
 	// Host silent until install; guest SubQ already advances from begin.
+}
+
+void TownsCDROM::ServiceCDDAWavePrefetch(void)
+{
+	if(true==state.CDDAWave.empty() && true!=state.CDDAAudioOutput)
+	{
+		return;
+	}
+	// Do not contend with MODE / deferred MODE after cancel.
+	if(true==state.dataTransferActive || true==state.CDDAPrefetchWaitForMode)
+	{
+		return;
+	}
+	if(CDDA_PLAYING!=state.CDDAState &&
+	   CDDA_PAUSED!=state.CDDAState &&
+	   true!=state.CDDAAudioOutput)
+	{
+		return;
+	}
+
+	const unsigned endHSG=state.CDDAEndTime.ToHSG();
+	const unsigned baseHSG=state.CDDAWaveBaseTime.ToHSG();
+	if(0==endHSG || endHSG<=baseHSG)
+	{
+		return;
+	}
+
+	const unsigned int waveSt=waveReader.GetState();
+	if(AsyncWaveReader::STATE_DATAREADY==waveSt)
+	{
+		auto &chunk=waveReader.GetWave();
+		if(true!=chunk.empty())
+		{
+			state.CDDAWave.insert(state.CDDAWave.end(),chunk.begin(),chunk.end());
+			if((CDDA_PLAYING==state.CDDAState || CDDA_PAUSED==state.CDDAState) &&
+			   state.CDDAPlayPointer<state.CDDAWave.size())
+			{
+				state.CDDAAudioOutput=true;
+			}
+			if(true==var.cddaCacheDuringDataRead)
+			{
+				std::ostringstream oss;
+				oss << "[CACHE] prefetch append +" << chunk.size()
+				    << "B total=" << state.CDDAWave.size()
+				    << " ptr=" << state.CDDAPlayPointer;
+				LogMonitorLine(oss.str());
+			}
+		}
+		return;
+	}
+	if(AsyncWaveReader::STATE_BUSY==waveSt)
+	{
+		return;
+	}
+
+	const unsigned waveBytes=(state.CDDAWave.size()+3u)&~3u;
+	const unsigned filledSectors=waveBytes/DiscImage::AUDIO_SECTOR_SIZE;
+	const unsigned filledEndHSG=baseHSG+filledSectors;
+	if(filledEndHSG>=endHSG)
+	{
+		return;
+	}
+
+	const unsigned playSectors=state.CDDAPlayPointer/DiscImage::AUDIO_SECTOR_SIZE;
+	const unsigned remaining=
+	    (filledSectors>playSectors) ? (filledSectors-playSectors) : 0u;
+	if(remaining>=CDDA_PREFETCH_REFILL_FRAMES)
+	{
+		return;
+	}
+
+	DiscImage::MinSecFrm from;
+	from.FromHSG(filledEndHSG);
+	const DiscImage::MinSecFrm to=
+	    CDDAPrefetchWindowEnd(from,state.CDDAEndTime,CDDA_PREFETCH_WINDOW_FRAMES);
+	if(to.ToHSG()<=from.ToHSG())
+	{
+		return;
+	}
+
+	waveReader.Start(&state.GetDisc(),from,to);
+	if(true==var.cddaCacheDuringDataRead)
+	{
+		std::ostringstream oss;
+		oss << "[CACHE] prefetch extend HSG " << from.ToHSG()
+		    << ".." << to.ToHSG()
+		    << " (remainSectors=" << remaining << ")";
+		LogMonitorLine(oss.str());
+	}
 }
 
 void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
@@ -3701,7 +3818,33 @@ void TownsCDROM::ResumeCDDAAfterRestore(void)
 		}
 
 		state.CDDAWaveBaseTrack=CacheAudioTrackFromMSF(state.CDDAWaveBaseTime);
-		state.CDDAWave=state.GetDisc().GetWave(state.CDDAWaveBaseTime,state.CDDAEndTime);
+		baseHSG=state.CDDAWaveBaseTime.ToHSG();
+		/*! Prefer a short window from the guest playhead — avoid re-reading the
+		    whole remaining PLAY range from WaveBase on every state load. */
+		if(guestHSG>baseHSG+CDDA_PREFETCH_WINDOW_FRAMES)
+		{
+			DiscImage::MinSecFrm msf;
+			msf.FromHSG(guestHSG);
+			state.CDDAWaveBaseTime=msf;
+			baseHSG=guestHSG;
+		}
+		{
+			DiscImage::MinSecFrm waveEnd=
+			    CDDAPrefetchWindowEnd(
+			        state.CDDAWaveBaseTime,
+			        state.CDDAEndTime,
+			        CDDA_PREFETCH_WINDOW_FRAMES);
+			if(0!=endHSG && guestHSG>=waveEnd.ToHSG() && guestHSG<endHSG)
+			{
+				unsigned lim=guestHSG+CDDA_PREFETCH_WINDOW_FRAMES;
+				if(endHSG<lim)
+				{
+					lim=endHSG;
+				}
+				waveEnd.FromHSG(lim);
+			}
+			state.CDDAWave=state.GetDisc().GetWave(state.CDDAWaveBaseTime,waveEnd);
+		}
 
 		const unsigned waveBytes=(state.CDDAWave.size()+3u)&~3u;
 		const unsigned sectors=waveBytes/DiscImage::AUDIO_SECTOR_SIZE;
@@ -3740,6 +3883,8 @@ void TownsCDROM::ResumeCDDAAfterRestore(void)
 
 void TownsCDROM::AddWaveForNumSamples(unsigned char waveBuf[],unsigned int numSamples,int outSamplingRate)
 {
+	ServiceCDDAWavePrefetch();
+
 	if(CDDA_SAMPLING_RATE!=outSamplingRate)
 	{
 		std::cout << "TownsCDROM::int AddWaveForNumSamples does not support other than " << CDDA_SAMPLING_RATE << "Hz" << std::endl;

@@ -1757,8 +1757,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Bulk-prefetch the CDDA audio track and keep playing through data reads\nwithout interrupting playback. The value is how many seconds until\nplayback is considered finished.",
-      "translation": "CDDA 音源トラックを一括プリフェッチし、データ読み出し中も再生を中断せず続けます。\n数値は、再生終了とみなすまでの秒数です。"
+      "source": "Prefetch only the CDDA audio needed ahead of playback and keep\nplaying through data reads without interrupting. The value is how\nmany seconds until playback is considered finished.",
+      "translation": "CDDA を必要な分だけ先読みし、データ読み出し中も再生を中断せず続けます。\n数値は、再生終了とみなすまでの秒数です。"
     },
     {
       "context": "SettingsDialog",

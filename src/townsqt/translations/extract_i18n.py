@@ -614,11 +614,14 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("SettingsDialog", "PCM LPF"): "PCM LPF",
     (
         "SettingsDialog",
-        "Bulk-prefetch the CDDA audio track and keep playing through data reads\n"
-        "without interrupting playback. The value is how many seconds until\n"
-        "playback is considered finished.",
-    ): "CDDA 音源トラックを一括プリフェッチし、データ読み出し中も再生を中断せず続けます。\n"
-    "数値は、再生終了とみなすまでの秒数です。",
+        "Prefetch only the CDDA audio needed ahead of playback and keep
+"
+        "playing through data reads without interrupting. The value is how
+"
+        "many seconds until playback is considered finished.",
+    ): "CDDA を必要な分だけ先読みし、データ読み出し中も再生を中断せず続けます。
+"
+       "数値は、再生終了とみなすまでの秒数です。",
     (
         "SettingsDialog",
         "Even while Mouse BIOS is running, if it is unused, end mouse integration\n"

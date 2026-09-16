@@ -122,6 +122,10 @@ public:
 		/*! Poll interval while async CDDA GetWave is BUSY (long tracks). 50us spam
 		    made DRY flicker ready and flooded Exec without completion status. */
 		CDDA_PREFETCH_POLL_TIME=1000000,  // 1ms
+		/*! Initial / extend window (~8s). Avoid bulk-loading the whole PLAY range. */
+		CDDA_PREFETCH_WINDOW_FRAMES=75*8,
+		/*! Kick another window when less than this remains ahead of the play pointer. */
+		CDDA_PREFETCH_REFILL_FRAMES=75*3,
 		DEFAULT_READ_SECTOR_TIME=5000000, // Tentatively   5ms  1X CD-ROM should be 1second/75frames=13.3ms per sector
 		DEFAULT_SEEK_TIME=            0,
 		NOTIFICATION_TIME=      1000000,  // Tentatively   1ms
@@ -527,6 +531,8 @@ public:
 	void ExecuteCDROMCommand(void);
 
 	void PrepareCDDAPlay(void);
+	/*! Append finished extend chunks and start the next window when headroom is low. */
+	void ServiceCDDAWavePrefetch(void);
 
 	void DelayedCommandExecution(unsigned long long int townsTime);
 

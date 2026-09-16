@@ -1288,9 +1288,9 @@ void SettingsDialog::buildUi()
 		v->addLayout(cdda_cache_row);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Bulk-prefetch the CDDA audio track and keep playing through data reads\n"
-		       "without interrupting playback. The value is how many seconds until\n"
-		       "playback is considered finished.")));
+		    tr("Prefetch only the CDDA audio needed ahead of playback and keep\n"
+		       "playing through data reads without interrupting. The value is how\n"
+		       "many seconds until playback is considered finished.")));
 		connect(cdda_cache_during_data_read_,&QCheckBox::toggled,cdda_cache_post_read_grace_sec_,&QWidget::setEnabled);
 
 		idle_inhibit_=new QCheckBox(tr("Inhibit display idle"),page);

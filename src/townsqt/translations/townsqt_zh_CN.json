@@ -1757,7 +1757,7 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Bulk-prefetch the CDDA audio track and keep playing through data reads\nwithout interrupting playback. The value is how many seconds until\nplayback is considered finished.",
+      "source": "Prefetch only the CDDA audio needed ahead of playback and keep\nplaying through data reads without interrupting. The value is how\nmany seconds until playback is considered finished.",
       "translation": "预取 CDDA 音轨，数据读取时不中断播放。\n数值为视为播放结束的秒数。"
     },
     {
