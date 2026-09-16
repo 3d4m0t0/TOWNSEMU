@@ -6493,6 +6493,12 @@ void MainWindow::loadStateSlotFromMenu(int slot)
 	}
 	if(true==ok)
 	{
+		if(nullptr!=view_)
+		{
+			// Content-browser double-click (and menu load while a button is held) must not
+			// leave PollMouseState feeding a stale press into the restored VM.
+			view_->suppressHeldMouseButtons();
+		}
 		statusBar()->showMessage(tr("State slot %1 loaded").arg(slot),5000);
 	}
 	else if(0==slot)
@@ -6673,6 +6679,7 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 		if(nullptr!=central_stack_ && nullptr!=view_)
 		{
 			central_stack_->setCurrentWidget(view_);
+			view_->suppressHeldMouseButtons();
 		}
 		statusBar()->clearMessage();
 		loadStateSlotFromMenu(loadSlot);
@@ -6693,6 +6700,7 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 	if(nullptr!=central_stack_ && nullptr!=view_)
 	{
 		central_stack_->setCurrentWidget(view_);
+		view_->suppressHeldMouseButtons();
 	}
 	statusBar()->clearMessage();
 

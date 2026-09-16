@@ -835,6 +835,27 @@ void EmuView::mouseReleaseEvent(QMouseEvent *event)
 	event->accept();
 }
 
+void EmuView::suppressHeldMouseButtons()
+{
+	if(nullptr!=inputQueue_)
+	{
+		inputQueue_->ClearMouseButtons();
+	}
+	const Qt::MouseButtons buttons=QApplication::mouseButtons();
+	if(0!=(buttons & Qt::LeftButton))
+	{
+		suppressed_guest_buttons_|=QtInputQueue::MOUSE_BTN_LEFT;
+	}
+	if(0!=(buttons & Qt::RightButton))
+	{
+		suppressed_guest_buttons_|=QtInputQueue::MOUSE_BTN_RIGHT;
+	}
+	if(0!=(buttons & Qt::MiddleButton))
+	{
+		suppressed_guest_buttons_|=QtInputQueue::MOUSE_BTN_MIDDLE;
+	}
+}
+
 void EmuView::setMouseCaptureReleased(bool released)
 {
 	// Clear stale swallow bits when (re-)entering the released state, not when leaving it: the

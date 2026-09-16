@@ -56,6 +56,8 @@ public:
 	bool isPointOnEmuPicture(const QPoint &view_pos) const;
 	/*! Logical rectangle where the emu image is drawn inside this widget. */
 	void queryDisplayRect(int &x,int &y,int &dst_w,int &dst_h) const;
+	/*! Drop queued button state and ignore physically held buttons until release. */
+	void suppressHeldMouseButtons();
 
 Q_SIGNALS:
 	void emuPictureClicked();
