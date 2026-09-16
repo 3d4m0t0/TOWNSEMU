@@ -9,6 +9,7 @@
 #include "townsqt_wayland_idle_inhibit.h"
 
 #include <algorithm>
+#include <cmath>
 #include <initializer_list>
 
 #include <QAbstractButton>
@@ -32,6 +33,8 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMainWindow>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QPalette>
 #include <QPushButton>
@@ -1048,7 +1051,7 @@ void SettingsDialog::buildUi()
 		v->addWidget(MakeSectionLabel(page,tr("Video")));
 
 		display_scale_=new QSpinBox(page);
-		display_scale_->setRange(1,8);
+		display_scale_->setRange(1,TownsQtSettings::kDisplayScaleAbsoluteMax);
 		display_scale_->setSuffix(tr("x"));
 		sprite_group_=new QButtonGroup(page);
 		auto *sprite_standard=new QRadioButton(tr("Normal"),page);
@@ -1774,10 +1777,47 @@ void SettingsDialog::updateDisplayScaleRange()
 	{
 		screen=QGuiApplication::primaryScreen();
 	}
-	const QSize avail=nullptr!=screen ? screen->availableGeometry().size() : QSize(1920,1080);
-	// Approximate menu/status chrome; MainWindow uses live heights. DE scale is in availableGeometry (DIP).
-	const int max_scale=TownsQtSettings::maxDisplayScaleForAvailableSize(avail,0,52);
-	display_scale_->setMaximum(std::max(1,max_scale));
+	const qreal dpr=(nullptr!=screen && 0.0<screen->devicePixelRatio())
+	                    ? screen->devicePixelRatio()
+	                    : 1.0;
+	const QSize avail_dip=
+	    nullptr!=screen ? screen->availableGeometry().size() : QSize(1920,1080);
+	const QSize avail_phys(
+	    std::max(1,static_cast<int>(std::lround(static_cast<qreal>(avail_dip.width())*dpr))),
+	    std::max(1,static_cast<int>(std::lround(static_cast<qreal>(avail_dip.height())*dpr))));
+
+	// Approximate menu/status chrome in DIP → physical (matches MainWindow sizeHint usage).
+	constexpr int kChromeHDipApprox=52;
+	const int chrome_h_phys=static_cast<int>(std::lround(static_cast<qreal>(kChromeHDipApprox)*dpr));
+	const int max_scale=
+	    TownsQtSettings::maxDisplayScaleForPhysicalSize(avail_phys,0,chrome_h_phys);
+
+	int menu_w_dip=0;
+	if(QWidget *p=parentWidget())
+	{
+		if(auto *mw=qobject_cast<QMainWindow *>(p))
+		{
+			if(nullptr!=mw->menuBar())
+			{
+				menu_w_dip=std::max(
+				    mw->menuBar()->sizeHint().width(),
+				    mw->menuBar()->minimumSizeHint().width());
+			}
+		}
+	}
+	if(menu_w_dip<=0)
+	{
+		menu_w_dip=640;
+	}
+	const int min_scale=
+	    TownsQtSettings::minDisplayScaleForMenuWidth(menu_w_dip,dpr,max_scale);
+
+	display_scale_->setMinimum(min_scale);
+	display_scale_->setMaximum(std::max(min_scale,max_scale));
+	if(display_scale_->value()<display_scale_->minimum())
+	{
+		display_scale_->setValue(display_scale_->minimum());
+	}
 	if(display_scale_->value()>display_scale_->maximum())
 	{
 		display_scale_->setValue(display_scale_->maximum());

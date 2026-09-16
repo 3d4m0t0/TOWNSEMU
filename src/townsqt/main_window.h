@@ -125,11 +125,18 @@ private:
 	void applyDisplayVsync();
 	void applyWindowScale(int scale);
 	QSize computeWindowedSizeForScale(int scale) const;
+	qreal currentDevicePixelRatio() const;
+	QSize physicalAvailableSize(bool fullscreen) const;
+	int menuBarWidthDip() const;
+	int minDisplayScale() const;
 	int maxDisplayScale() const;
 	int maxDisplayScaleForFullscreen() const;
 	void setDisplayScale(int scale);
 	void bumpDisplayScale(int delta);
 	void syncDisplayScaleMenu();
+	void refreshDisplayScaleLimits();
+	void connectDisplayScaleScreenSignals();
+	void disconnectDisplayScaleScreenSignals();
 	void syncWaylandIdleInhibit();
 	void syncWaylandRelativePointer();
 	void syncMenuChecks();
@@ -185,6 +192,9 @@ private:
 	void updateCpuDebugDisplay();
 	void applyCpuDebugVisibility();
 	void ensureCpuDebugWindow();
+	void updateDisplayScaleDebugDisplay();
+	void applyDisplayScaleDebugVisibility();
+	void ensureDisplayScaleDebugWindow();
 	void applyDriveAccessVisibility();
 	DriveAccessPresence currentDriveAccessPresence() const;
 	void updateOpenCdMenuLabel();
@@ -259,6 +269,7 @@ private:
 	QActionGroup *display_scale_group_=nullptr;
 	QAction *scale_down_action_=nullptr;
 	QAction *scale_up_action_=nullptr;
+	QScreen *display_scale_screen_=nullptr;
 	QAction *drive_access_action_=nullptr;
 	QAction *fps_display_action_=nullptr;
 	QAction *midi_monitor_action_=nullptr;
@@ -266,6 +277,7 @@ private:
 	QAction *app_monitor_action_=nullptr;
 	QAction *mouse_debug_action_=nullptr;
 	QAction *cpu_debug_action_=nullptr;
+	QAction *display_scale_debug_action_=nullptr;
 	QTimer *fullscreen_chrome_hide_timer_=nullptr;
 	DebugTextWindow *mouse_debug_window_=nullptr;
 	MouseCoordScanWindow *mouse_coord_scan_window_=nullptr;
@@ -282,6 +294,7 @@ private:
 	CdromMonitorWindow *cdrom_monitor_window_=nullptr;
 	DebugTextWindow *app_monitor_window_=nullptr;
 	CpuDebugWindow *cpu_debug_window_=nullptr;
+	DebugTextWindow *display_scale_debug_window_=nullptr;
 	AudioMixerDialog *audio_mixer_dialog_=nullptr;
 
 	bool fullscreen_=false;

@@ -1345,6 +1345,42 @@ QString EmulatorController::cpuDebugSnapshot() const
 	return out;
 }
 
+QVariantMap EmulatorController::displayScaleDebugInfo() const
+{
+	QVariantMap out;
+	if(nullptr==towns_)
+	{
+		out.insert(QStringLiteral("valid"),false);
+		return out;
+	}
+
+	const auto &crtc=towns_->crtc;
+	const auto render=crtc.GetRenderSize();
+	out.insert(QStringLiteral("valid"),true);
+	out.insert(QStringLiteral("render_w"),render.x());
+	out.insert(QStringLiteral("render_h"),render.y());
+	out.insert(QStringLiteral("single_page"),crtc.InSinglePageMode());
+	out.insert(QStringLiteral("high_res"),crtc.state.highResCRTCEnabled);
+	out.insert(QStringLiteral("hfreq_khz"),static_cast<int>(crtc.GetHorizontalFrequency()));
+
+	const auto p0=crtc.GetPageSizeOnMonitor(0);
+	const auto o0=crtc.GetPageOriginOnMonitor(0);
+	out.insert(QStringLiteral("page0_w"),p0.x());
+	out.insert(QStringLiteral("page0_h"),p0.y());
+	out.insert(QStringLiteral("page0_ox"),o0.x());
+	out.insert(QStringLiteral("page0_oy"),o0.y());
+	if(true!=crtc.InSinglePageMode())
+	{
+		const auto p1=crtc.GetPageSizeOnMonitor(1);
+		const auto o1=crtc.GetPageOriginOnMonitor(1);
+		out.insert(QStringLiteral("page1_w"),p1.x());
+		out.insert(QStringLiteral("page1_h"),p1.y());
+		out.insert(QStringLiteral("page1_ox"),o1.x());
+		out.insert(QStringLiteral("page1_oy"),o1.y());
+	}
+	return out;
+}
+
 void EmulatorController::restartAudioOutput()
 {
 	if(!running_.load(std::memory_order_relaxed))

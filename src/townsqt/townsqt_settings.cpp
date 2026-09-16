@@ -82,6 +82,7 @@ constexpr char kAppSpecificKey[]="app/specific_setting";
 constexpr char kMouseIntegrationDebugKey[]="debug/mouse_integration_coords";
 constexpr char kMouseCoordWriteScanKey[]="debug/mouse_coord_write_scan";
 constexpr char kCpuDebugKey[]="debug/cpu_cseip";
+constexpr char kDisplayScaleDebugKey[]="debug/display_scale";
 constexpr char kDriveAccessOverlayKey[]="display/drive_access_overlay";
 constexpr char kFpsDisplayKey[]="display/fps_display";
 constexpr char kMidiMonitorKey[]="debug/midi_monitor";
@@ -922,27 +923,37 @@ int TownsQtSettings::displayScale()
 		return 1;
 	}
 	const int scale=settings.value(QString::fromLatin1(kDisplayScaleKey),1).toInt();
-	return std::clamp(scale,1,8);
+	return std::clamp(scale,1,kDisplayScaleAbsoluteMax);
 }
 
 void TownsQtSettings::setDisplayScale(int scale)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
-	settings.setValue(QString::fromLatin1(kDisplayScaleKey),std::clamp(scale,1,8));
+	settings.setValue(QString::fromLatin1(kDisplayScaleKey),std::clamp(scale,1,kDisplayScaleAbsoluteMax));
 	settings.sync();
 }
 
-int TownsQtSettings::maxDisplayScaleForAvailableSize(QSize available_size,int chrome_w,int chrome_h)
+QSize TownsQtSettings::contentDipSizeForScale(int scale,qreal dpr)
 {
-	chrome_w=std::max(0,chrome_w);
-	chrome_h=std::max(0,chrome_h);
-	const int avail_w=std::max(0,available_size.width());
-	const int avail_h=std::max(0,available_size.height());
+	scale=std::max(1,scale);
+	dpr=(0.0<dpr) ? dpr : 1.0;
+	const int w=std::max(1,static_cast<int>(std::lround(static_cast<qreal>(640*scale)/dpr)));
+	const int h=std::max(1,static_cast<int>(std::lround(static_cast<qreal>(480*scale)/dpr)));
+	return QSize(w,h);
+}
+
+int TownsQtSettings::maxDisplayScaleForPhysicalSize(
+    QSize physical_avail,int chrome_phys_w,int chrome_phys_h)
+{
+	chrome_phys_w=std::max(0,chrome_phys_w);
+	chrome_phys_h=std::max(0,chrome_phys_h);
+	const int avail_w=std::max(0,physical_avail.width());
+	const int avail_h=std::max(0,physical_avail.height());
 	int max_scale=1;
-	for(int scale=1; scale<=8; ++scale)
+	for(int scale=1; scale<=kDisplayScaleAbsoluteMax; ++scale)
 	{
-		const int need_w=640*scale+chrome_w;
-		const int need_h=480*scale+chrome_h;
+		const int need_w=640*scale+chrome_phys_w;
+		const int need_h=480*scale+chrome_phys_h;
 		if(need_w<=avail_w && need_h<=avail_h)
 		{
 			max_scale=scale;
@@ -953,6 +964,29 @@ int TownsQtSettings::maxDisplayScaleForAvailableSize(QSize available_size,int ch
 		}
 	}
 	return max_scale;
+}
+
+int TownsQtSettings::minDisplayScaleForMenuWidth(int menu_width_dip,qreal dpr,int max_scale)
+{
+	menu_width_dip=std::max(0,menu_width_dip);
+	max_scale=std::clamp(max_scale,1,kDisplayScaleAbsoluteMax);
+	if(menu_width_dip<=0)
+	{
+		return 1;
+	}
+	for(int scale=1; scale<=max_scale; ++scale)
+	{
+		if(contentDipSizeForScale(scale,dpr).width()>=menu_width_dip)
+		{
+			return scale;
+		}
+	}
+	return max_scale;
+}
+
+int TownsQtSettings::maxDisplayScaleForAvailableSize(QSize available_size,int chrome_w,int chrome_h)
+{
+	return maxDisplayScaleForPhysicalSize(available_size,chrome_w,chrome_h);
 }
 
 bool TownsQtSettings::damperWireLine()
@@ -1530,6 +1564,19 @@ void TownsQtSettings::setShowCpuDebug(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kCpuDebugKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::showDisplayScaleDebug()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	return settings.value(QString::fromLatin1(kDisplayScaleDebugKey),false).toBool();
+}
+
+void TownsQtSettings::setShowDisplayScaleDebug(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kDisplayScaleDebugKey),enabled);
 	settings.sync();
 }
 

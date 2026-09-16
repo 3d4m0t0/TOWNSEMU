@@ -125,6 +125,8 @@ public Q_SLOTS:
 	void setMouseIntegrationDebug(bool enabled);
 	void setCpuDebugMonitor(bool enabled);
 	Q_INVOKABLE QString cpuDebugSnapshot() const;
+	/*! Guest CRTC / render size for display-scale debug overlay. */
+	Q_INVOKABLE QVariantMap displayScaleDebugInfo() const;
 	Q_INVOKABLE void setVmPaused(bool paused);
 	Q_INVOKABLE bool vmPaused() const;
 	/*! Dump guest memory. addrSpec: CS:EIP, 4000:187B, L:linear, P:phys, etc. */

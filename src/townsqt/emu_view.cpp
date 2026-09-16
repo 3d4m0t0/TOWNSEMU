@@ -391,12 +391,6 @@ void EmuView::pollMousePositionForScan()
 
 void EmuView::queryDisplayRect(int &x,int &y,int &dst_w,int &dst_h) const
 {
-	int effective_scale=scale_;
-	if(auto_scale_ && 0<emu_wid_ && 0<emu_hei_ && 0<width() && 0<height())
-	{
-		effective_scale=std::max(1,std::min(width()/emu_wid_,height()/emu_hei_));
-	}
-
 	if(auto_scale_ && !maintain_aspect_)
 	{
 		x=0;
@@ -404,6 +398,40 @@ void EmuView::queryDisplayRect(int &x,int &y,int &dst_w,int &dst_h) const
 		dst_w=width();
 		dst_h=height();
 		return;
+	}
+
+	/*! Fixed scale: window/client is sized for N×640×480 device pixels, but the
+	    guest framebuffer may be shorter (e.g. 640×432) or taller than 480 in
+	    CRT low modes (GetRenderSize up to 512). Draw N×emu size in DIP
+	    (round(emu*N/dpr)) centered — do not stretch to the full 4:3 client.
+	    If that rect does not fit (FB taller/wider than the 640×480 box, or a
+	    mid-resize race), shrink uniformly so host scale N still tracks the
+	    image size. Integer floor(widget/emu) must not be used: for 640×512 in
+	    a 1280×960 client it stays at 1× while the window is already 2×. */
+	if(true!=auto_scale_)
+	{
+		const qreal dpr=(0.0<devicePixelRatioF()) ? devicePixelRatioF() : 1.0;
+		const int ew=std::max(1,emu_wid_);
+		const int eh=std::max(1,emu_hei_);
+		dst_w=std::max(1,static_cast<int>(std::lround(static_cast<qreal>(ew*scale_)/dpr)));
+		dst_h=std::max(1,static_cast<int>(std::lround(static_cast<qreal>(eh*scale_)/dpr)));
+		if(dst_w>width() || dst_h>height())
+		{
+			const qreal sx=static_cast<qreal>(width())/static_cast<qreal>(ew);
+			const qreal sy=static_cast<qreal>(height())/static_cast<qreal>(eh);
+			const qreal s=std::min(sx,sy);
+			dst_w=std::max(1,static_cast<int>(std::lround(static_cast<qreal>(ew)*s)));
+			dst_h=std::max(1,static_cast<int>(std::lround(static_cast<qreal>(eh)*s)));
+		}
+		x=(width()-dst_w)/2;
+		y=(height()-dst_h)/2;
+		return;
+	}
+
+	int effective_scale=scale_;
+	if(0<emu_wid_ && 0<emu_hei_ && 0<width() && 0<height())
+	{
+		effective_scale=std::max(1,std::min(width()/emu_wid_,height()/emu_hei_));
 	}
 
 	dst_w=emu_wid_*effective_scale;

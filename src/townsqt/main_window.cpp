@@ -27,6 +27,9 @@
 #include "townsqt_wayland_idle_inhibit.h"
 #include "townsqt_wayland_relative_pointer.h"
 
+#include <algorithm>
+#include <cmath>
+
 #if defined(__linux__)
 #include "linux/midi_alsa_seq_host.h"
 #include "linux/midi_backend_probe.h"
@@ -434,8 +437,11 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	view_->attachInputQueue(&inputQueue_);
 	view_->setScale(scale);
 	view_->setVideoOptions(scale,false,true);
-	view_->setMinimumSize(640*scale,480*scale);
-	view_->setMaximumSize(640*scale,480*scale);
+	{
+		const QSize content=TownsQtSettings::contentDipSizeForScale(scale,currentDevicePixelRatio());
+		view_->setMinimumSize(content);
+		view_->setMaximumSize(content);
+	}
 	content_browser_=new ContentBrowserWidget(central_stack_);
 	central_stack_->addWidget(view_);
 	central_stack_->addWidget(content_browser_);
@@ -476,13 +482,15 @@ MainWindow::MainWindow(const TownsARGV &argv,int scale,QWidget *parent)
 	applyCdromMonitorVisibility();
 	applyAppMonitorVisibility();
 	applyCpuDebugVisibility();
+	applyDisplayScaleDebugVisibility();
 	if(nullptr!=view_)
 	{
 		view_->setDriveAccessOverlayEnabled(TownsQtSettings::showDriveAccessOverlay());
 	}
 
 	// Size after status-bar chrome exists so width/height match EMU + menu + status (no padding gaps).
-	applyWindowScale(std::clamp(scale,1,maxDisplayScale()));
+	connectDisplayScaleScreenSignals();
+	refreshDisplayScaleLimits();
 
 	fullscreen_chrome_hide_timer_=new QTimer(this);
 	fullscreen_chrome_hide_timer_->setSingleShot(true);
@@ -1251,6 +1259,19 @@ void MainWindow::setupMenuBar()
 			updateCpuDebugDisplay();
 		}
 	});
+	display_scale_debug_action_=debugMenu->addAction(tr("Display scale"));
+	display_scale_debug_action_->setCheckable(true);
+	display_scale_debug_action_->setChecked(TownsQtSettings::showDisplayScaleDebug());
+	display_scale_debug_action_->setToolTip(
+	    tr("Guest CRTC / VM output and host desktop / window-scale formulas."));
+	connect(display_scale_debug_action_,&QAction::toggled,this,[this](bool enabled){
+		TownsQtSettings::setShowDisplayScaleDebug(enabled);
+		applyDisplayScaleDebugVisibility();
+		if(enabled)
+		{
+			updateDisplayScaleDebugDisplay();
+		}
+	});
 
 	auto *helpMenu=menuBar()->addMenu(tr("&Help"));
 	auto *aboutAction=helpMenu->addAction(AboutTsugaruTitleText());
@@ -1609,6 +1630,7 @@ void MainWindow::syncMenuChecks()
 	applyCdromMonitorVisibility();
 	applyAppMonitorVisibility();
 	applyCpuDebugVisibility();
+	applyDisplayScaleDebugVisibility();
 	syncFdDriveMenus();
 }
 
@@ -2486,7 +2508,8 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	    (prev_app_specific!=effective.appSpecificSetting) ||
 	    (prev_auto_resume!=effective.autoResumeEnabled) ||
 	    MachineSettingsNeedRestart(effective,argv_);
-	effective.displayScale=std::clamp(effective.displayScale,1,maxDisplayScale());
+	effective.displayScale=
+	    std::clamp(effective.displayScale,minDisplayScale(),maxDisplayScale());
 	effective.autoScaling=false;
 	effective.maintainAspect=true;
 	TownsQtSettings::setDisplayScale(effective.displayScale);
@@ -2656,7 +2679,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 			        effective.hdd[slot].path : QString());
 		}
 	}
-	applyWindowScale(std::clamp(effective.displayScale,1,maxDisplayScale()));
+	applyWindowScale(std::clamp(effective.displayScale,minDisplayScale(),maxDisplayScale()));
 	applyDisplayVsync();
 	syncDisplayScaleMenu();
 	syncWaylandIdleInhibit();
@@ -3731,6 +3754,7 @@ void MainWindow::onPollTimer()
 	updateCdromMonitorDisplay();
 	updateAppMonitorDisplay();
 	updateCpuDebugDisplay();
+	updateDisplayScaleDebugDisplay();
 }
 
 void MainWindow::applyDriveAccessVisibility()
@@ -4787,6 +4811,220 @@ void MainWindow::updateCpuDebugDisplay()
 	cpu_debug_window_->setVmPaused(paused);
 }
 
+void MainWindow::ensureDisplayScaleDebugWindow()
+{
+	if(nullptr!=display_scale_debug_window_)
+	{
+		return;
+	}
+	display_scale_debug_window_=new DebugTextWindow(tr("Display scale debug"),this);
+	display_scale_debug_window_->setClearButtonVisible(false);
+	connect(display_scale_debug_window_,&DebugTextWindow::windowClosed,this,[this](){
+		TownsQtSettings::setShowDisplayScaleDebug(false);
+		applyDisplayScaleDebugVisibility();
+	});
+}
+
+void MainWindow::applyDisplayScaleDebugVisibility()
+{
+	const bool show=TownsQtSettings::showDisplayScaleDebug();
+	if(nullptr!=display_scale_debug_action_ && display_scale_debug_action_->isChecked()!=show)
+	{
+		display_scale_debug_action_->blockSignals(true);
+		display_scale_debug_action_->setChecked(show);
+		display_scale_debug_action_->blockSignals(false);
+	}
+	if(show)
+	{
+		ensureDisplayScaleDebugWindow();
+		if(nullptr!=display_scale_debug_window_)
+		{
+			display_scale_debug_window_->show();
+			display_scale_debug_window_->raise();
+		}
+	}
+	else if(nullptr!=display_scale_debug_window_)
+	{
+		display_scale_debug_window_->hide();
+	}
+}
+
+void MainWindow::updateDisplayScaleDebugDisplay()
+{
+	if(!TownsQtSettings::showDisplayScaleDebug())
+	{
+		return;
+	}
+	ensureDisplayScaleDebugWindow();
+	if(nullptr==display_scale_debug_window_)
+	{
+		return;
+	}
+
+	QString guest_block=QStringLiteral("=== Guest ===\n(no VM)\n");
+	if(nullptr!=controller_ && nullptr!=emu_thread_ && emu_thread_->isRunning())
+	{
+		QVariantMap guest;
+		QMetaObject::invokeMethod(
+		    controller_,
+		    "displayScaleDebugInfo",
+		    Qt::BlockingQueuedConnection,
+		    Q_RETURN_ARG(QVariantMap,guest));
+		if(true==guest.value(QStringLiteral("valid")).toBool())
+		{
+			guest_block=QStringLiteral(
+			    "=== Guest ===\n"
+			    "CRTC render (GetRenderSize): %1x%2\n"
+			    "CRTC single_page=%3 high_res=%4 hfreq=%5kHz\n"
+			    "CRTC page0 size=%6x%7 origin=%8,%9\n")
+			                .arg(guest.value(QStringLiteral("render_w")).toInt())
+			                .arg(guest.value(QStringLiteral("render_h")).toInt())
+			                .arg(guest.value(QStringLiteral("single_page")).toBool() ? 1 : 0)
+			                .arg(guest.value(QStringLiteral("high_res")).toBool() ? 1 : 0)
+			                .arg(guest.value(QStringLiteral("hfreq_khz")).toInt())
+			                .arg(guest.value(QStringLiteral("page0_w")).toInt())
+			                .arg(guest.value(QStringLiteral("page0_h")).toInt())
+			                .arg(guest.value(QStringLiteral("page0_ox")).toInt())
+			                .arg(guest.value(QStringLiteral("page0_oy")).toInt());
+			if(guest.contains(QStringLiteral("page1_w")))
+			{
+				guest_block+=QStringLiteral("CRTC page1 size=%1x%2 origin=%3,%4\n")
+				                 .arg(guest.value(QStringLiteral("page1_w")).toInt())
+				                 .arg(guest.value(QStringLiteral("page1_h")).toInt())
+				                 .arg(guest.value(QStringLiteral("page1_ox")).toInt())
+				                 .arg(guest.value(QStringLiteral("page1_oy")).toInt());
+			}
+		}
+		else
+		{
+			guest_block=QStringLiteral("=== Guest ===\n(CRTC unavailable)\n");
+		}
+	}
+
+	unsigned int fb_w=0,fb_h=0;
+	uint64_t fb_serial=0;
+	const bool have_fb=framebuffer_.PeekLatest(&fb_w,&fb_h,&fb_serial);
+	guest_block+=QStringLiteral("VM output framebuffer: %1\n")
+	                 .arg(have_fb ? QStringLiteral("%1x%2 (serial %3)")
+	                                  .arg(fb_w)
+	                                  .arg(fb_h)
+	                                  .arg(static_cast<qulonglong>(fb_serial))
+	                              : QStringLiteral("-"));
+
+	QScreen *screen=this->screen();
+	if(nullptr==screen)
+	{
+		screen=QGuiApplication::primaryScreen();
+	}
+	QString host_block=QStringLiteral("=== Host ===\n(no screen)\n");
+	if(nullptr!=screen)
+	{
+		const QSize geom=screen->geometry().size();
+		const QSize avail=screen->availableGeometry().size();
+		const qreal dpr=currentDevicePixelRatio();
+		const QSize phys_avail=physicalAvailableSize(false);
+		const QSize phys_full=physicalAvailableSize(true);
+		int menu_h=0;
+		int status_h=0;
+		if(nullptr!=menuBar())
+		{
+			menu_h=menuBar()->sizeHint().height();
+		}
+		if(nullptr!=statusBar())
+		{
+			status_h=statusBar()->sizeHint().height();
+		}
+		const int chrome_h_phys=static_cast<int>(
+		    std::lround(static_cast<qreal>(menu_h+status_h)*dpr));
+		const int min_scale=minDisplayScale();
+		const int max_win=maxDisplayScale();
+		const int max_fs=maxDisplayScaleForFullscreen();
+		const int setting_scale=TownsQtSettings::displayScale();
+		const int applied_max=(!fullscreen_ && !isFullScreen()) ? max_win : max_fs;
+		const int applied=std::clamp(setting_scale,min_scale,applied_max);
+		const QSize content=TownsQtSettings::contentDipSizeForScale(applied,dpr);
+
+		host_block=QStringLiteral(
+		    "=== Host ===\n"
+		    "Desktop geometry (DIP): %1x%2\n"
+		    "Desktop availableGeometry (DIP): %3x%4\n"
+		    "Desktop devicePixelRatio (DE scale): %5\n"
+		    "Physical available: %6x%7 (=avail×dpr)\n"
+		    "Physical geometry: %8x%9 (=geom×dpr)\n")
+		                .arg(geom.width())
+		                .arg(geom.height())
+		                .arg(avail.width())
+		                .arg(avail.height())
+		                .arg(dpr,0,'f',3)
+		                .arg(phys_avail.width())
+		                .arg(phys_avail.height())
+		                .arg(phys_full.width())
+		                .arg(phys_full.height());
+		host_block+=QStringLiteral(
+		    "\n"
+		    "Min scale:\n"
+		    "  smallest N where contentDipWidth(N)=round(640*N/dpr) >= menuBarWidth (%1)\n"
+		    "  => min=%2\n"
+		    "Max scale (windowed):\n"
+		    "  largest N in 1..%3 where\n"
+		    "  640*N <= phys_avail_w (%4) && 480*N + chrome_phys (%5) <= phys_avail_h (%6)\n"
+		    "  => max_windowed=%7\n")
+		                 .arg(menuBarWidthDip())
+		                 .arg(min_scale)
+		                 .arg(TownsQtSettings::kDisplayScaleAbsoluteMax)
+		                 .arg(phys_avail.width())
+		                 .arg(chrome_h_phys)
+		                 .arg(phys_avail.height())
+		                 .arg(max_win);
+		host_block+=QStringLiteral(
+		    "Max scale (fullscreen):\n"
+		    "  largest N in 1..%1 where\n"
+		    "  640*N <= phys_geom_w (%2) && 480*N <= phys_geom_h (%3)\n"
+		    "  => max_fullscreen=%4\n"
+		    "\n"
+		    "Setting scale (townsqt.conf): %5x\n"
+		    "Applied scale (this mode): %6x\n")
+		                 .arg(TownsQtSettings::kDisplayScaleAbsoluteMax)
+		                 .arg(phys_full.width())
+		                 .arg(phys_full.height())
+		                 .arg(max_fs)
+		                 .arg(setting_scale)
+		                 .arg(applied);
+		host_block+=QStringLiteral(
+		    "contentDipSizeForScale: %1x%2 (=round(640*%3/dpr) x round(480*%3/dpr))\n"
+		    "Device target: %4x%5 (=640*%3 x 480*%3)\n")
+		                 .arg(content.width())
+		                 .arg(content.height())
+		                 .arg(applied)
+		                 .arg(640*applied)
+		                 .arg(480*applied);
+
+		int view_w=0,view_h=0;
+		int disp_x=0,disp_y=0,disp_w=0,disp_h=0;
+		if(nullptr!=view_)
+		{
+			view_w=view_->width();
+			view_h=view_->height();
+			view_->queryDisplayRect(disp_x,disp_y,disp_w,disp_h);
+		}
+		host_block+=QStringLiteral(
+		    "EmuView widget: %1x%2  dpr=%3\n"
+		    "EmuView display rect: %4,%5 %6x%7\n"
+		    "MainWindow size: %8x%9\n")
+		                .arg(view_w)
+		                .arg(view_h)
+		                .arg(nullptr!=view_ ? view_->devicePixelRatioF() : dpr,0,'f',3)
+		                .arg(disp_x)
+		                .arg(disp_y)
+		                .arg(disp_w)
+		                .arg(disp_h)
+		                .arg(width())
+		                .arg(height());
+	}
+
+	display_scale_debug_window_->setLiveText(guest_block+QLatin1Char('\n')+host_block);
+}
+
 void MainWindow::onFrameReady()
 {
 	if(!isVisible())
@@ -4835,6 +5073,8 @@ void MainWindow::onControllerFinished()
 void MainWindow::showEvent(QShowEvent *event)
 {
 	QMainWindow::showEvent(event);
+	/*! windowHandle() is reliable after show — attach screenChanged for scale limits. */
+	connectDisplayScaleScreenSignals();
 	if(!emu_started_)
 	{
 		emu_started_=true;
@@ -5787,8 +6027,7 @@ void MainWindow::connectFullscreenMenuHooks()
 QSize MainWindow::computeWindowedSizeForScale(int scale) const
 {
 	scale=std::max(1,scale);
-	const int content_w=640*scale;
-	const int content_h=480*scale;
+	const QSize content=TownsQtSettings::contentDipSizeForScale(scale,currentDevicePixelRatio());
 	int menu_h=0;
 	int status_h=0;
 	if(nullptr!=menuBar() && false==menuBar()->isHidden())
@@ -5800,10 +6039,28 @@ QSize MainWindow::computeWindowedSizeForScale(int scale) const
 		status_h=std::max(statusBar()->height(),statusBar()->sizeHint().height());
 	}
 	// Client area only: EMU surface + menu + status. No extra padding (that caused side/bottom gaps).
-	return QSize(content_w,content_h+menu_h+status_h);
+	return QSize(content.width(),content.height()+menu_h+status_h);
 }
 
-int MainWindow::maxDisplayScale() const
+qreal MainWindow::currentDevicePixelRatio() const
+{
+	qreal dpr=devicePixelRatioF();
+	if(!(0.0<dpr))
+	{
+		QScreen *screen=this->screen();
+		if(nullptr==screen)
+		{
+			screen=QGuiApplication::primaryScreen();
+		}
+		if(nullptr!=screen)
+		{
+			dpr=screen->devicePixelRatio();
+		}
+	}
+	return (0.0<dpr) ? dpr : 1.0;
+}
+
+QSize MainWindow::physicalAvailableSize(bool fullscreen) const
 {
 	QScreen *screen=this->screen();
 	if(nullptr==screen)
@@ -5812,11 +6069,34 @@ int MainWindow::maxDisplayScale() const
 	}
 	if(nullptr==screen)
 	{
-		return 1;
+		return QSize(1920,1080);
 	}
-	// availableGeometry is DIP (DE scale applied). Use sizeHint chrome even if bars are hidden
-	// so windowed/fullscreen configurable max stays consistent.
-	const QSize avail=screen->availableGeometry().size();
+	const qreal dpr=currentDevicePixelRatio();
+	const QSize dip=fullscreen ? screen->geometry().size() : screen->availableGeometry().size();
+	return QSize(
+	    std::max(1,static_cast<int>(std::lround(static_cast<qreal>(dip.width())*dpr))),
+	    std::max(1,static_cast<int>(std::lround(static_cast<qreal>(dip.height())*dpr))));
+}
+
+int MainWindow::menuBarWidthDip() const
+{
+	if(nullptr==menuBar())
+	{
+		return 0;
+	}
+	return std::max(menuBar()->sizeHint().width(),menuBar()->minimumSizeHint().width());
+}
+
+int MainWindow::minDisplayScale() const
+{
+	const int max_scale=maxDisplayScale();
+	return TownsQtSettings::minDisplayScaleForMenuWidth(
+	    menuBarWidthDip(),currentDevicePixelRatio(),max_scale);
+}
+
+int MainWindow::maxDisplayScale() const
+{
+	const qreal dpr=currentDevicePixelRatio();
 	int menu_h=0;
 	int status_h=0;
 	if(nullptr!=menuBar())
@@ -5827,28 +6107,22 @@ int MainWindow::maxDisplayScale() const
 	{
 		status_h=statusBar()->sizeHint().height();
 	}
-	return TownsQtSettings::maxDisplayScaleForAvailableSize(avail,0,menu_h+status_h);
+	const int chrome_h=static_cast<int>(
+	    std::lround(static_cast<qreal>(menu_h+status_h)*dpr));
+	return TownsQtSettings::maxDisplayScaleForPhysicalSize(
+	    physicalAvailableSize(false),0,chrome_h);
 }
 
 int MainWindow::maxDisplayScaleForFullscreen() const
 {
-	QScreen *screen=this->screen();
-	if(nullptr==screen)
-	{
-		screen=QGuiApplication::primaryScreen();
-	}
-	if(nullptr==screen)
-	{
-		return maxDisplayScale();
-	}
-	// Fullscreen client is the monitor; no menu/status chrome.
-	return TownsQtSettings::maxDisplayScaleForAvailableSize(screen->geometry().size(),0,0);
+	return TownsQtSettings::maxDisplayScaleForPhysicalSize(physicalAvailableSize(true),0,0);
 }
 
 void MainWindow::setDisplayScale(int scale)
 {
+	const int min_scale=minDisplayScale();
 	const int max_scale=maxDisplayScale();
-	scale=std::clamp(scale,1,max_scale);
+	scale=std::clamp(scale,min_scale,max_scale);
 	TownsQtSettings::setDisplayScale(scale);
 	TownsQtSettings::setAutoScaling(false);
 	TownsQtSettings::setMaintainAspect(true);
@@ -5876,8 +6150,9 @@ void MainWindow::syncDisplayScaleMenu()
 	{
 		return;
 	}
+	const int min_scale=minDisplayScale();
 	const int max_scale=maxDisplayScale();
-	const int current=std::clamp(TownsQtSettings::displayScale(),1,max_scale);
+	const int current=std::clamp(TownsQtSettings::displayScale(),min_scale,max_scale);
 	if(current!=TownsQtSettings::displayScale())
 	{
 		TownsQtSettings::setDisplayScale(current);
@@ -5888,18 +6163,20 @@ void MainWindow::syncDisplayScaleMenu()
 		display_scale_group_->removeAction(old);
 	}
 	display_scale_menu_->clear();
-	for(int scale=1; scale<=max_scale; ++scale)
+	/*! Always list 1x..8x; gray out outside [min,max]. */
+	for(int scale=1; scale<=TownsQtSettings::kDisplayScaleAbsoluteMax; ++scale)
 	{
 		auto *action=display_scale_menu_->addAction(tr("%1x").arg(scale));
 		action->setCheckable(true);
 		action->setData(scale);
+		action->setEnabled(min_scale<=scale && scale<=max_scale);
 		action->setChecked(scale==current);
 		display_scale_group_->addAction(action);
 	}
 	display_scale_menu_->setTitle(tr("Window scale (%1x)").arg(current));
 	if(nullptr!=scale_down_action_)
 	{
-		scale_down_action_->setEnabled(1<current);
+		scale_down_action_->setEnabled(min_scale<current);
 	}
 	if(nullptr!=scale_up_action_)
 	{
@@ -5907,13 +6184,95 @@ void MainWindow::syncDisplayScaleMenu()
 	}
 }
 
+void MainWindow::refreshDisplayScaleLimits()
+{
+	const int min_scale=minDisplayScale();
+	const int max_scale=maxDisplayScale();
+	int scale=std::clamp(TownsQtSettings::displayScale(),min_scale,max_scale);
+	if(scale!=TownsQtSettings::displayScale())
+	{
+		TownsQtSettings::setDisplayScale(scale);
+	}
+	if(!fullscreen_ && !isFullScreen())
+	{
+		applyWindowScale(scale);
+	}
+	else
+	{
+		applyWindowScale(maxDisplayScaleForFullscreen());
+	}
+	syncDisplayScaleMenu();
+	if(nullptr!=active_settings_dialog_)
+	{
+		active_settings_dialog_->updateDisplayScaleRange();
+	}
+}
+
+void MainWindow::disconnectDisplayScaleScreenSignals()
+{
+	if(nullptr!=display_scale_screen_)
+	{
+		disconnect(display_scale_screen_,&QScreen::geometryChanged,this,nullptr);
+		disconnect(display_scale_screen_,&QScreen::availableGeometryChanged,this,nullptr);
+		display_scale_screen_=nullptr;
+	}
+	if(QWindow *win=windowHandle())
+	{
+		disconnect(win,&QWindow::screenChanged,this,nullptr);
+	}
+	if(nullptr!=qApp)
+	{
+		disconnect(qApp,&QGuiApplication::screenAdded,this,nullptr);
+		disconnect(qApp,&QGuiApplication::screenRemoved,this,nullptr);
+	}
+}
+
+void MainWindow::connectDisplayScaleScreenSignals()
+{
+	disconnectDisplayScaleScreenSignals();
+
+	QScreen *screen=this->screen();
+	if(nullptr==screen)
+	{
+		screen=QGuiApplication::primaryScreen();
+	}
+	display_scale_screen_=screen;
+	if(nullptr!=screen)
+	{
+		connect(screen,&QScreen::geometryChanged,this,[this](const QRect &){
+			refreshDisplayScaleLimits();
+		});
+		connect(screen,&QScreen::availableGeometryChanged,this,[this](const QRect &){
+			refreshDisplayScaleLimits();
+		});
+	}
+	if(QWindow *win=windowHandle())
+	{
+		connect(win,&QWindow::screenChanged,this,[this](QScreen *){
+			connectDisplayScaleScreenSignals();
+			refreshDisplayScaleLimits();
+		});
+	}
+	if(nullptr!=qApp)
+	{
+		connect(qApp,&QGuiApplication::screenAdded,this,[this](QScreen *){
+			refreshDisplayScaleLimits();
+		});
+		connect(qApp,&QGuiApplication::screenRemoved,this,[this](QScreen *){
+			connectDisplayScaleScreenSignals();
+			refreshDisplayScaleLimits();
+		});
+	}
+}
+
 void MainWindow::applyWindowScale(int scale)
 {
 	const bool windowed=!fullscreen_ && !isFullScreen();
+	const int min_scale=minDisplayScale();
 	const int max_scale=windowed ? maxDisplayScale() : maxDisplayScaleForFullscreen();
 	if(true==windowed)
 	{
-		scale=std::clamp(scale,1,max_scale);
+		scale=std::clamp(scale,min_scale,max_scale);
 	}
 	else
 	{
@@ -5924,8 +6283,7 @@ void MainWindow::applyWindowScale(int scale)
 	argv_.autoScaling=false;
 	argv_.maintainAspect=true;
 
-	const int content_w=640*scale;
-	const int content_h=480*scale;
+	const QSize content=TownsQtSettings::contentDipSizeForScale(scale,currentDevicePixelRatio());
 
 	const bool resume_lock=!allow_window_resize_;
 	allow_window_resize_=true;
@@ -5939,8 +6297,8 @@ void MainWindow::applyWindowScale(int scale)
 		view_->setVideoOptions(scale,false,true);
 		if(true==windowed)
 		{
-			view_->setMinimumSize(content_w,content_h);
-			view_->setMaximumSize(content_w,content_h);
+			view_->setMinimumSize(content);
+			view_->setMaximumSize(content);
 		}
 		view_->updateGeometry();
 	}
@@ -5951,8 +6309,8 @@ void MainWindow::applyWindowScale(int scale)
 		content_browser_->setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX);
 		if(true==windowed)
 		{
-			content_browser_->setMinimumSize(content_w,content_h);
-			content_browser_->setMaximumSize(content_w,content_h);
+			content_browser_->setMinimumSize(content);
+			content_browser_->setMaximumSize(content);
 		}
 		content_browser_->updateGeometry();
 		/*! State grid + hover overlay follow the effective applied scale (incl. fullscreen). */

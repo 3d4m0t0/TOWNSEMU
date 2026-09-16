@@ -54,6 +54,8 @@ public:
 
 	/*! True when view_pos lies inside the scaled emulator picture (not letterbox). */
 	bool isPointOnEmuPicture(const QPoint &view_pos) const;
+	/*! Logical rectangle where the emu image is drawn inside this widget. */
+	void queryDisplayRect(int &x,int &y,int &dst_w,int &dst_h) const;
 
 Q_SIGNALS:
 	void emuPictureClicked();
@@ -82,7 +84,6 @@ private:
 	void startSoftwareVsync();
 	void onSoftwareVsyncTick();
 	void recomputeDisplayLayout();
-	void queryDisplayRect(int &x,int &y,int &dst_w,int &dst_h) const;
 	QPoint mapFromEmu(int emu_x,int emu_y) const;
 	void paintDriveAccessOverlay(QPainter &painter);
 	void paintMouseDebugCrosshair(QPainter &painter);

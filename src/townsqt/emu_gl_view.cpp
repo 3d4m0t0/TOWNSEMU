@@ -122,11 +122,22 @@ void EmuGlView::setStretchToFill(bool enabled)
 
 void EmuGlView::setLogicalDisplayRect(int x,int y,int w,int h)
 {
+	const int nw=std::max(1,w);
+	const int nh=std::max(1,h);
+	if(true==have_logical_display_rect_ &&
+	   logical_display_x_==x &&
+	   logical_display_y_==y &&
+	   logical_display_w_==nw &&
+	   logical_display_h_==nh)
+	{
+		return;
+	}
 	have_logical_display_rect_=true;
 	logical_display_x_=x;
 	logical_display_y_=y;
-	logical_display_w_=std::max(1,w);
-	logical_display_h_=std::max(1,h);
+	logical_display_w_=nw;
+	logical_display_h_=nh;
+	update();
 }
 
 void EmuGlView::setMouseDebugCrosshair(bool enabled)

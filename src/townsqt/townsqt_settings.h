@@ -44,7 +44,20 @@ void setScanLineEffectIn15KHz(bool enabled);
 
 int displayScale();
 void setDisplayScale(int scale);
-/*! Largest integer scale whose 640×480 window (+ chrome) fits in available_size (DIP / DE-scaled). */
+
+/*! Absolute menu / settings range (1..kDisplayScaleAbsoluteMax). */
+constexpr int kDisplayScaleAbsoluteMax=6;
+
+/*! Client content size in Qt DIP for scale N so device pixels ≈ N×640×480. */
+QSize contentDipSizeForScale(int scale,qreal dpr);
+
+/*! maxN from physical available size + chrome (also in physical pixels). */
+int maxDisplayScaleForPhysicalSize(QSize physical_avail,int chrome_phys_w=0,int chrome_phys_h=0);
+
+/*! Smallest N whose content DIP width can hold menu_width_dip (menus not clipped). */
+int minDisplayScaleForMenuWidth(int menu_width_dip,qreal dpr,int max_scale=kDisplayScaleAbsoluteMax);
+
+/*! Legacy name: available_size and chrome are treated as physical pixels. */
 int maxDisplayScaleForAvailableSize(QSize available_size,int chrome_w=0,int chrome_h=0);
 
 bool autoScaling();
@@ -199,6 +212,9 @@ void setShowMouseCoordWriteScan(bool enabled);
 
 bool showCpuDebug();
 void setShowCpuDebug(bool enabled);
+
+bool showDisplayScaleDebug();
+void setShowDisplayScaleDebug(bool enabled);
 
 bool showDriveAccessOverlay();
 void setShowDriveAccessOverlay(bool enabled);

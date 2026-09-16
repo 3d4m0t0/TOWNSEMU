@@ -152,6 +152,8 @@ public:
 	int mouseIntegrationTabIndex(void) const;
 	void setDriveConfig(const DriveConfigPage::Values &values);
 	DriveConfigPage::Values driveConfig(void) const;
+	/*! Recompute window-scale spin min/max from current screen (physical pixels). */
+	void updateDisplayScaleRange();
 
 Q_SIGNALS:
 	void settingsApplied(const Values &values);
@@ -188,7 +190,6 @@ private:
 	void updateModelComboItems();
 	void updateSysRomInfoLabel();
 	void updateCapabilityStatusLabels();
-	void updateDisplayScaleRange();
 	void updateFastModeControls();
 	bool selectedCpuFastMode() const;
 	int selectedCpuFrequencyMhz() const;
