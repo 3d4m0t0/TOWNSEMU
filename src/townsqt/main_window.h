@@ -233,6 +233,8 @@ private:
 	/*! After boot, load this manual slot (1..9); -1 = none. */
 	int pending_post_boot_state_slot_=-1;
 	bool content_browser_open_=false;
+	/*! Fade content-browser state overlay once the VM advances after launch. */
+	bool content_browser_dismiss_overlay_on_vm_=false;
 	/*! True if the browser paused a live VM — Close unpauses; Launch tears down. */
 	bool content_browser_resume_on_close_=false;
 	/*! Startup deferred boot: Close cold-starts with global HD (no last CD/FD). */

@@ -5032,6 +5032,14 @@ void MainWindow::onFrameReady()
 		show();
 	}
 	last_emu_activity_ms_=QDateTime::currentMSecsSinceEpoch();
+	if(true==content_browser_dismiss_overlay_on_vm_)
+	{
+		content_browser_dismiss_overlay_on_vm_=false;
+		if(nullptr!=content_browser_)
+		{
+			content_browser_->notifyVmRunning();
+		}
+	}
 	if(cached_differential_integration_ &&
 	   !cached_mouse_capture_released_ &&
 	   !mouse_failsafe_show_cursor_ &&
@@ -6584,6 +6592,7 @@ void MainWindow::openContentBrowser()
 	}
 
 	content_browser_open_=true;
+	content_browser_dismiss_overlay_on_vm_=false;
 	content_browser_->reload();
 	central_stack_->setCurrentWidget(content_browser_);
 	statusBar()->showMessage(tr("Content browser"),0);
@@ -6620,6 +6629,11 @@ void MainWindow::closeContentBrowser()
 		return;
 	}
 	content_browser_open_=false;
+	content_browser_dismiss_overlay_on_vm_=false;
+	if(nullptr!=content_browser_)
+	{
+		content_browser_->hideStateHover();
+	}
 	central_stack_->setCurrentWidget(view_);
 	statusBar()->clearMessage();
 
@@ -6662,6 +6676,7 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 	}
 
 	content_browser_start_ini_on_close_=false;
+	content_browser_dismiss_overlay_on_vm_=true;
 
 	const bool emuRunning=
 	    nullptr!=emu_thread_ && true==emu_thread_->isRunning();
@@ -6691,6 +6706,7 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 			    Qt::BlockingQueuedConnection,
 			    Q_ARG(bool,false));
 		}
+		/*! Same-disc resume: wait for the next presented frame before dismissing overlay. */
 		return;
 	}
 

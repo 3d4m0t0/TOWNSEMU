@@ -7,7 +7,6 @@
 
 class QGraphicsOpacityEffect;
 class QLabel;
-class QParallelAnimationGroup;
 class QPropertyAnimation;
 class QPushButton;
 class QScrollArea;
@@ -29,8 +28,14 @@ public:
 	void setRegisterCdPath(const QString &cdPath);
 	/*! Running VM disc-profile fingerprint; Save enabled only when it matches an entry. */
 	void setActiveProfileFingerprint(unsigned int fingerprint);
-	/*! Window scale: 1 → 5×2 state grid; ≥2 → 10×1 single row. */
+	/*! Host window scale (content width); state grid reflows by DE-scaled size + wrap. */
 	void setWindowScale(int scale);
+	/*! Keep state preview up across stack switch / load until notifyVmRunning(). */
+	void pinStateOverlayForLaunch(void);
+	/*! VM is advancing — fade out a launch-pinned (or lingering) state preview. */
+	void notifyVmRunning(void);
+	/*! Immediately hide the state preview (e.g. closing the browser without launch). */
+	void hideStateHover(void);
 
 Q_SIGNALS:
 	/*! stateSlot: -2 = default auto-resume (state0_*), -1 = cold, 0..9 = stateN_*. */
@@ -45,6 +50,19 @@ protected:
 
 private:
 	void rebuildList(bool animateExpand);
+	struct StateUiMetrics
+	{
+		int thumbW=104;
+		int thumbH=78;
+		int hSpacing=8;
+		int vSpacing=8;
+		int leftPad=28;
+		int fontPx=9;
+	};
+	/*! Thumb / gap / label sizes follow DE font scale. */
+	StateUiMetrics stateUiMetrics(void) const;
+	/*! How many state thumbs fit on one row in the current viewport. */
+	int stateGridColumns(const StateUiMetrics &metrics) const;
 	void animateStatesReveal(QWidget *statesHost);
 	void scrollExpandedEntryFollow(QWidget *entry);
 	void scrollExpandedStatesIntoView(QWidget *statesHost);
@@ -53,11 +71,12 @@ private:
 	void applyEntryRowStyle(QWidget *row,unsigned int fingerprint) const;
 	void refreshSelectionStyles(void);
 	void showStateHover(const QPixmap &pixmap,int slot,const QString &timeText);
-	void hideStateHover(void);
+	void fadeOutStateHover(void);
 	void syncHoverOverlayGeometry(void);
 	void refreshHoverOverlayPixmap(void);
-	QSize hoverOverlaySize(void) const;
-	QRect hoverOverlayRect(int yBias) const;
+	/*! Same slot as EmuView in the central stack — VM draw area in host coords. */
+	QRect vmDisplayRectInHost(void) const;
+	QRect hoverOverlayRect(void) const;
 	void onRegisterClicked(void);
 	void updateRegisterButton(void);
 	void onChangeIcon(unsigned int fingerprint);
@@ -70,7 +89,13 @@ private:
 	unsigned int expanded_fingerprint_=0;
 	unsigned int active_profile_fingerprint_=0;
 	int window_scale_=1;
-	int state_grid_cols_=5;
+	int state_grid_cols_=1;
+	int state_thumb_w_=104;
+	int state_thumb_h_=78;
+	int state_h_spacing_=8;
+	int state_v_spacing_=8;
+	int state_left_pad_=28;
+	int state_font_px_=9;
 	QPushButton *register_btn_=nullptr;
 	QLabel *hover_overlay_=nullptr;
 	QScrollArea *scroll_=nullptr;
@@ -78,9 +103,13 @@ private:
 	QVBoxLayout *list_layout_=nullptr;
 	QGraphicsOpacityEffect *hover_opacity_=nullptr;
 	QPropertyAnimation *hover_fade_=nullptr;
-	QPropertyAnimation *hover_move_=nullptr;
-	QParallelAnimationGroup *hover_anim_=nullptr;
 	QPixmap hover_source_;
 	int hover_slot_=0;
 	QString hover_time_text_;
+	bool hover_arm_move_hide_=false;
+	bool hover_fading_out_=false;
+	bool hover_pinned_for_launch_=false;
+	/*! After dblclick launch, ignore the trailing release (and any show) until next press. */
+	bool hover_block_show_until_press_=false;
+	QPoint hover_show_global_pos_;
 };

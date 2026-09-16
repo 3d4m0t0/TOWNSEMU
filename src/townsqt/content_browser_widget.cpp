@@ -5,6 +5,10 @@
 
 #include "mouse_coord_write_scan.h"
 
+#include <algorithm>
+
+#include <QApplication>
+#include <QCursor>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QFile>
@@ -15,6 +19,7 @@
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
 #include <QGridLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QInputDialog>
@@ -24,31 +29,35 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QParallelAnimationGroup>
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSizePolicy>
 #include <QTimer>
 #include <QVariant>
 #include <QVBoxLayout>
+#include <QWindow>
 
 namespace
 {
 /*! Entry / state thumbs use 640:480 (4:3). */
 constexpr int kThumbW=64;
 constexpr int kThumbH=48;
-constexpr int kStateThumbW=104;
-constexpr int kStateThumbH=78;
-constexpr int kStateLabelFontPx=9;
-constexpr int kStateGridColsDefault=5;
-constexpr int kStateGridColsWide=10;
-constexpr int kHoverOverlayBaseW=320;
-constexpr int kHoverOverlayBaseH=240;
-constexpr int kHoverYNudge=28; /*! start below / end above center */
-constexpr int kHoverAnimMs=500;
+/*! State-grid base sizes at ~16px default font (100% DE); scaled by fontMetrics. */
+constexpr int kStateThumbBaseW=104;
+constexpr int kStateThumbBaseH=78;
+constexpr int kStateLabelFontBasePx=9;
+constexpr int kStateGridHSpacingBase=8;
+constexpr int kStateGridVSpacingBase=8;
+constexpr int kStateGridLeftPadBase=28;
+constexpr int kStateUiRefFontH=16;
+constexpr int kStateGridMaxCols=10;
+constexpr int kEntryHMargins=8; /*! entryLay left+right */
+constexpr int kHoverOverlayFadeMs=280;
+constexpr int kHoverDismissMovePx=4; /*! cursor travel before fade-out */
 constexpr int kExpandAnimMs=220;
 constexpr qreal kHoverOverlayOpacity=1.0;
 constexpr char kPropFingerprint[]="townsqtFp";
@@ -142,12 +151,12 @@ void PaintStateLabels(QPainter &p,int w,int h,int slot,const QString &timeText,i
 	DrawOutlinedText(p,timeR,timeText,Qt::AlignCenter);
 }
 
-QPixmap ComposeStateThumb(const QString &path,int w,int h,int slot,const QString &timeText)
+QPixmap ComposeStateThumb(const QString &path,int w,int h,int slot,const QString &timeText,int fontPx)
 {
 	QPixmap canvas=ComposeThumb43(path,w,h);
 	QPainter p(&canvas);
 	p.setRenderHint(QPainter::TextAntialiasing,true);
-	PaintStateLabels(p,w,h,slot,timeText,kStateLabelFontPx);
+	PaintStateLabels(p,w,h,slot,timeText,fontPx);
 	p.end();
 	return canvas;
 }
@@ -160,37 +169,6 @@ QPixmap LoadHoverSource(const QString &path)
 		return {};
 	}
 	return pm;
-}
-
-/*! Exact ½ downscale with stepwise SmoothTransformation for better quality. */
-QPixmap HighQualityScaleHalf(const QPixmap &src)
-{
-	if(true==src.isNull())
-	{
-		return {};
-	}
-	QImage img=src.toImage();
-	if(true==img.isNull())
-	{
-		return {};
-	}
-	if(QImage::Format_ARGB32_Premultiplied!=img.format() &&
-	   QImage::Format_RGB32!=img.format() &&
-	   QImage::Format_ARGB32!=img.format())
-	{
-		img=img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	}
-	const QSize dest(qMax(1,img.width()/2),qMax(1,img.height()/2));
-	/*! If much larger than 2× dest, halve repeatedly before final fit. */
-	QSize s=img.size();
-	while(s.width()>dest.width()*2 || s.height()>dest.height()*2)
-	{
-		s=QSize(qMax(1,(s.width()+1)/2),qMax(1,(s.height()+1)/2));
-		img=img.scaled(s,Qt::KeepAspectRatio,Qt::SmoothTransformation);
-		s=img.size();
-	}
-	img=img.scaled(dest,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
-	return QPixmap::fromImage(img);
 }
 
 QString FormatStateTime(const QString &statePath)
@@ -287,7 +265,9 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent)
 	scroll_=new QScrollArea(this);
 	scroll_->setWidgetResizable(true);
 	scroll_->setFrameShape(QFrame::NoFrame);
+	scroll_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	list_host_=new QWidget(scroll_);
+	list_host_->setMinimumWidth(0);
 	list_layout_=new QVBoxLayout(list_host_);
 	list_layout_->setContentsMargins(0,0,0,0);
 	list_layout_->setSpacing(6);
@@ -295,10 +275,13 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent)
 	scroll_->setWidget(list_host_);
 	root->addWidget(scroll_,1);
 
-	/*! Hover preview: child overlay, not a floating ToolTip. */
+	/*! In-app overlay (child of top-level window). Wayland ignores
+	    WindowStaysOnTopHint on separate xdg_toplevel; a child surface always
+	    stacks above siblings. True desktop-wide overlay needs wlr-layer-shell. */
 	hover_overlay_=new QLabel(this);
-	hover_overlay_->setAlignment(Qt::AlignCenter);
 	hover_overlay_->setAttribute(Qt::WA_TransparentForMouseEvents);
+	hover_overlay_->setAttribute(Qt::WA_TranslucentBackground);
+	hover_overlay_->setAlignment(Qt::AlignCenter);
 	hover_overlay_->setStyleSheet(QStringLiteral("background: transparent;"));
 	hover_opacity_=new QGraphicsOpacityEffect(hover_overlay_);
 	hover_opacity_->setOpacity(0.0);
@@ -306,14 +289,16 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent)
 	hover_overlay_->hide();
 
 	hover_fade_=new QPropertyAnimation(hover_opacity_,QByteArrayLiteral("opacity"),this);
-	hover_fade_->setDuration(kHoverAnimMs);
+	hover_fade_->setDuration(kHoverOverlayFadeMs);
 	hover_fade_->setEasingCurve(QEasingCurve::InOutQuad);
-	hover_move_=new QPropertyAnimation(hover_overlay_,QByteArrayLiteral("geometry"),this);
-	hover_move_->setDuration(kHoverAnimMs);
-	hover_move_->setEasingCurve(QEasingCurve::InOutQuad);
-	hover_anim_=new QParallelAnimationGroup(this);
-	hover_anim_->addAnimation(hover_fade_);
-	hover_anim_->addAnimation(hover_move_);
+	connect(hover_fade_,&QPropertyAnimation::finished,this,[this](){
+		if(true!=hover_fading_out_)
+		{
+			return;
+		}
+		hover_fading_out_=false;
+		hideStateHover();
+	});
 
 	updateRegisterButton();
 	reload();
@@ -321,12 +306,21 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent)
 
 ContentBrowserWidget::~ContentBrowserWidget()
 {
+	if(nullptr!=qApp)
+	{
+		qApp->removeEventFilter(this);
+	}
 	hideStateHover();
+	/*! Parent may be the top-level window; detach before our destruction order differs. */
+	if(nullptr!=hover_overlay_)
+	{
+		hover_overlay_->hide();
+		hover_overlay_->setParent(nullptr);
+		delete hover_overlay_;
+	}
 	hover_overlay_=nullptr;
 	hover_opacity_=nullptr;
 	hover_fade_=nullptr;
-	hover_move_=nullptr;
-	hover_anim_=nullptr;
 }
 
 void ContentBrowserWidget::setRegisterCdPath(const QString &cdPath)
@@ -363,17 +357,54 @@ void ContentBrowserWidget::setWindowScale(int scale)
 	scale=qMax(1,scale);
 	const bool scaleChanged=(window_scale_!=scale);
 	window_scale_=scale;
-	const int cols=(2<=window_scale_) ? kStateGridColsWide : kStateGridColsDefault;
-	const bool colsChanged=(cols!=state_grid_cols_);
-	state_grid_cols_=cols;
 	if(true==scaleChanged && nullptr!=hover_overlay_ && true==hover_overlay_->isVisible())
 	{
 		hideStateHover();
 	}
-	if(true==colsChanged && 0!=expanded_fingerprint_)
+	if(0!=expanded_fingerprint_ && true==scaleChanged)
 	{
 		rebuildList(false);
 	}
+}
+
+ContentBrowserWidget::StateUiMetrics ContentBrowserWidget::stateUiMetrics(void) const
+{
+	/*! DE UI scale from font height so text scaling and fractional DE scale track together. */
+	const qreal s=qMax(
+	    1.0,
+	    static_cast<qreal>(fontMetrics().height())/static_cast<qreal>(kStateUiRefFontH));
+	StateUiMetrics m;
+	m.thumbW=qMax(1,qRound(static_cast<qreal>(kStateThumbBaseW)*s));
+	m.thumbH=qMax(1,qRound(static_cast<qreal>(kStateThumbBaseH)*s));
+	m.hSpacing=qMax(0,qRound(static_cast<qreal>(kStateGridHSpacingBase)*s));
+	m.vSpacing=qMax(0,qRound(static_cast<qreal>(kStateGridVSpacingBase)*s));
+	m.leftPad=qMax(0,qRound(static_cast<qreal>(kStateGridLeftPadBase)*s));
+	m.fontPx=qMax(8,qRound(static_cast<qreal>(kStateLabelFontBasePx)*s));
+	return m;
+}
+
+int ContentBrowserWidget::stateGridColumns(const StateUiMetrics &metrics) const
+{
+	int avail=0;
+	if(nullptr!=scroll_ && nullptr!=scroll_->viewport())
+	{
+		avail=scroll_->viewport()->width();
+		if(nullptr!=scroll_->verticalScrollBar())
+		{
+			avail-=scroll_->verticalScrollBar()->sizeHint().width();
+		}
+	}
+	if(avail<=0 && nullptr!=list_host_)
+	{
+		avail=list_host_->width();
+	}
+	const int usable=avail-kEntryHMargins-metrics.leftPad;
+	if(usable<metrics.thumbW)
+	{
+		return 1;
+	}
+	const int step=metrics.thumbW+metrics.hSpacing;
+	return qBound(1,(usable+metrics.hSpacing)/step,kStateGridMaxCols);
 }
 
 void ContentBrowserWidget::reload(void)
@@ -388,12 +419,14 @@ void ContentBrowserWidget::refreshStateSlot(unsigned int fingerprint,int slot)
 		return;
 	}
 	hideStateHover();
+	const StateUiMetrics metrics=stateUiMetrics();
 	const QString statePath=TownsQtDiscStateSave::StateSlotPath(slot,fingerprint);
 	const bool exists=!statePath.isEmpty() && QFileInfo::exists(statePath);
 	const QString imgPath=exists ?
 	    TownsQtDiscStateSave::StateSlotImagePath(slot,fingerprint) : QString();
 	const QString timeText=FormatStateTime(exists ? statePath : QString());
-	const QPixmap thumbPm=ComposeStateThumb(imgPath,kStateThumbW,kStateThumbH,slot,timeText);
+	const QPixmap thumbPm=ComposeStateThumb(
+	    imgPath,metrics.thumbW,metrics.thumbH,slot,timeText,metrics.fontPx);
 	const QPixmap hoverPm=LoadHoverSource(imgPath);
 
 	for(QWidget *w : list_host_->findChildren<QWidget*>())
@@ -412,7 +445,9 @@ void ContentBrowserWidget::refreshStateSlot(unsigned int fingerprint,int slot)
 		{
 			continue;
 		}
+		thumb->setFixedSize(metrics.thumbW,metrics.thumbH);
 		thumb->setPixmap(thumbPm);
+		w->setFixedSize(metrics.thumbW,metrics.thumbH);
 		w->setProperty(kPropStateExists,exists);
 		if(true!=hoverPm.isNull())
 		{
@@ -578,43 +613,36 @@ void ContentBrowserWidget::scrollExpandedStatesIntoView(QWidget *statesHost)
 	scrollExpandedEntryFollow(nullptr!=entry ? entry : statesHost);
 }
 
-QSize ContentBrowserWidget::hoverOverlaySize(void) const
+QRect ContentBrowserWidget::vmDisplayRectInHost(void) const
 {
-	/*! Source × ½ (high-quality downscale). */
-	if(true!=hover_source_.isNull())
-	{
-		return QSize(qMax(1,hover_source_.width()/2),qMax(1,hover_source_.height()/2));
-	}
-	return QSize(kHoverOverlayBaseW,kHoverOverlayBaseH);
+	/*! Content browser shares the central-stack slot with EmuView — same draw area. */
+	QWidget *host=nullptr!=window() ? window() : const_cast<ContentBrowserWidget *>(this);
+	return QRect(mapTo(host,QPoint(0,0)),size());
 }
 
-QRect ContentBrowserWidget::hoverOverlayRect(int yBias) const
+QRect ContentBrowserWidget::hoverOverlayRect(void) const
 {
-	const QSize sz=hoverOverlaySize();
-	const QPoint c=rect().center();
-	return QRect(
-	    c.x()-sz.width()/2,
-	    c.y()-sz.height()/2+yBias,
-	    sz.width(),
-	    sz.height());
+	return vmDisplayRectInHost();
 }
 
 void ContentBrowserWidget::syncHoverOverlayGeometry(void)
 {
-	if(nullptr==hover_overlay_)
+	if(nullptr==hover_overlay_ || true!=hover_overlay_->isVisible())
 	{
 		return;
 	}
-	if(nullptr!=hover_anim_ && QAbstractAnimation::Running==hover_anim_->state())
+	if(nullptr!=hover_fade_ && QAbstractAnimation::Running==hover_fade_->state())
 	{
 		return;
 	}
 	refreshHoverOverlayPixmap();
-	if(true==hover_overlay_->isVisible())
+	QWidget *host=window();
+	if(nullptr!=host && hover_overlay_->parentWidget()!=host)
 	{
-		hover_overlay_->setGeometry(hoverOverlayRect(-kHoverYNudge));
-		hover_overlay_->raise();
+		hover_overlay_->setParent(host);
 	}
+	hover_overlay_->setGeometry(hoverOverlayRect());
+	hover_overlay_->raise();
 }
 
 void ContentBrowserWidget::refreshHoverOverlayPixmap(void)
@@ -623,57 +651,170 @@ void ContentBrowserWidget::refreshHoverOverlayPixmap(void)
 	{
 		return;
 	}
-	const QPixmap scaled=HighQualityScaleHalf(hover_source_);
-	if(true==scaled.isNull())
+	const QSize box=hoverOverlayRect().size();
+	if(box.width()<=0 || box.height()<=0)
 	{
 		return;
 	}
-	const QSize sz=scaled.size();
-	QPixmap canvas(sz);
-	canvas.fill(Qt::transparent);
+	/*! Fill VM draw area; letterbox/pillarbox with black when the shot is smaller. */
+	QPixmap canvas(box);
+	canvas.fill(Qt::black);
+	const QPixmap scaled=
+	    hover_source_.scaled(box,Qt::KeepAspectRatio,Qt::SmoothTransformation);
 	QPainter p(&canvas);
 	p.setRenderHint(QPainter::SmoothPixmapTransform,true);
 	p.setRenderHint(QPainter::TextAntialiasing,true);
-	p.drawPixmap(0,0,scaled);
-	const int fontPx=qMax(8,(kStateLabelFontPx*sz.width())/qMax(1,kStateThumbW*2));
-	PaintStateLabels(p,sz.width(),sz.height(),hover_slot_,hover_time_text_,fontPx);
+	if(true!=scaled.isNull())
+	{
+		p.drawPixmap((box.width()-scaled.width())/2,(box.height()-scaled.height())/2,scaled);
+	}
+	const int fontPx=qMax(8,(state_font_px_*box.width())/qMax(1,state_thumb_w_*2));
+	PaintStateLabels(p,box.width(),box.height(),hover_slot_,hover_time_text_,fontPx);
 	p.end();
 	hover_overlay_->setPixmap(canvas);
+	hover_overlay_->resize(box);
 }
 
 void ContentBrowserWidget::showStateHover(const QPixmap &pixmap,int slot,const QString &timeText)
 {
-	if(nullptr==hover_overlay_ || nullptr==hover_opacity_ || nullptr==hover_anim_ ||
-	   nullptr==hover_fade_ || nullptr==hover_move_ || true==pixmap.isNull())
+	if(nullptr==hover_overlay_ || nullptr==hover_opacity_ || nullptr==hover_fade_ ||
+	   true==pixmap.isNull())
 	{
 		hideStateHover();
 		return;
 	}
+	/*! Already up: leave as-is so the first click of a double-click does not re-fade. */
+	if(true==hover_block_show_until_press_ ||
+	   true==hover_pinned_for_launch_ ||
+	   true==hover_fading_out_)
+	{
+		return;
+	}
+	if(true==hover_overlay_->isVisible())
+	{
+		return;
+	}
+	hover_fading_out_=false;
+	hover_pinned_for_launch_=false;
 	hover_source_=pixmap;
 	hover_slot_=slot;
 	hover_time_text_=timeText;
-	hover_anim_->stop();
-	refreshHoverOverlayPixmap();
+	hover_fade_->stop();
 
-	const QRect startR=hoverOverlayRect(kHoverYNudge);
-	const QRect endR=hoverOverlayRect(-kHoverYNudge);
+	QWidget *host=window();
+	if(nullptr==host)
+	{
+		host=this;
+	}
+	if(hover_overlay_->parentWidget()!=host)
+	{
+		hover_overlay_->setParent(host);
+	}
+
+	refreshHoverOverlayPixmap();
+	hover_overlay_->setGeometry(hoverOverlayRect());
 	hover_opacity_->setOpacity(0.0);
-	hover_overlay_->setGeometry(startR);
 	hover_overlay_->show();
 	hover_overlay_->raise();
+	qApp->removeEventFilter(this);
+	qApp->installEventFilter(this);
+	hover_show_global_pos_=QCursor::pos();
+	hover_arm_move_hide_=true;
 
+	hover_fade_->setDuration(kHoverOverlayFadeMs);
 	hover_fade_->setStartValue(0.0);
 	hover_fade_->setEndValue(kHoverOverlayOpacity);
-	hover_move_->setStartValue(startR);
-	hover_move_->setEndValue(endR);
-	hover_anim_->start();
+	hover_fade_->start();
+}
+
+void ContentBrowserWidget::pinStateOverlayForLaunch(void)
+{
+	if(nullptr==hover_overlay_ || nullptr==hover_opacity_)
+	{
+		return;
+	}
+	hover_arm_move_hide_=false;
+	hover_fading_out_=false;
+	hover_pinned_for_launch_=true;
+	hover_block_show_until_press_=true;
+	/*! Interrupt fade-in/out and snap to full opacity for launch confirm. */
+	if(nullptr!=hover_fade_)
+	{
+		hover_fade_->stop();
+		hover_fade_->setStartValue(kHoverOverlayOpacity);
+		hover_fade_->setEndValue(kHoverOverlayOpacity);
+	}
+	hover_opacity_->setOpacity(kHoverOverlayOpacity);
+	if(true==hover_source_.isNull())
+	{
+		return;
+	}
+	QWidget *host=window();
+	if(nullptr==host)
+	{
+		host=this;
+	}
+	if(hover_overlay_->parentWidget()!=host)
+	{
+		hover_overlay_->setParent(host);
+	}
+	refreshHoverOverlayPixmap();
+	hover_overlay_->setGeometry(hoverOverlayRect());
+	hover_overlay_->show();
+	hover_overlay_->raise();
+	qApp->removeEventFilter(this);
+	qApp->installEventFilter(this);
+}
+
+void ContentBrowserWidget::notifyVmRunning(void)
+{
+	if(true!=hover_pinned_for_launch_ &&
+	   (nullptr==hover_overlay_ || true!=hover_overlay_->isVisible()))
+	{
+		return;
+	}
+	hover_pinned_for_launch_=false;
+	fadeOutStateHover();
+}
+
+void ContentBrowserWidget::fadeOutStateHover(void)
+{
+	if(true==hover_pinned_for_launch_)
+	{
+		return;
+	}
+	if(nullptr==hover_overlay_ || true!=hover_overlay_->isVisible() ||
+	   nullptr==hover_fade_ || nullptr==hover_opacity_)
+	{
+		return;
+	}
+	if(true==hover_fading_out_)
+	{
+		return;
+	}
+	hover_arm_move_hide_=false;
+	hover_fading_out_=true;
+	hover_fade_->stop();
+	hover_fade_->setDuration(kHoverOverlayFadeMs);
+	hover_fade_->setStartValue(hover_opacity_->opacity());
+	hover_fade_->setEndValue(0.0);
+	hover_fade_->start();
 }
 
 void ContentBrowserWidget::hideStateHover(void)
 {
-	if(nullptr!=hover_anim_)
+	hover_arm_move_hide_=false;
+	hover_fading_out_=false;
+	hover_pinned_for_launch_=false;
+	/*! Keep hover_block_show_until_press_: fade-out must not unlock the
+	    trailing double-click release that would re-show the overlay. */
+	if(nullptr!=qApp)
 	{
-		hover_anim_->stop();
+		qApp->removeEventFilter(this);
+	}
+	if(nullptr!=hover_fade_)
+	{
+		hover_fade_->stop();
 	}
 	if(nullptr!=hover_opacity_)
 	{
@@ -693,10 +834,43 @@ void ContentBrowserWidget::resizeEvent(QResizeEvent *event)
 {
 	QWidget::resizeEvent(event);
 	syncHoverOverlayGeometry();
+	if(0!=expanded_fingerprint_)
+	{
+		const StateUiMetrics metrics=stateUiMetrics();
+		const int cols=stateGridColumns(metrics);
+		if(cols!=state_grid_cols_ ||
+		   metrics.thumbW!=state_thumb_w_ ||
+		   metrics.thumbH!=state_thumb_h_ ||
+		   metrics.hSpacing!=state_h_spacing_ ||
+		   metrics.fontPx!=state_font_px_)
+		{
+			rebuildList(false);
+		}
+	}
 }
 
 bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
 {
+	/*! Dismiss preview on cursor move or wheel after click-to-show. */
+	if(true==hover_arm_move_hide_ &&
+	   true!=hover_pinned_for_launch_ &&
+	   nullptr!=hover_overlay_ &&
+	   true==hover_overlay_->isVisible())
+	{
+		if(QEvent::Wheel==event->type())
+		{
+			fadeOutStateHover();
+		}
+		else if(QEvent::MouseMove==event->type())
+		{
+			const QPoint delta=QCursor::pos()-hover_show_global_pos_;
+			if(delta.manhattanLength()>=kHoverDismissMovePx)
+			{
+				fadeOutStateHover();
+			}
+		}
+	}
+
 	if(nullptr!=watched && watched->property(kPropFingerprint).isValid()
 	   && true!=watched->property(kPropLaunchFp).isValid())
 	{
@@ -723,6 +897,14 @@ bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
 
 	if(nullptr!=watched && watched->property(kPropLaunchFp).isValid())
 	{
+		if(QEvent::MouseButtonPress==event->type())
+		{
+			auto *me=static_cast<QMouseEvent *>(event);
+			if(Qt::LeftButton==me->button())
+			{
+				hover_block_show_until_press_=false;
+			}
+		}
 		if(QEvent::MouseButtonDblClick==event->type())
 		{
 			auto *me=static_cast<QMouseEvent *>(event);
@@ -732,7 +914,19 @@ bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
 				{
 					return true;
 				}
-				hideStateHover();
+				const QVariant pmVar=watched->property(kPropHoverPixmap);
+				if(true==pmVar.isValid())
+				{
+					const QPixmap pm=pmVar.value<QPixmap>();
+					if(true!=pm.isNull())
+					{
+						hover_source_=pm;
+						hover_slot_=watched->property(kPropHoverSlot).toInt();
+						hover_time_text_=watched->property(kPropHoverTime).toString();
+					}
+				}
+				/*! Snap through any in-progress fade-in, then keep pinned until VM runs. */
+				pinStateOverlayForLaunch();
 				onLaunch(
 				    watched->property(kPropLaunchFp).toUInt(),
 				    watched->property(kPropLaunchPath).toString(),
@@ -740,24 +934,32 @@ bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
 				return true;
 			}
 		}
-		if(QEvent::Enter==event->type())
+		if(QEvent::MouseButtonRelease==event->type())
 		{
-			const QVariant pmVar=watched->property(kPropHoverPixmap);
-			if(true==pmVar.isValid())
+			auto *me=static_cast<QMouseEvent *>(event);
+			if(Qt::LeftButton==me->button())
 			{
-				const QPixmap pm=pmVar.value<QPixmap>();
-				if(true!=pm.isNull())
+				/*! Trailing release of a double-click must not re-show after fade-out. */
+				if(true==hover_block_show_until_press_ ||
+				   true==hover_pinned_for_launch_ ||
+				   true==hover_fading_out_)
 				{
-					showStateHover(
-					    pm,
-					    watched->property(kPropHoverSlot).toInt(),
-					    watched->property(kPropHoverTime).toString());
+					return true;
 				}
+				const QVariant pmVar=watched->property(kPropHoverPixmap);
+				if(true==pmVar.isValid())
+				{
+					const QPixmap pm=pmVar.value<QPixmap>();
+					if(true!=pm.isNull())
+					{
+						showStateHover(
+						    pm,
+						    watched->property(kPropHoverSlot).toInt(),
+						    watched->property(kPropHoverTime).toString());
+					}
+				}
+				return true;
 			}
-		}
-		else if(QEvent::Leave==event->type())
-		{
-			hideStateHover();
 		}
 	}
 
@@ -783,7 +985,16 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 	}
 
 	const auto doc=TownsQtContentLibrary::LoadDocument();
-	const auto &entries=doc.entries;
+	QVector<TownsQtContentLibrary::Entry> entries=doc.entries;
+	std::sort(entries.begin(),entries.end(),
+	    [](const TownsQtContentLibrary::Entry &a,const TownsQtContentLibrary::Entry &b){
+		const int c=QString::localeAwareCompare(a.displayName,b.displayName);
+		if(0!=c)
+		{
+			return c<0;
+		}
+		return a.fingerprint<b.fingerprint;
+	});
 	if(entries.isEmpty())
 	{
 		expanded_fingerprint_=0;
@@ -797,6 +1008,15 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 		list_layout_->addStretch(1);
 		return;
 	}
+
+	const StateUiMetrics metrics=stateUiMetrics();
+	state_grid_cols_=stateGridColumns(metrics);
+	state_thumb_w_=metrics.thumbW;
+	state_thumb_h_=metrics.thumbH;
+	state_h_spacing_=metrics.hSpacing;
+	state_v_spacing_=metrics.vSpacing;
+	state_left_pad_=metrics.leftPad;
+	state_font_px_=metrics.fontPx;
 
 	bool expandedStillPresent=false;
 	bool selectedStillPresent=false;
@@ -850,9 +1070,9 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 				pinLay->setSpacing(8);
 
 				auto *thumb=new QLabel(pin);
-				thumb->setFixedSize(kStateThumbW,kStateThumbH);
+				thumb->setFixedSize(metrics.thumbW,metrics.thumbH);
 				thumb->setPixmap(ComposeStateThumb(
-				    imgPath,kStateThumbW,kStateThumbH,0,timeText));
+				    imgPath,metrics.thumbW,metrics.thumbH,0,timeText,metrics.fontPx));
 				thumb->setAlignment(Qt::AlignCenter);
 				thumb->setCursor(Qt::PointingHandCursor);
 				thumb->setToolTip(tr("Double-click to resume"));
@@ -978,11 +1198,12 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 			auto *statesHost=new QWidget(entry);
 			statesHost->setAutoFillBackground(false);
 			statesHost->setAttribute(Qt::WA_TranslucentBackground);
-			statesHost->setSizePolicy(QSizePolicy::Maximum,QSizePolicy::Preferred);
+			statesHost->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Preferred);
+			statesHost->setMaximumWidth(qMax(1,scroll_->viewport()->width()-kEntryHMargins));
 			auto *grid=new QGridLayout(statesHost);
-			grid->setContentsMargins(28,4,0,4);
-			grid->setHorizontalSpacing(8);
-			grid->setVerticalSpacing(8);
+			grid->setContentsMargins(metrics.leftPad,4,0,4);
+			grid->setHorizontalSpacing(metrics.hSpacing);
+			grid->setVerticalSpacing(metrics.vSpacing);
 			grid->setAlignment(Qt::AlignLeft|Qt::AlignTop);
 
 			const bool canSave=
@@ -993,7 +1214,7 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 				cell->setAutoFillBackground(false);
 				cell->setAttribute(Qt::WA_TranslucentBackground);
 				cell->setCursor(Qt::PointingHandCursor);
-				cell->setFixedSize(kStateThumbW,kStateThumbH);
+				cell->setFixedSize(metrics.thumbW,metrics.thumbH);
 				cell->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
 				auto *lay=new QVBoxLayout(cell);
 				lay->setContentsMargins(0,0,0,0);
@@ -1006,9 +1227,9 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 				const QString timeText=FormatStateTime(exists ? statePath : QString());
 
 				auto *thumb=new QLabel(cell);
-				thumb->setFixedSize(kStateThumbW,kStateThumbH);
+				thumb->setFixedSize(metrics.thumbW,metrics.thumbH);
 				thumb->setPixmap(ComposeStateThumb(
-				    imgPath,kStateThumbW,kStateThumbH,slot,timeText));
+				    imgPath,metrics.thumbW,metrics.thumbH,slot,timeText,metrics.fontPx));
 				thumb->setAlignment(Qt::AlignCenter);
 				thumb->setAttribute(Qt::WA_TransparentForMouseEvents);
 				lay->addWidget(thumb);
@@ -1067,9 +1288,11 @@ void ContentBrowserWidget::rebuildList(bool animateExpand)
 			}
 			for(int col=0; col<state_grid_cols_; ++col)
 			{
-				grid->setColumnMinimumWidth(col,kStateThumbW);
+				grid->setColumnMinimumWidth(col,metrics.thumbW);
 				grid->setColumnStretch(col,0);
 			}
+			/*! Absorb leftover width so the grid does not force horizontal scroll. */
+			grid->setColumnStretch(state_grid_cols_,1);
 
 			entryLay->addWidget(statesHost,0,Qt::AlignLeft);
 			if(true==animateExpand)
