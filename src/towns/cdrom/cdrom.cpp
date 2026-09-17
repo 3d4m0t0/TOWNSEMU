@@ -2373,7 +2373,17 @@ void TownsCDROM::DelayedCommandExecution(unsigned long long int townsTime)
 				}
 				if(AsyncWaveReader::STATE_DATAREADY!=waveSt)
 				{
-					// IDLE after RequestCancel (MODE/STOP stole the drive): restart prefetch.
+					// IDLE after RequestCancel (MODE/STOP stole the drive).
+					if(true==state.CDDAPrefetchWaitForMode || true==state.dataTransferActive)
+					{
+						/*! Do not restart CDDA prefetch while MODE owns the disc. */
+						state.DRY=false;
+						state.delayedSIRQ=true;
+						townsPtr->ScheduleDeviceCallBack(
+						    *this,townsPtr->state.townsTime+CDDA_PREFETCH_POLL_TIME);
+						disposition="PLAY wait MODE (disc busy)";
+						break;
+					}
 					PrepareCDDAPlay();
 					const unsigned int after=waveReader.GetState();
 					if(AsyncWaveReader::STATE_BUSY!=after &&
@@ -2916,6 +2926,26 @@ void TownsCDROM::StartModeSectorTransfer(uint64_t seekTime)
 {
 	if(true==state.delayedSIRQ)
 	{
+		/*! MODE deferred for disc ownership must not sit behind a PLAY prefetch wait:
+		    DelayedCommandExecution(PLAY) would PrepareCDDAPlay again, cancel↔restart
+		    forever, and StartModeSectorTransfer never runs (JMP $ waiting for SIRQ). */
+		if(true==state.CDDAPrefetchWaitForMode)
+		{
+			if(AsyncWaveReader::STATE_BUSY==waveReader.GetState())
+			{
+				townsPtr->ScheduleDeviceCallBack(*this,townsPtr->state.townsTime+1000000);
+				return;
+			}
+			const uint64_t seekTime=state.modeDeferredSeekTime;
+			LogMonitorLine("[CACHE] MODE status+transfer before delayed PLAY resume");
+			StartModeSectorTransfer(seekTime);
+			if(true==state.delayedSIRQ)
+			{
+				townsPtr->ScheduleDeviceCallBack(
+				    *this,townsPtr->state.townsTime+CDDA_PREFETCH_POLL_TIME);
+			}
+			return;
+		}
 		DelayedCommandExecution(townsTime);
 		// Re-arm if MODE is still waiting for prefetch (callback may have been stolen).
 		if(true==state.CDDAPrefetchWaitForMode)
