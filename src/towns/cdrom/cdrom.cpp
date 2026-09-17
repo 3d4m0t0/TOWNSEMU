@@ -48,11 +48,12 @@ TownsCDROM::AsyncWaveReader::AsyncWaveReader()
 }
 TownsCDROM::AsyncWaveReader::~AsyncWaveReader()
 {
-	if(STATE_IDLE!=GetState())
+	RequestCancel();
+	if(true==thr.joinable())
 	{
 		thr.join();
-		state=STATE_IDLE;
 	}
+	state=STATE_IDLE;
 }
 unsigned int TownsCDROM::AsyncWaveReader::GetState(void)
 {
@@ -94,14 +95,12 @@ void TownsCDROM::AsyncWaveReader::Start(DiscImage *discImg,DiscImage::MinSecFrm 
 		}
 		stateLock.unlock();
 	}
-	if(STATE_DATAREADY==st)
+	/*! RequestCancel leaves BUSY→IDLE without join so MODE can proceed.
+	    A finished worker is still joinable; swapping a new thread over it
+	    destroys the old joinable std::thread and calls std::terminate. */
+	if(true==thr.joinable())
 	{
 		thr.join();
-		state=STATE_IDLE;
-	}
-	else if(STATE_IDLE!=st)
-	{
-		thr.join(); // Just in case.  Flush the last task.
 	}
 	this->discImg=discImg;
 	this->from=from;
@@ -114,7 +113,7 @@ void TownsCDROM::AsyncWaveReader::Start(DiscImage *discImg,DiscImage::MinSecFrm 
 }
 std::vector <unsigned char> &TownsCDROM::AsyncWaveReader::GetWave(void)
 {
-	if(STATE_IDLE!=GetState())
+	if(true==thr.joinable())
 	{
 		thr.join();
 	}
@@ -132,6 +131,11 @@ void TownsCDROM::AsyncWaveReader::RequestCancel(void)
 		cancelRequested=false;
 		restartRequested=false;
 		stateLock.unlock();
+		/*! Still reclaim a finished cancel worker so the next Start is safe. */
+		if(true==thr.joinable())
+		{
+			thr.join();
+		}
 		return;
 	}
 	cancelRequested=true;

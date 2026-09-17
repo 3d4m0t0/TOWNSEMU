@@ -216,7 +216,8 @@ public:
 		unsigned int GetState(void);
 		void Start(DiscImage *discImg,DiscImage::MinSecFrm from,DiscImage::MinSecFrm to);
 		std::vector <unsigned char> &GetWave(void);
-		/*! Drop ready data immediately; if BUSY, finish GetWave then go IDLE (no DATAREADY). */
+		/*! Drop ready data immediately; if BUSY, finish current chunk then IDLE (no join —
+		    Start/GetWave/dtor must join a finished worker to avoid std::terminate). */
 		void RequestCancel(void);
 
 	private:
