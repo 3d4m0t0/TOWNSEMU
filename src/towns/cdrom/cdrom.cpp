@@ -345,6 +345,13 @@ void TownsCDROM::UpdateCDDAStateInternal(long long int townsTime)
 				state.guestPlayAnchorTownsTime=0;
 				state.CDDAState=CDDA_STOPPING;
 				state.CDDAAudioOutput=false;
+				if(true==var.cddaCacheDuringDataRead || true==var.debugMonitorCommandWrite)
+				{
+					std::ostringstream oss;
+					oss << "[CDDA] →STOPPING absHSG=" << endHSG
+					    << " endHSG=" << endHSG;
+					LogMonitorLine(oss.str());
+				}
 			}
 		}
 	}
@@ -3419,7 +3426,7 @@ unsigned char TownsCDROM::StatusSecondByte(void) const
 		// 0256:00001F12 C3                        RET
 		return 1;
 	}
-	else if(true==CDDAIsPlaying())
+	else if(CDDA_PLAYING==state.CDDAState)
 	{
 		// Probably: Response to A0H (80H+REQSTA), 00 03 xx xx means CDDA is playing.
 		// Confirmed: Shadow of the Beast 2 checks the 2nd byte to be 03 for verifying that the CDDA started playing.
@@ -3427,10 +3434,17 @@ unsigned char TownsCDROM::StatusSecondByte(void) const
 		//    000C:0006F30E 75ED                      JNE     0006F2FD
 		return 3;
 	}
+	else if(CDDA_STOPPING==state.CDDAState || CDDA_ENDED==state.CDDAState)
+	{
+		// Natural end: latch is not "playing".  BIOS INT 93H AH=53H (Get Play State)
+		// must see AL=0 here so wait loops (Vein Dream via RUN386 250Eh DL=2) can finish.
+		// Still report "just stopped" until GETSTATE consumes ENDED → Done 07 → IDLE.
+		// (Previously STOPPING was folded into CDDAIsPlaying → ah=03 → AH=53 AL=1 forever
+		//  until Done 07 raced and sometimes returned AH=80.)
+		return 5;
+	}
 
 	// Host cache mix (CDDAAudioOutput) must not affect this — guest must not see cache BGM.
-
-	// Actually, 5 for immediately after CDDA Stopped.
 
 	return 0;
 }
