@@ -154,6 +154,230 @@ void EmuView::noteViewMousePosition(const QPoint &view_pos)
 	has_view_mouse_pos_=true;
 }
 
+void EmuView::noteOnPictureMousePosition(const QPoint &view_pos)
+{
+	if(true==has_view_mouse_pos_)
+	{
+		const int dx=view_pos.x()-last_view_mouse_pos_.x();
+		const int dy=view_pos.y()-last_view_mouse_pos_.y();
+		constexpr int kEpsilon=1;
+		if(kEpsilon<=std::abs(dx) || kEpsilon<=std::abs(dy))
+		{
+			last_on_picture_dx_=dx;
+			last_on_picture_dy_=dy;
+		}
+	}
+	absolute_edge_sticky_=false;
+	noteViewMousePosition(view_pos);
+}
+
+void EmuView::setAbsoluteEdgeAssistEnabled(bool enabled)
+{
+	if(absolute_edge_assist_==enabled)
+	{
+		return;
+	}
+	absolute_edge_assist_=enabled;
+	clearAbsoluteEdgeSticky();
+}
+
+void EmuView::clearAbsoluteEdgeSticky()
+{
+	absolute_edge_sticky_=false;
+	absolute_edge_pin_left_=false;
+	absolute_edge_pin_right_=false;
+	absolute_edge_pin_top_=false;
+	absolute_edge_pin_bottom_=false;
+}
+
+QPoint EmuView::clampToPicture(const QPoint &view_pos) const
+{
+	int x0=0,y0=0,dst_w=0,dst_h=0;
+	queryDisplayRect(x0,y0,dst_w,dst_h);
+	if(dst_w<=0 || dst_h<=0)
+	{
+		return view_pos;
+	}
+	return QPoint(
+	    std::clamp(view_pos.x(),x0,x0+dst_w-1),
+	    std::clamp(view_pos.y(),y0,y0+dst_h-1));
+}
+
+QPoint EmuView::nearestPictureRim(const QPoint &origin) const
+{
+	int x0=0,y0=0,dst_w=0,dst_h=0;
+	queryDisplayRect(x0,y0,dst_w,dst_h);
+	if(dst_w<=0 || dst_h<=0)
+	{
+		return origin;
+	}
+	const int left=x0;
+	const int top=y0;
+	const int right=x0+dst_w-1;
+	const int bottom=y0+dst_h-1;
+	const int ox=std::clamp(origin.x(),left,right);
+	const int oy=std::clamp(origin.y(),top,bottom);
+	const int dl=ox-left;
+	const int dr=right-ox;
+	const int dt=oy-top;
+	const int db=bottom-oy;
+	const int minH=std::min(dl,dr);
+	const int minV=std::min(dt,db);
+	int rx=ox;
+	int ry=oy;
+	if(minH<minV)
+	{
+		rx=(dl<=dr) ? left : right;
+	}
+	else if(minV<minH)
+	{
+		ry=(dt<=db) ? top : bottom;
+	}
+	else
+	{
+		// Corner band: pin both axes.
+		rx=(dl<=dr) ? left : right;
+		ry=(dt<=db) ? top : bottom;
+	}
+	return QPoint(rx,ry);
+}
+
+QPoint EmuView::pictureRimFromExitVector(const QPoint &origin,int dx,int dy) const
+{
+	int x0=0,y0=0,dst_w=0,dst_h=0;
+	queryDisplayRect(x0,y0,dst_w,dst_h);
+	if(dst_w<=0 || dst_h<=0)
+	{
+		return origin;
+	}
+	const int left=x0;
+	const int top=y0;
+	const int right=x0+dst_w-1;
+	const int bottom=y0+dst_h-1;
+	const int ox=std::clamp(origin.x(),left,right);
+	const int oy=std::clamp(origin.y(),top,bottom);
+	if(0==dx && 0==dy)
+	{
+		return nearestPictureRim(QPoint(ox,oy));
+	}
+
+	double tBest=1e300;
+	int hx=ox;
+	int hy=oy;
+	auto consider=[&](double t,int hxCand,int hyCand)
+	{
+		if(!(0.0<=t) || tBest<t)
+		{
+			return;
+		}
+		hxCand=std::clamp(hxCand,left,right);
+		hyCand=std::clamp(hyCand,top,bottom);
+		tBest=t;
+		hx=hxCand;
+		hy=hyCand;
+	};
+
+	if(0!=dx)
+	{
+		if(0>dx)
+		{
+			const double t=static_cast<double>(left-ox)/static_cast<double>(dx);
+			const int yHit=static_cast<int>(std::lround(oy+t*dy));
+			consider(t,left,yHit);
+		}
+		else
+		{
+			const double t=static_cast<double>(right-ox)/static_cast<double>(dx);
+			const int yHit=static_cast<int>(std::lround(oy+t*dy));
+			consider(t,right,yHit);
+		}
+	}
+	if(0!=dy)
+	{
+		if(0>dy)
+		{
+			const double t=static_cast<double>(top-oy)/static_cast<double>(dy);
+			const int xHit=static_cast<int>(std::lround(ox+t*dx));
+			consider(t,xHit,top);
+		}
+		else
+		{
+			const double t=static_cast<double>(bottom-oy)/static_cast<double>(dy);
+			const int xHit=static_cast<int>(std::lround(ox+t*dx));
+			consider(t,xHit,bottom);
+		}
+	}
+
+	if(1e300<=tBest)
+	{
+		return nearestPictureRim(QPoint(ox,oy));
+	}
+	return QPoint(hx,hy);
+}
+
+QPoint EmuView::stickyExitVectorViewPos()
+{
+	if(true!=absolute_edge_assist_ || true==mouse_capture_released_)
+	{
+		if(true==has_view_mouse_pos_)
+		{
+			return last_view_mouse_pos_;
+		}
+		return QPoint(0,0);
+	}
+
+	int x0=0,y0=0,dst_w=0,dst_h=0;
+	queryDisplayRect(x0,y0,dst_w,dst_h);
+	if(dst_w<=0 || dst_h<=0)
+	{
+		return (true==has_view_mouse_pos_) ? last_view_mouse_pos_ : QPoint(0,0);
+	}
+	const int left=x0;
+	const int top=y0;
+	const int right=x0+dst_w-1;
+	const int bottom=y0+dst_h-1;
+
+	if(true!=absolute_edge_sticky_)
+	{
+		const QPoint origin=
+		    (true==has_view_mouse_pos_) ? last_view_mouse_pos_ : QPoint(left,top);
+		absolute_edge_view_pos_=pictureRimFromExitVector(
+		    origin,last_on_picture_dx_,last_on_picture_dy_);
+		absolute_edge_pin_left_=(absolute_edge_view_pos_.x()<=left);
+		absolute_edge_pin_right_=(absolute_edge_view_pos_.x()>=right);
+		absolute_edge_pin_top_=(absolute_edge_view_pos_.y()<=top);
+		absolute_edge_pin_bottom_=(absolute_edge_view_pos_.y()>=bottom);
+		absolute_edge_sticky_=true;
+		noteViewMousePosition(absolute_edge_view_pos_);
+	}
+
+	// Free axis tracks host only while the pointer remains over the view
+	// (letterbox / chrome). Outside the window, keep the last rim position.
+	if(true==underMouse())
+	{
+		QPoint tracked=clampToPicture(hostCursorInView());
+		if(true==absolute_edge_pin_left_)
+		{
+			tracked.setX(left);
+		}
+		if(true==absolute_edge_pin_right_)
+		{
+			tracked.setX(right);
+		}
+		if(true==absolute_edge_pin_top_)
+		{
+			tracked.setY(top);
+		}
+		if(true==absolute_edge_pin_bottom_)
+		{
+			tracked.setY(bottom);
+		}
+		absolute_edge_view_pos_=tracked;
+		noteViewMousePosition(tracked);
+	}
+	return absolute_edge_view_pos_;
+}
+
 QPoint EmuView::hostCursorInView() const
 {
 	QWidget *top=window();
@@ -282,28 +506,27 @@ void EmuView::pollMousePosition()
 	syncInputDisplayLayout();
 
 	// Host emu coords come only from the main view's drawn picture rect.
-	// Do not project QCursor through this widget while the pointer is on a
-	// debug window (or any other non-EmuView surface).
+	// Exit-vector: extrude last Δ to the rim; free axis tracks host while underMouse.
 	QPoint view_pos;
 	if(true==underMouse())
 	{
 		view_pos=hostCursorInView();
 		if(true==isPointOnEmuPicture(view_pos))
 		{
-			noteViewMousePosition(view_pos);
+			noteOnPictureMousePosition(view_pos);
 		}
-		else if(true==has_view_mouse_pos_)
+		else if(true==has_view_mouse_pos_ || true==absolute_edge_sticky_)
 		{
-			view_pos=last_view_mouse_pos_;
+			view_pos=stickyExitVectorViewPos();
 		}
 		else
 		{
 			return;
 		}
 	}
-	else if(true==has_view_mouse_pos_)
+	else if(true==has_view_mouse_pos_ || true==absolute_edge_sticky_)
 	{
-		view_pos=last_view_mouse_pos_;
+		view_pos=stickyExitVectorViewPos();
 	}
 	else
 	{
@@ -749,7 +972,15 @@ void EmuView::keyReleaseEvent(QKeyEvent *event)
 void EmuView::enterEvent(QEnterEvent *event)
 {
 	QWidget::enterEvent(event);
-	noteViewMousePosition(event->position().toPoint());
+	const QPoint view_pos=event->position().toPoint();
+	if(true==isPointOnEmuPicture(view_pos))
+	{
+		noteOnPictureMousePosition(view_pos);
+	}
+	else
+	{
+		noteViewMousePosition(view_pos);
+	}
 }
 
 void EmuView::mousePressEvent(QMouseEvent *event)
@@ -757,7 +988,14 @@ void EmuView::mousePressEvent(QMouseEvent *event)
 	const QPoint view_pos=event->pos();
 	if(nullptr!=inputQueue_)
 	{
-		noteViewMousePosition(view_pos);
+		if(true==isPointOnEmuPicture(view_pos))
+		{
+			noteOnPictureMousePosition(view_pos);
+		}
+		else
+		{
+			noteViewMousePosition(view_pos);
+		}
 		const auto emu_pos=mapToEmu(view_pos);
 		int btn=0;
 		if(Qt::LeftButton==event->button())
@@ -866,6 +1104,10 @@ void EmuView::setMouseCaptureReleased(bool released)
 		suppressed_guest_buttons_=0;
 	}
 	mouse_capture_released_=released;
+	if(true==released)
+	{
+		clearAbsoluteEdgeSticky();
+	}
 }
 
 void EmuView::mouseMoveEvent(QMouseEvent *event)
@@ -873,7 +1115,7 @@ void EmuView::mouseMoveEvent(QMouseEvent *event)
 	const QPoint view_pos=event->pos();
 	if(true==isPointOnEmuPicture(view_pos))
 	{
-		noteViewMousePosition(view_pos);
+		noteOnPictureMousePosition(view_pos);
 		if(nullptr!=inputQueue_)
 		{
 			const auto emu_pos=mapToEmu(view_pos);

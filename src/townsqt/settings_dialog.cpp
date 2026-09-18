@@ -354,6 +354,7 @@ SettingsDialog::Values SettingsDialog::defaultValues()
 	v.autoDifferentialOnMosUnused=false;
 	v.snapMouseIntegration=true;
 	v.snapMouseWarmupFrames=10;
+	v.absoluteMouseEdgeAssist=true;
 	v.cddaCacheDuringDataRead=true;
 	v.cddaCachePostReadGraceSec=1;
 	v.mouseMinX=TownsStartParameters::DEFAULT_MOUSE_MINX;
@@ -1273,6 +1274,14 @@ void SettingsDialog::buildUi()
 		v->addWidget(MakeIndentedNote(
 		    page,
 		    tr("Mouse BIOS integration that writes guest memory to reduce latency.")));
+
+		absolute_mouse_edge_assist_=new QCheckBox(tr("Absolute mouse edge assist (exit vector)"),page);
+		v->addWidget(absolute_mouse_edge_assist_);
+		v->addWidget(MakeIndentedNote(
+		    page,
+		    tr("MOS / app-specific only. When the host leaves the picture, extend the last\n"
+		       "in-picture motion to the rim; the free axis still follows while the pointer\n"
+		       "stays over the window.")));
 
 		auto *cdda_cache_row=new QHBoxLayout();
 		cdda_cache_during_data_read_=new QCheckBox(tr("CDDA cache:"),page);
@@ -2471,6 +2480,10 @@ void SettingsDialog::loadFromValues(const Values &values)
 	{
 		snap_mouse_integration_->setChecked(values.snapMouseIntegration);
 	}
+	if(nullptr!=absolute_mouse_edge_assist_)
+	{
+		absolute_mouse_edge_assist_->setChecked(values.absoluteMouseEdgeAssist);
+	}
 	if(nullptr!=cdda_cache_during_data_read_)
 	{
 		cdda_cache_during_data_read_->setChecked(values.cddaCacheDuringDataRead);
@@ -2593,6 +2606,10 @@ void SettingsDialog::applyToValues(Values &out) const
 	if(nullptr!=snap_mouse_integration_)
 	{
 		out.snapMouseIntegration=snap_mouse_integration_->isChecked();
+	}
+	if(nullptr!=absolute_mouse_edge_assist_)
+	{
+		out.absoluteMouseEdgeAssist=absolute_mouse_edge_assist_->isChecked();
 	}
 	if(nullptr!=cdda_cache_during_data_read_)
 	{
@@ -2806,6 +2823,10 @@ void SettingsDialog::resetCurrentTabToDefaults()
 			snap_mouse_integration_->setChecked(default_values_.snapMouseIntegration);
 		}
 		values_.snapMouseWarmupFrames=default_values_.snapMouseWarmupFrames;
+		if(nullptr!=absolute_mouse_edge_assist_)
+		{
+			absolute_mouse_edge_assist_->setChecked(default_values_.absoluteMouseEdgeAssist);
+		}
 		if(nullptr!=cdda_cache_during_data_read_)
 		{
 			cdda_cache_during_data_read_->setChecked(default_values_.cddaCacheDuringDataRead);

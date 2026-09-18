@@ -187,6 +187,10 @@ void setConsiderVRAMOffsetInMouseIntegration(bool enabled);
 bool differentialMouseIntegration();
 void setDifferentialMouseIntegration(bool enabled);
 
+/*! Absolute (MOS / app-specific) Exit-vector edge assist when the host leaves the emu picture. */
+bool absoluteMouseEdgeAssist();
+void setAbsoluteMouseEdgeAssist(bool enabled);
+
 /*! When MOS is active but unused, automatically switch to differential.
     (Mouse-BIOS-stop → differential is always on and not a setting.) */
 bool autoDifferentialOnMosUnused();

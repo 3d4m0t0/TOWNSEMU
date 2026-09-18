@@ -1747,6 +1747,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Absolute mouse edge assist (exit vector)",
+      "translation": "绝对鼠标边缘辅助（Exit vector）"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
+      "translation": "仅 MOS / 应用专用。主机离开画面时，将最后画面内移动延伸到边缘；\n指针仍在窗口上时，自由轴继续跟随。"
+    },
+    {
+      "context": "SettingsDialog",
       "source": "CDDA cache:",
       "translation": "CDDA 缓存:"
     },

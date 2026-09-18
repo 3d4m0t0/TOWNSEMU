@@ -37,6 +37,11 @@ public:
 	    gesture, not an in-game click.  MainWindow keeps this in sync with the runtime state. */
 	void setMouseCaptureReleased(bool released);
 
+	/*! Absolute edge assist (Exit-vector). MainWindow enables only for MOS / app-specific. */
+	void setAbsoluteEdgeAssistEnabled(bool enabled);
+	/*! Drop sticky rim (focus lost / chrome / feed off). */
+	void clearAbsoluteEdgeSticky();
+
 	/*! Poll host cursor over the view (GUI thread, each input interval). */
 	void pollMousePosition();
 	/*! Track global cursor for coord scan even when the scan window has focus. */
@@ -80,6 +85,11 @@ protected:
 private:
 	QPoint mapToEmu(const QPoint &pos) const;
 	void noteViewMousePosition(const QPoint &view_pos);
+	void noteOnPictureMousePosition(const QPoint &view_pos);
+	QPoint pictureRimFromExitVector(const QPoint &origin,int dx,int dy) const;
+	QPoint nearestPictureRim(const QPoint &origin) const;
+	QPoint clampToPicture(const QPoint &view_pos) const;
+	QPoint stickyExitVectorViewPos();
 	void syncInputDisplayLayout();
 	void refreshFrameSoftware();
 	void decideRenderBackend();
@@ -119,4 +129,13 @@ private:
 	bool drive_access_overlay_visible_=false;
 	bool mouse_capture_released_=false;
 	int suppressed_guest_buttons_=0;
+	bool absolute_edge_assist_=false;
+	bool absolute_edge_sticky_=false;
+	bool absolute_edge_pin_left_=false;
+	bool absolute_edge_pin_right_=false;
+	bool absolute_edge_pin_top_=false;
+	bool absolute_edge_pin_bottom_=false;
+	QPoint absolute_edge_view_pos_;
+	int last_on_picture_dx_=0;
+	int last_on_picture_dy_=0;
 };

@@ -1747,6 +1747,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Absolute mouse edge assist (exit vector)",
+      "translation": "Absolute Maus-Kantenhilfe (Exit vector)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
+      "translation": "Nur MOS / app-spezifisch. Verlässt der Host das Bild, wird die letzte\nBewegung zum Rand verlängert; die freie Achse folgt, solange der Zeiger\nüber dem Fenster bleibt."
+    },
+    {
+      "context": "SettingsDialog",
       "source": "CDDA cache:",
       "translation": "CDDA-Cache:"
     },

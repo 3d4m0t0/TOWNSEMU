@@ -84,6 +84,8 @@ public:
 		bool autoDifferentialOnMosUnused=false;
 		bool snapMouseIntegration=true;
 		int snapMouseWarmupFrames=10;
+		/*! Exit-vector absolute edge assist (MOS / app-specific). */
+		bool absoluteMouseEdgeAssist=true;
 		bool cddaCacheDuringDataRead=true;
 		int cddaCachePostReadGraceSec=1;
 		int mouseMinX=0;
@@ -287,6 +289,7 @@ private:
 
 	QCheckBox *idle_inhibit_=nullptr;
 	QCheckBox *snap_mouse_integration_=nullptr;
+	QCheckBox *absolute_mouse_edge_assist_=nullptr;
 	QCheckBox *cdda_cache_during_data_read_=nullptr;
 	QSpinBox *cdda_cache_post_read_grace_sec_=nullptr;
 

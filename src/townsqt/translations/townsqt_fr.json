@@ -1747,6 +1747,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Absolute mouse edge assist (exit vector)",
+      "translation": "Assistance bord souris absolue (exit vector)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
+      "translation": "MOS / app uniquement. Si l’hôte quitte l’image, prolonge le dernier mouvement\njusqu’au bord ; l’axe libre suit tant que le pointeur reste sur la fenêtre."
+    },
+    {
+      "context": "SettingsDialog",
       "source": "CDDA cache:",
       "translation": "Cache CDDA :"
     },

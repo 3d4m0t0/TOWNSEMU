@@ -49,7 +49,6 @@
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QEvent>
-#include <QEventLoop>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -69,7 +68,6 @@
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QMouseEvent>
-#include <QEventLoop>
 #include <QPixmap>
 #include <QScreen>
 #include <QShowEvent>
@@ -1991,6 +1989,7 @@ void MainWindow::openSettingsDialog()
 		initial.autoDifferentialOnMosUnused=TownsQtSettings::autoDifferentialOnMosUnused();
 		initial.snapMouseIntegration=TownsQtSettings::snapMouseIntegration();
 		initial.snapMouseWarmupFrames=TownsQtSettings::snapMouseWarmupFrames();
+		initial.absoluteMouseEdgeAssist=TownsQtSettings::absoluteMouseEdgeAssist();
 		initial.cddaCacheDuringDataRead=TownsQtSettings::cddaCacheDuringDataRead();
 		initial.cddaCachePostReadGraceSec=TownsQtSettings::cddaCachePostReadGraceSec();
 		initial.mouseMinX=TownsQtSettings::mouseMinX();
@@ -2638,6 +2637,7 @@ void MainWindow::applySettings(const SettingsDialog::Values &values)
 	TownsQtSettings::setAutoDifferentialOnMosUnused(effective.autoDifferentialOnMosUnused);
 	TownsQtSettings::setSnapMouseIntegration(effective.snapMouseIntegration);
 	TownsQtSettings::setSnapMouseWarmupFrames(effective.snapMouseWarmupFrames);
+	TownsQtSettings::setAbsoluteMouseEdgeAssist(effective.absoluteMouseEdgeAssist);
 	TownsQtSettings::setCddaCacheDuringDataRead(effective.cddaCacheDuringDataRead);
 	TownsQtSettings::setCddaCachePostReadGraceSec(effective.cddaCachePostReadGraceSec);
 	TownsQtSettings::setMouseMinX(effective.mouseMinX);
@@ -3691,12 +3691,22 @@ void MainWindow::onPollTimer()
 		}
 		else if(shouldCaptureHostMouse())
 		{
+			// Absolute (MOS / app-specific) edge assist from settings.
+			// Differential capture / capture-released: force Off.
+			const bool absolutePath=
+			    true!=cached_differential_integration_ &&
+			    true!=cached_mouse_capture_released_;
+			view_->setAbsoluteEdgeAssistEnabled(
+			    absolutePath && TownsQtSettings::absoluteMouseEdgeAssist());
 			view_->pollMousePosition();
+			syncWaylandRelativePointer();
 		}
 		else
 		{
 			// Other app / settings dialog / popup has focus: do not feed host cursor.
+			view_->clearAbsoluteEdgeSticky();
 			inputQueue_.ClearMouseButtons();
+			syncWaylandRelativePointer();
 		}
 	}
 
@@ -5618,6 +5628,7 @@ void MainWindow::refreshMouseUiState()
 		if(nullptr!=view_)
 		{
 			view_->setMouseCaptureReleased(false);
+			view_->setAbsoluteEdgeAssistEnabled(false);
 		}
 		updateMouseModeIndicator();
 		updateWindowTitle();
@@ -5649,6 +5660,11 @@ void MainWindow::refreshMouseUiState()
 	if(nullptr!=view_)
 	{
 		view_->setMouseCaptureReleased(cached_mouse_capture_released_);
+		const bool absolutePath=
+		    true!=cached_differential_integration_ &&
+		    true!=cached_mouse_capture_released_;
+		view_->setAbsoluteEdgeAssistEnabled(
+		    absolutePath && TownsQtSettings::absoluteMouseEdgeAssist());
 	}
 	updateMouseModeIndicator();
 	updateWindowTitle();

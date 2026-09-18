@@ -68,6 +68,8 @@ constexpr char kMaxButtonHoldMsKey[]="peripheral/max_button_hold_ms";
 constexpr char kMouseIntegrationSpeedKey[]="peripheral/mouse_integration_speed";
 constexpr char kMouseIntegrVramOffsetKey[]="peripheral/mouse_integr_vram_offset";
 constexpr char kDifferentialMouseKey[]="peripheral/differential_mouse";
+constexpr char kAbsoluteMouseEdgeAssistModeKey[]="peripheral/absolute_mouse_edge_assist_mode";
+constexpr bool kAbsoluteMouseEdgeAssistDefault=true;
 constexpr char kAutoDiffOnMosUnusedKey[]="peripheral/auto_diff_on_mos_unused";
 constexpr char kUseDiscProfilesKey[]="function/use_disc_profiles";
 constexpr char kAutoResumeKey[]="function/auto_resume";
@@ -1419,6 +1421,28 @@ void TownsQtSettings::setDifferentialMouseIntegration(bool enabled)
 {
 	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
 	settings.setValue(QString::fromLatin1(kDifferentialMouseKey),enabled);
+	settings.sync();
+}
+
+bool TownsQtSettings::absoluteMouseEdgeAssist()
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	if(!settings.contains(QString::fromLatin1(kAbsoluteMouseEdgeAssistModeKey)))
+	{
+		setAbsoluteMouseEdgeAssist(kAbsoluteMouseEdgeAssistDefault);
+		return kAbsoluteMouseEdgeAssistDefault;
+	}
+	// Legacy: 0=Off, 1=Exit vector, 2=Outside sample (treated as on).
+	const int mode=settings.value(
+	    QString::fromLatin1(kAbsoluteMouseEdgeAssistModeKey),
+	    kAbsoluteMouseEdgeAssistDefault ? 1 : 0).toInt();
+	return 0!=mode;
+}
+
+void TownsQtSettings::setAbsoluteMouseEdgeAssist(bool enabled)
+{
+	QSettings settings(TownsQtPaths::configFilePath(),QSettings::IniFormat);
+	settings.setValue(QString::fromLatin1(kAbsoluteMouseEdgeAssistModeKey),enabled ? 1 : 0);
 	settings.sync();
 }
 

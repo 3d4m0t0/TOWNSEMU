@@ -1747,6 +1747,16 @@
     },
     {
       "context": "SettingsDialog",
+      "source": "Absolute mouse edge assist (exit vector)",
+      "translation": "절대 마우스 가장자리 보조(Exit vector)"
+    },
+    {
+      "context": "SettingsDialog",
+      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
+      "translation": "MOS / 앱 전용. 호스트가 화면을 벗어나면 마지막 화면 내 이동을 가장자리까지 연장.\n포인터가 창 위에 있는 동안 자유 축은 계속 따라갑니다."
+    },
+    {
+      "context": "SettingsDialog",
       "source": "CDDA cache:",
       "translation": "CDDA 캐시:"
     },

@@ -626,6 +626,22 @@ JA_FORCE: dict[tuple[str, str], str] = {
         "Directly rewrite guest coordinates to reduce input lag.",
     ): "ゲスト座標を直接書き換えて入力遅延を減らします。",
     ("SettingsDialog", "Faster mouse integration"): "高速マウス統合",
+    (
+        "SettingsDialog",
+        "Mouse BIOS integration that writes guest memory to reduce latency.",
+    ): "マウスBIOSを使った統合で、メモリ書込みを行い遅延を低減します。",
+    (
+        "SettingsDialog",
+        "Absolute mouse edge assist (exit vector)",
+    ): "絶対マウス縁アシスト（Exit vector）",
+    (
+        "SettingsDialog",
+        "MOS / app-specific only. When the host leaves the picture, extend the last\n"
+        "in-picture motion to the rim; the free axis still follows while the pointer\n"
+        "stays over the window.",
+    ): "MOS / アプリ固有のみ。ホストが絵から外れたとき、最後の絵内移動を縁まで延長。\n"
+    "ポインタが窓上にある間は自由軸が追従します。",
+    ("SettingsDialog", "CDDA cache:"): "CDDAキャッシュ:",
     ("SettingsDialog", "MOS unused detection (test)"): "MOS未使用検出（試験）",
     ("SettingsDialog", "High-res / high-res PCM"): "高解像度 / 高解像度PCM",
     ("SettingsDialog", "UG SCSI / peripheral I/O"): "UG SCSI / 周辺I/O",
