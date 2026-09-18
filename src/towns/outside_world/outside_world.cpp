@@ -1533,6 +1533,9 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 	    true!=calibrating &&
 	    true!=towns.var.mouseCoordWriteScanEnabled &&
 	    true!=towns.var.mouseCoordForceCapture &&
+	    /*! Middle-button temporary capture must suspend app Phys (DW/GF) and MOS
+	        soft writes — otherwise SyncAppStoreGuard / profile apply stay live. */
+	    true!=middleForceCapture_ &&
 	    (true==profileAppOrNew);
 	if(true==wantProfileApply && true!=profileApplySticky)
 	{
@@ -1546,7 +1549,7 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 	}
 	else if(true!=wantProfileApply && true==profileApplySticky)
 	{
-		// Falling edge (EXE end / TMENU return): drop residual poke state.
+		// Falling edge (EXE end / TMENU return / middle→capture): drop residual poke state.
 		towns.DontControlMouse();
 	}
 	towns.var.mouseCoordProfileApply=wantProfileApply;
@@ -1559,6 +1562,7 @@ void Outside_World::UpdateEffectiveDifferentialMouseIntegration(class FMTownsCom
 	    true!=calibrating &&
 	    true!=towns.var.mouseCoordWriteScanEnabled &&
 	    true!=towns.var.mouseCoordForceCapture &&
+	    true!=middleForceCapture_ &&
 	    true!=standardDesktop &&
 	    towns.mouseCoordWriteScan.ProfileKeepsAbsolute();
 
@@ -1785,6 +1789,7 @@ void Outside_World::HandleMouseIntegrationMiddleButton(class FMTownsCommon &town
 	}
 
 	// Absolute (MOS / app Phys): middle switches to temporary mouse capture.
+	// UpdateEffective clears mouseCoordProfileApply / store-guard while this is set.
 	middleForceCapture_=true;
 	mouseCaptureReleased_=false;
 	forcedDiffReleaseApplied_=false;
