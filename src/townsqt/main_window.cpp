@@ -5805,10 +5805,13 @@ void MainWindow::syncDifferentialMouseCursor()
 void MainWindow::updateBlankCursor()
 {
 	const bool active=shouldCaptureHostMouse();
-	// Only the failsafe (VM appears hung) shows the host cursor.  Normal and differential
-	// integration hide it over the emulator picture regardless of capture on/off state —
-	// including the capture-released "click to start" state of auto-forced differential.
-	const bool show_host=mouse_failsafe_show_cursor_;
+	// Failsafe (hung VM) always shows the host cursor.
+	// Mouse-capture-only, capture-released: show it over the emu picture so the
+	// middle-button re-capture gesture is visible.  MOS / app-specific absolute
+	// integration still hide over the picture (capture_released stays false there).
+	const bool show_host=
+	    mouse_failsafe_show_cursor_ ||
+	    cached_mouse_capture_released_;
 
 	bool want_blank=false;
 	if(!show_host && active && nullptr!=view_)
@@ -5820,11 +5823,12 @@ void MainWindow::updateBlankCursor()
 		}
 		else if(cached_differential_integration_)
 		{
+			// Mouse capture active: hide host cursor (unchanged).
 			want_blank=true;
 		}
 		else if(view_->isPointOnEmuPicture(view_pos) && !isCursorOverUiChrome())
 		{
-			// Absolute/snap: hide the host cursor over the picture while focused.
+			// Absolute/snap (MOS / app-specific): hide over the picture while focused.
 			want_blank=true;
 		}
 	}
