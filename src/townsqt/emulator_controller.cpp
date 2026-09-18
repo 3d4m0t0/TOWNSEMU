@@ -998,6 +998,56 @@ bool EmulatorController::cmosSingleDrive() const
 	return QueryCmosSingleDrive(nullptr);
 }
 
+QVariantMap EmulatorController::cmosDriveSettingsFromFile(const QString &cmosPath)
+{
+	const QString path=cmosPath.isEmpty() ? TownsQtPaths::cmosFilePath() : cmosPath;
+	unsigned char buf[TOWNS_CMOS_SIZE];
+	TownsCmos::DriveAssignEntry letters[TownsCmos::kDriveLetterCount];
+	QFile f(path);
+	if(!f.open(QIODevice::ReadOnly) ||
+	   TOWNS_CMOS_SIZE!=f.read(reinterpret_cast<char *>(buf),TOWNS_CMOS_SIZE))
+	{
+		for(int i=0; i<TownsCmos::kDriveLetterCount; ++i)
+		{
+			letters[i].type=TownsCmos::kTypeUnassigned;
+			letters[i].unit=TownsCmos::kTypeUnassigned;
+		}
+		return DriveSettingsToVariantMap(false,letters);
+	}
+	TownsCmos::GetDriveAssign(buf,letters);
+	return DriveSettingsToVariantMap(TownsCmos::GetSingleDriveMode(buf),letters);
+}
+
+bool EmulatorController::applyCmosDriveSettingsToFile(const QString &cmosPath,
+                                                      bool single_drive,
+                                                      const QVariantList &letters)
+{
+	TownsCmos::DriveAssignEntry assign[TownsCmos::kDriveLetterCount];
+	if(true!=VariantListToDriveAssign(letters,assign))
+	{
+		return false;
+	}
+	const QString path=cmosPath.isEmpty() ? TownsQtPaths::cmosFilePath() : cmosPath;
+	unsigned char buf[TOWNS_CMOS_SIZE];
+	QFile in(path);
+	if(!in.open(QIODevice::ReadOnly) ||
+	   TOWNS_CMOS_SIZE!=in.read(reinterpret_cast<char *>(buf),TOWNS_CMOS_SIZE))
+	{
+		std::memcpy(buf,FMTownsCommon::defCMOS,TOWNS_CMOS_SIZE);
+	}
+	TownsCmos::ApplyDriveSettings(buf,single_drive,assign);
+	QSaveFile out(path);
+	if(!out.open(QIODevice::WriteOnly))
+	{
+		return false;
+	}
+	if(TOWNS_CMOS_SIZE!=out.write(reinterpret_cast<const char *>(buf),TOWNS_CMOS_SIZE))
+	{
+		return false;
+	}
+	return out.commit();
+}
+
 QVariantMap EmulatorController::cmosDriveSettings() const
 {
 	unsigned char buf[TOWNS_CMOS_SIZE];

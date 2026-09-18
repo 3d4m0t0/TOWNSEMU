@@ -116,6 +116,12 @@ public Q_SLOTS:
 	static void PersistSingleDriveToCmosFile(bool enabled);
 	static bool QueryCmosSingleDrive(const FMTownsCommon *towns,
 	                                 const QString &cmosPath=QString());
+	/*! Read drive-letter map from a CMOS file (no running VM). Empty path → shared cmos.bin. */
+	static QVariantMap cmosDriveSettingsFromFile(const QString &cmosPath=QString());
+	/*! Write drive-letter map to a CMOS file (creates from factory default if missing). */
+	static bool applyCmosDriveSettingsToFile(const QString &cmosPath,
+	                                         bool single_drive,
+	                                         const QVariantList &letters);
 	void setMidiMonitor(bool enabled);
 	Q_INVOKABLE QStringList takeMidiMonitorLines();
 	void setCdromMonitor(bool enabled);

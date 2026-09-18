@@ -2053,6 +2053,16 @@ void MainWindow::openSettingsDialog()
 		{
 			state=controller_->cmosDriveSettings();
 		}
+		else
+		{
+			// Content-browser-first startup: no VM yet — read the global/profile CMOS file.
+			const QString path=
+			    !argv_.CMOSFName.empty() ?
+			        QString::fromStdString(argv_.CMOSFName) :
+			        TownsQtPaths::cmosFilePathForProfile(
+			            (true==disc_profile_override_active_) ? cached_disc_fingerprint_hash32_ : 0u);
+			state=EmulatorController::cmosDriveSettingsFromFile(path);
+		}
 		drive.singleDrive=state.value(QStringLiteral("single_drive")).toBool();
 		const QVariantList letters=state.value(QStringLiteral("letters")).toList();
 		for(int i=0; i<TownsCmos::kDriveLetterCount; ++i)
@@ -2097,6 +2107,16 @@ void MainWindow::openSettingsDialog()
 		else if(nullptr!=controller_)
 		{
 			ok=controller_->applyCmosDriveSettings(drive.singleDrive,outLetters);
+		}
+		else
+		{
+			const QString path=
+			    !argv_.CMOSFName.empty() ?
+			        QString::fromStdString(argv_.CMOSFName) :
+			        TownsQtPaths::cmosFilePathForProfile(
+			            (true==disc_profile_override_active_) ? cached_disc_fingerprint_hash32_ : 0u);
+			ok=EmulatorController::applyCmosDriveSettingsToFile(
+			    path,drive.singleDrive,outLetters);
 		}
 		if(true!=ok)
 		{
@@ -6684,6 +6704,8 @@ void MainWindow::closeContentBrowser()
 		argv_.cdImgFName.clear();
 		argv_.fdImgFName[0].clear();
 		argv_.fdImgFName[1].clear();
+		// Delayed first boot: re-apply townsqt.conf + shared CMOS/HDD like a restart.
+		refresh_argv_from_settings_on_next_boot_=true;
 		startEmulator();
 	}
 }
@@ -6742,6 +6764,7 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 
 	pending_boot_cd_path_=cdImagePath;
 	pending_boot_state_slot_=stateSlot; // -2 auto-resume, -1 cold, 0..9 manual
+	refresh_argv_from_settings_on_next_boot_=true;
 	if(true==emuRunning)
 	{
 		stopEmulatorAsync([this]{
