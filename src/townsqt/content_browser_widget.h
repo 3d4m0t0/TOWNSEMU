@@ -2,6 +2,7 @@
 
 #include <QPixmap>
 #include <QHash>
+#include <QPointer>
 #include <QWidget>
 
 #include "townsqt_content_library.h"
@@ -31,7 +32,7 @@ public:
 	void setActiveProfileFingerprint(unsigned int fingerprint);
 	/*! Host window scale (content width); state grid reflows by DE-scaled size + wrap. */
 	void setWindowScale(int scale);
-	/*! Keep state preview up across stack switch / load until notifyVmRunning(). */
+	/*! Pin preview for launch; fade-in runs to completion, then pending load may flush. */
 	void pinStateOverlayForLaunch(void);
 	/*! VM is advancing — fade out a launch-pinned (or lingering) state preview. */
 	void notifyVmRunning(void);
@@ -71,8 +72,9 @@ private:
 	void setExpandedFingerprint(unsigned int fingerprint);
 	void applyEntryRowStyle(QWidget *row,unsigned int fingerprint) const;
 	void refreshSelectionStyles(void);
-	void showStateHover(const QPixmap &pixmap,int slot,const QString &timeText);
+	void showStateHover(QWidget *thumb,const QPixmap &pixmap,int slot,const QString &timeText);
 	void fadeOutStateHover(void);
+	void flushPendingLaunch(void);
 	void syncHoverOverlayGeometry(void);
 	void refreshHoverOverlayPixmap(void);
 	/*! Same slot as EmuView in the central stack — VM draw area in host coords. */
@@ -115,12 +117,17 @@ private:
 	QPixmap hover_source_;
 	int hover_slot_=0;
 	QString hover_time_text_;
-	bool hover_arm_move_hide_=false;
 	bool hover_fading_out_=false;
 	bool hover_pinned_for_launch_=false;
 	/*! After dblclick launch, ignore the trailing release (and any show) until next press. */
 	bool hover_block_show_until_press_=false;
-	QPoint hover_show_global_pos_;
+	/*! Thumbnail that opened the preview; Leave fades it out. */
+	QPointer<QWidget> hover_thumb_;
+	/*! Double-click launch deferred until fade-in finishes. */
+	bool hover_launch_pending_=false;
+	unsigned int pending_launch_fp_=0;
+	QString pending_launch_path_;
+	int pending_launch_slot_=-1;
 	struct StateImageCacheEntry
 	{
 		QString path;

@@ -57,7 +57,6 @@ constexpr int kStateUiRefFontH=16;
 constexpr int kStateGridMaxCols=10;
 constexpr int kEntryHMargins=8; /*! entryLay left+right */
 constexpr int kHoverOverlayFadeMs=280;
-constexpr int kHoverDismissMovePx=4; /*! cursor travel before fade-out */
 constexpr int kExpandAnimMs=220;
 constexpr qreal kHoverOverlayOpacity=1.0;
 constexpr char kPropFingerprint[]="townsqtFp";
@@ -291,12 +290,14 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent)
 	hover_fade_->setDuration(kHoverOverlayFadeMs);
 	hover_fade_->setEasingCurve(QEasingCurve::InOutQuad);
 	connect(hover_fade_,&QPropertyAnimation::finished,this,[this](){
-		if(true!=hover_fading_out_)
+		if(true==hover_fading_out_)
 		{
+			hover_fading_out_=false;
+			hideStateHover();
 			return;
 		}
-		hover_fading_out_=false;
-		hideStateHover();
+		/*! Fade-in finished: run deferred double-click launch if any. */
+		flushPendingLaunch();
 	});
 
 	updateRegisterButton();
@@ -730,7 +731,7 @@ void ContentBrowserWidget::refreshHoverOverlayPixmap(void)
 	hover_overlay_->resize(box);
 }
 
-void ContentBrowserWidget::showStateHover(const QPixmap &pixmap,int slot,const QString &timeText)
+void ContentBrowserWidget::showStateHover(QWidget *thumb,const QPixmap &pixmap,int slot,const QString &timeText)
 {
 	if(nullptr==hover_overlay_ || nullptr==hover_opacity_ || nullptr==hover_fade_ ||
 	   true==pixmap.isNull())
@@ -751,6 +752,7 @@ void ContentBrowserWidget::showStateHover(const QPixmap &pixmap,int slot,const Q
 	}
 	hover_fading_out_=false;
 	hover_pinned_for_launch_=false;
+	hover_thumb_=thumb;
 	hover_source_=pixmap;
 	hover_slot_=slot;
 	hover_time_text_=timeText;
@@ -773,8 +775,6 @@ void ContentBrowserWidget::showStateHover(const QPixmap &pixmap,int slot,const Q
 	hover_overlay_->raise();
 	qApp->removeEventFilter(this);
 	qApp->installEventFilter(this);
-	hover_show_global_pos_=QCursor::pos();
-	hover_arm_move_hide_=true;
 
 	hover_fade_->setDuration(kHoverOverlayFadeMs);
 	hover_fade_->setStartValue(0.0);
@@ -788,18 +788,12 @@ void ContentBrowserWidget::pinStateOverlayForLaunch(void)
 	{
 		return;
 	}
-	hover_arm_move_hide_=false;
+	const bool wasFadingOut=hover_fading_out_;
 	hover_fading_out_=false;
 	hover_pinned_for_launch_=true;
 	hover_block_show_until_press_=true;
-	/*! Interrupt fade-in/out and snap to full opacity for launch confirm. */
-	if(nullptr!=hover_fade_)
-	{
-		hover_fade_->stop();
-		hover_fade_->setStartValue(kHoverOverlayOpacity);
-		hover_fade_->setEndValue(kHoverOverlayOpacity);
-	}
-	hover_opacity_->setOpacity(kHoverOverlayOpacity);
+	/*! Keep fade-in running to completion; Leave must not dismiss. */
+	hover_thumb_=nullptr;
 	if(true==hover_source_.isNull())
 	{
 		return;
@@ -815,10 +809,49 @@ void ContentBrowserWidget::pinStateOverlayForLaunch(void)
 	}
 	refreshHoverOverlayPixmap();
 	hover_overlay_->setGeometry(hoverOverlayRect());
-	hover_overlay_->show();
 	hover_overlay_->raise();
 	qApp->removeEventFilter(this);
 	qApp->installEventFilter(this);
+
+	if(true!=hover_overlay_->isVisible())
+	{
+		hover_opacity_->setOpacity(0.0);
+		hover_overlay_->show();
+		if(nullptr!=hover_fade_)
+		{
+			hover_fade_->stop();
+			hover_fade_->setDuration(kHoverOverlayFadeMs);
+			hover_fade_->setStartValue(0.0);
+			hover_fade_->setEndValue(kHoverOverlayOpacity);
+			hover_fade_->start();
+		}
+		return;
+	}
+	/*! Interrupted fade-out: reverse toward full opacity. */
+	if(true==wasFadingOut && nullptr!=hover_fade_)
+	{
+		hover_fade_->stop();
+		hover_fade_->setDuration(kHoverOverlayFadeMs);
+		hover_fade_->setStartValue(hover_opacity_->opacity());
+		hover_fade_->setEndValue(kHoverOverlayOpacity);
+		hover_fade_->start();
+	}
+}
+
+void ContentBrowserWidget::flushPendingLaunch(void)
+{
+	if(true!=hover_launch_pending_)
+	{
+		return;
+	}
+	hover_launch_pending_=false;
+	const unsigned int fp=pending_launch_fp_;
+	const QString path=pending_launch_path_;
+	const int slot=pending_launch_slot_;
+	pending_launch_fp_=0;
+	pending_launch_path_.clear();
+	pending_launch_slot_=-1;
+	onLaunch(fp,path,slot);
 }
 
 void ContentBrowserWidget::notifyVmRunning(void)
@@ -847,7 +880,6 @@ void ContentBrowserWidget::fadeOutStateHover(void)
 	{
 		return;
 	}
-	hover_arm_move_hide_=false;
 	hover_fading_out_=true;
 	hover_fade_->stop();
 	hover_fade_->setDuration(kHoverOverlayFadeMs);
@@ -858,9 +890,13 @@ void ContentBrowserWidget::fadeOutStateHover(void)
 
 void ContentBrowserWidget::hideStateHover(void)
 {
-	hover_arm_move_hide_=false;
 	hover_fading_out_=false;
 	hover_pinned_for_launch_=false;
+	hover_thumb_=nullptr;
+	hover_launch_pending_=false;
+	pending_launch_fp_=0;
+	pending_launch_path_.clear();
+	pending_launch_slot_=-1;
 	/*! Keep hover_block_show_until_press_: fade-out must not unlock the
 	    trailing double-click release that would re-show the overlay. */
 	if(nullptr!=qApp)
@@ -906,24 +942,15 @@ void ContentBrowserWidget::resizeEvent(QResizeEvent *event)
 
 bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
 {
-	/*! Dismiss preview on cursor move or wheel after click-to-show. */
-	if(true==hover_arm_move_hide_ &&
+	/*! Dismiss preview when the cursor leaves the thumbnail that opened it. */
+	if(QEvent::Leave==event->type() &&
+	   nullptr!=watched &&
+	   watched==hover_thumb_ &&
 	   true!=hover_pinned_for_launch_ &&
 	   nullptr!=hover_overlay_ &&
 	   true==hover_overlay_->isVisible())
 	{
-		if(QEvent::Wheel==event->type())
-		{
-			fadeOutStateHover();
-		}
-		else if(QEvent::MouseMove==event->type())
-		{
-			const QPoint delta=QCursor::pos()-hover_show_global_pos_;
-			if(delta.manhattanLength()>=kHoverDismissMovePx)
-			{
-				fadeOutStateHover();
-			}
-		}
+		fadeOutStateHover();
 	}
 
 	if(nullptr!=watched && watched->property(kPropFingerprint).isValid()
@@ -970,22 +997,41 @@ bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
 					return true;
 				}
 				const QVariant pmVar=watched->property(kPropHoverPixmap);
+				QPixmap pm;
 				if(true==pmVar.isValid())
 				{
-					const QPixmap pm=pmVar.value<QPixmap>();
-					if(true!=pm.isNull())
-					{
-						hover_source_=pm;
-						hover_slot_=watched->property(kPropHoverSlot).toInt();
-						hover_time_text_=watched->property(kPropHoverTime).toString();
-					}
+					pm=pmVar.value<QPixmap>();
 				}
-				/*! Snap through any in-progress fade-in, then keep pinned until VM runs. */
+				if(true!=pm.isNull())
+				{
+					hover_source_=pm;
+					hover_slot_=watched->property(kPropHoverSlot).toInt();
+					hover_time_text_=watched->property(kPropHoverTime).toString();
+				}
+				/*! Ensure fade-in is running (first click of the dblclick may have started it). */
+				if(nullptr!=hover_overlay_ && true!=hover_overlay_->isVisible() && true!=pm.isNull())
+				{
+					showStateHover(
+					    qobject_cast<QWidget *>(watched),
+					    pm,
+					    watched->property(kPropHoverSlot).toInt(),
+					    watched->property(kPropHoverTime).toString());
+				}
+				/*! Let fade-in finish; load only after it completes. */
 				pinStateOverlayForLaunch();
-				onLaunch(
-				    watched->property(kPropLaunchFp).toUInt(),
-				    watched->property(kPropLaunchPath).toString(),
-				    watched->property(kPropLaunchSlot).toInt());
+				pending_launch_fp_=watched->property(kPropLaunchFp).toUInt();
+				pending_launch_path_=watched->property(kPropLaunchPath).toString();
+				pending_launch_slot_=watched->property(kPropLaunchSlot).toInt();
+				hover_launch_pending_=true;
+				const bool fadeInRunning=
+				    nullptr!=hover_fade_ &&
+				    true!=hover_fading_out_ &&
+				    (QAbstractAnimation::Running==hover_fade_->state() ||
+				     QAbstractAnimation::Paused==hover_fade_->state());
+				if(true!=fadeInRunning)
+				{
+					flushPendingLaunch();
+				}
 				return true;
 			}
 		}
@@ -1008,6 +1054,7 @@ bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
 					if(true!=pm.isNull())
 					{
 						showStateHover(
+						    qobject_cast<QWidget *>(watched),
 						    pm,
 						    watched->property(kPropHoverSlot).toInt(),
 						    watched->property(kPropHoverTime).toString());
