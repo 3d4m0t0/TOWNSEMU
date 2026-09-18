@@ -139,6 +139,8 @@ private:
 	void disconnectDisplayScaleScreenSignals();
 	void syncWaylandIdleInhibit();
 	void syncWaylandRelativePointer();
+	/*! Stop+restart relative-pointer after fullscreen/windowed surface change. */
+	void rebindDifferentialWaylandCaptureAfterSurfaceChange();
 	void syncMenuChecks();
 	void syncCpuClockMenuActions();
 	void syncFastModeMenu();

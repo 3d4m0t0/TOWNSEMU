@@ -5311,6 +5311,8 @@ void MainWindow::applyFullscreenLayout()
 		updateFullscreenNormalIntegrationChrome();
 		updateBlankCursor();
 	}
+	/*! Fullscreen changes the wl_surface; rebind relative-pointer while capture is armed. */
+	rebindDifferentialWaylandCaptureAfterSurfaceChange();
 }
 
 void MainWindow::applyWindowedLayout()
@@ -5340,6 +5342,9 @@ void MainWindow::applyWindowedLayout()
 	{
 		view_->setFocus();
 	}
+	/*! Leaving fullscreen also rebuilds the surface; rebind capture so middle-click
+	    release keeps working in windowed mode. */
+	rebindDifferentialWaylandCaptureAfterSurfaceChange();
 }
 
 void MainWindow::scheduleFullscreenChromeHide()
@@ -6390,18 +6395,14 @@ void MainWindow::applyWindowScale(int scale)
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
 	QMainWindow::resizeEvent(event);
-	if(true==allow_window_resize_ || true==fullscreen_ || true==isFullScreen())
+	if(true!=allow_window_resize_ && true!=fullscreen_ && true!=isFullScreen() &&
+	   intended_window_size_.isValid() && size()!=intended_window_size_)
 	{
-		return;
+		// Reject user drag-resize / maximize; keep window matched to EMU scale.
+		allow_window_resize_=true;
+		resize(intended_window_size_);
+		allow_window_resize_=false;
 	}
-	if(!intended_window_size_.isValid() || size()==intended_window_size_)
-	{
-		return;
-	}
-	// Reject user drag-resize / maximize; keep window matched to EMU scale.
-	allow_window_resize_=true;
-	resize(intended_window_size_);
-	allow_window_resize_=false;
 }
 
 void MainWindow::applyDisplayVsync()
@@ -6475,6 +6476,20 @@ void MainWindow::syncWaylandRelativePointer()
 	wayland_capture_want_=true;
 	wayland_capture_method_=method;
 	inputQueue_.ClearMouseButtons();
+}
+
+void MainWindow::rebindDifferentialWaylandCaptureAfterSurfaceChange()
+{
+	/*! syncWaylandRelativePointer early-returns while Active(); after a surface
+	    change that lock is stale and middle-button capture release can stop working. */
+	if(true==wayland_capture_want_ || true==TownsQtWaylandRelativePointer::Active())
+	{
+		TownsQtWaylandRelativePointer::Stop();
+		wayland_capture_want_=false;
+		wayland_capture_method_.clear();
+		inputQueue_.ClearMouseButtons();
+	}
+	syncDifferentialMouseCursor();
 }
 
 void MainWindow::cleanupStoppedEmulator(EmulatorController *stopping)

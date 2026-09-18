@@ -3,8 +3,8 @@
 class QWindow;
 class QtInputQueue;
 
-/*! Wayland relative-pointer + locked-pointer for differential mouse integration.
-    Falls back to cursor-warp deltas when unavailable (X11 / missing protocols). */
+/*! Wayland relative-pointer + locked-pointer.
+    Used for differential mouse capture. */
 namespace TownsQtWaylandRelativePointer
 {
 bool Available();
