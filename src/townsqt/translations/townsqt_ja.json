@@ -1722,8 +1722,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
-      "translation": "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了時に、\nディスクごとのオートレジューム（state0_XXXXXXXX.TState）を自動保存し、\n次回読み込み時に自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\nオフのときは、ステートセーブの自動保存・自動読み込みを行いません。"
+      "source": "With a disc profile, save/restore on eject and exit.\nSame-CD manual restart skips resume.",
+      "translation": "ディスクプロファイルがあるとき、取り出し・終了で自動保存し次回再開。\n同じ CD の手動再起動ではスキップ。"
     },
     {
       "context": "SettingsDialog",
@@ -1732,8 +1732,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off.",
-      "translation": "オンにすると、新規保存の .TState を zlib 圧縮します（ディスク上は小さくなりますが、\n保存時の CPU 負荷が少し増えます）。読み込みは圧縮／従来の非圧縮の両方に対応します。\nデフォルトはオフです。"
+      "source": "Compress new .TState saves (zlib).\nLoad still accepts uncompressed files.",
+      "translation": "新規 .TState を zlib 圧縮。読み込みは非圧縮も可。"
     },
     {
       "context": "SettingsDialog",

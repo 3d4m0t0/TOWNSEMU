@@ -1258,18 +1258,15 @@ void SettingsDialog::buildUi()
 		v->addWidget(auto_resume_enabled_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("When a disc profile exists for the mounted CD image, automatically save\n"
-		       "per-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
-		       "and auto-resume on the next load. Manual restart with the same CD does not\n"
-		       "load a saved state. When off, state saves are neither auto-written nor auto-loaded.")));
+		    tr("With a disc profile, save/restore on eject and exit.\n"
+		       "Same-CD manual restart skips resume.")));
 
 		state_data_compression_enabled_=new QCheckBox(tr("Compress state data"),page);
 		v->addWidget(state_data_compression_enabled_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("When on, newly written .TState files are zlib-compressed (smaller on disk,\n"
-		       "slightly more CPU on save). Loading always accepts both compressed and\n"
-		       "legacy uncompressed states. Default is off.")));
+		    tr("Compress new .TState saves (zlib).\n"
+		       "Load still accepts uncompressed files.")));
 
 		snap_mouse_integration_=new QCheckBox(tr("Faster mouse integration"),page);
 		v->addWidget(snap_mouse_integration_);

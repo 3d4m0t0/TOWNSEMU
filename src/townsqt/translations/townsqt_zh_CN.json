@@ -1722,8 +1722,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
-      "translation": "有光盘配置文件时：在弹出 CD 与退出应用时自动保存自动恢复文件（state0_XXXXXXXX.TState），\n下次加载自动恢复。同一 CD 手动重启不加载。\n关闭则不自动保存/加载。"
+      "source": "With a disc profile, save/restore on eject and exit.\nSame-CD manual restart skips resume.",
+      "translation": "有光盘配置时，弹出与退出时保存/恢复。\n同一光盘手动重启跳过恢复。"
     },
     {
       "context": "SettingsDialog",
@@ -1732,8 +1732,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off.",
-      "translation": "开启后，新写入的 .TState 使用 zlib 压缩（更省磁盘，保存时 CPU 略增）。\n加载同时支持压缩与旧版未压缩。默认关闭。"
+      "source": "Compress new .TState saves (zlib).\nLoad still accepts uncompressed files.",
+      "translation": "新建 .TState 使用 zlib 压缩。\n加载仍支持未压缩文件。"
     },
     {
       "context": "SettingsDialog",

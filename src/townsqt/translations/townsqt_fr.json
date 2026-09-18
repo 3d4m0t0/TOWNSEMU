@@ -1722,8 +1722,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When a disc profile exists for the mounted CD image, automatically save\nper-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\nand auto-resume on the next load. Manual restart with the same CD does not\nload a saved state. When off, state saves are neither auto-written nor auto-loaded.",
-      "translation": "Avec profil disque : sauver state0_XXXXXXXX.TState à l’éjection CD et à la sortie,\nauto-resume au prochain chargement. Redémarrage manuel du même CD : pas de state.\nOff : pas d’auto save/load."
+      "source": "With a disc profile, save/restore on eject and exit.\nSame-CD manual restart skips resume.",
+      "translation": "Avec profil disque : sauver/restaurer à l’éjection et à la sortie.\nRedémarrage manuel du même CD ignore le resume."
     },
     {
       "context": "SettingsDialog",
@@ -1732,8 +1732,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When on, newly written .TState files are zlib-compressed (smaller on disk,\nslightly more CPU on save). Loading always accepts both compressed and\nlegacy uncompressed states. Default is off.",
-      "translation": "Activé : compresse les nouveaux .TState avec zlib (moins d’espace disque,\nun peu plus de CPU à l’enregistrement). Le chargement accepte compressé\net non compressé. Par défaut : désactivé."
+      "source": "Compress new .TState saves (zlib).\nLoad still accepts uncompressed files.",
+      "translation": "Compresser les nouveaux .TState (zlib).\nLe chargement accepte encore les fichiers non compressés."
     },
     {
       "context": "SettingsDialog",

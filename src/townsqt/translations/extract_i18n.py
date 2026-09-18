@@ -507,23 +507,17 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("SettingsDialog", "Enable auto-resume"): "オートレジューム有効",
     (
         "SettingsDialog",
-        "When a disc profile exists for the mounted CD image, automatically save\n"
-        "per-disc auto-resume file (state0_XXXXXXXX.TState) on CD eject and app exit,\n"
-        "and auto-resume on the next load. Manual restart with the same CD does not\n"
-        "load a saved state. When off, state saves are neither auto-written nor auto-loaded.",
-    ): "ディスクプロファイルがある CD イメージでは、CD 取り出し・アプリ終了時に、\n"
-    "ディスクごとのオートレジューム（state0_XXXXXXXX.TState）を自動保存し、\n"
-    "次回読み込み時に自動再開します。同じ CD の手動再起動ではステートセーブは読み込まれません。\n"
-    "オフのときは、ステートセーブの自動保存・自動読み込みを行いません。",
+        "With a disc profile, save/restore on eject and exit.\n"
+        "Same-CD manual restart skips resume.",
+    ): "ディスクプロファイルがあるとき、取り出し・終了で自動保存し次回再開。\n"
+    "同じ CD の手動再起動ではスキップ。",
     ("SettingsDialog", "Compress state data"): "ステートデータ圧縮",
     (
         "SettingsDialog",
-        "When on, newly written .TState files are zlib-compressed (smaller on disk,\n"
-        "slightly more CPU on save). Loading always accepts both compressed and\n"
-        "legacy uncompressed states. Default is off.",
-    ): "オンにすると、新規保存の .TState を zlib 圧縮します（ディスク上は小さくなりますが、\n"
-    "保存時の CPU 負荷が少し増えます）。読み込みは圧縮／従来の非圧縮の両方に対応します。\n"
-    "デフォルトはオフです。",
+        "Compress new .TState saves (zlib).\n"
+        "Load still accepts uncompressed files.",
+    ): "新規 .TState を zlib 圧縮。\n"
+    "読み込みは非圧縮も可。",
     ("SettingsDialog", "Boot drive"): "起動ディスク",
     ("SettingsDialog", "Drive configuration"): "ドライブ構成",
     (
