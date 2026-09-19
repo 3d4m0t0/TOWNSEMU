@@ -1093,7 +1093,7 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Open Memory scan to find guest RAM cursor coordinates.\nSettings closes while the scan window is open.",
-      "translation": "ゲスト RAM のカーソル座標を探すメモリスキャンを開きます。\nスキャンウインドウ表示中は設定を閉じます。"
+      "translation": "マウス座標を探す画面を開きます。\nそのあいだ設定画面は閉じます。"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -1168,7 +1168,7 @@
     {
       "context": "MouseCoordProfilePage",
       "source": "Offset from live DS.base (WC-style). Prefer this over absolute Phys when guest layout shifts with memory/CMOS/HDD changes.",
-      "translation": "ライブの DS.base からのオフセット（WC 方式）。メモリ／CMOS／HDD 変更でゲスト配置がずれるときは、絶対 Phys よりこちらを推奨。"
+      "translation": "基準位置からのずれで指定します。メモリやドライブ構成が変わってもずれにくいです。"
     },
     {
       "context": "MouseCoordProfilePage",
@@ -1447,8 +1447,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone.",
-      "translation": "ディスクプロファイル「%1」を削除しますか？\nディスクごとのマシン／マウス設定が失われます。\nこの操作は取り消せません。"
+      "source": "Delete disc settings \"%1\"?\nMachine and mouse settings for this disc will be removed.\nThis cannot be undone.",
+      "translation": "ディスク設定「%1」を削除しますか？\nこのディスク専用のマシン／マウス設定が消えます。\nこの操作は取り消せません。"
     },
     {
       "context": "SettingsDialog",
@@ -1557,8 +1557,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
-      "translation": "基本構成の既定値 (townsqt.conf) を編集中です。適用または OK でここに保存します。\nメモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動し、ゲームポートの変更は即時反映されます。\nCD マウント中にディスクプロファイルを作成すると、ディスクごとの設定を保存できます\n（FD0 / FD1 / HD0–HD6 のマウントと cmos/cmos_XXXXXXXX.bin の CMOS）。"
+      "source": "Editing shared basic settings. Apply or OK saves them.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.\nWith a CD inserted, use Create profile to save settings for that disc.",
+      "translation": "共通の基本設定を編集しています。［適用］または［OK］で保存します。\nメモリ・起動ディスク・CPU精度の変更は再起動します。ゲームパッド／マウスの変更はすぐ反映されます。\nCDを入れているときは「プロファイルを作成」で、そのディスク専用の設定も保存できます。"
     },
     {
       "context": "SettingsDialog",
@@ -1567,8 +1567,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
-      "translation": "有効な CMOS（グローバル cmos.bin またはプロファイルの cmos/cmos_XXXXXXXX.bin）を編集します。\n適用または OK で VM の CMOS RAM とファイルを更新します。Towns OS では通常リセット／再起動が必要です。"
+      "source": "Edits drive setup (CMOS). Apply or OK saves.\nTowns OS may need a reset or restart before changes take effect.",
+      "translation": "ドライブ構成（CMOS）を編集します。［適用］または［OK］で保存します。\nTowns OSでは、反映にリセットや再起動が必要なことがあります。"
     },
     {
       "context": "SettingsDialog",
@@ -1657,8 +1657,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Without sinc interpolation, linear interpolation is used.",
-      "translation": "sinc補間を使わない場合は線形補間を使用します。"
+      "source": "When off, a simpler conversion method is used.",
+      "translation": "オフのときは、より簡易な変換方式を使います。"
     },
     {
       "context": "SettingsDialog",
@@ -1697,8 +1697,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Changes take effect immediately when you press Apply or OK.",
-      "translation": "変更は［適用］または［OK］ですべて即時に反映されます。"
+      "source": "Changes apply immediately when you press Apply or OK.",
+      "translation": "［適用］または［OK］ですぐに反映されます。"
     },
     {
       "context": "SettingsDialog",
@@ -1712,53 +1712,53 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup.",
-      "translation": "オフのときはグローバル設定でコールドスタートします（HD構成は保持、CD / FDは再マウントしません）。\nオンのときは起動時にコンテンツブラウザを開きます。"
+      "source": "Off: start with basic settings.\nOn: open the content browser on startup.",
+      "translation": "オフ：基本設定で起動。\nオン：起動時にコンテンツブラウザを開く。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Enable auto-resume",
-      "translation": "オートレジューム有効"
+      "source": "Use auto-resume",
+      "translation": "自動再開を使う"
     },
     {
       "context": "SettingsDialog",
-      "source": "With a disc profile, save/restore on eject and exit.\nSame-CD manual restart skips resume.",
-      "translation": "ディスクプロファイルがあるとき、取り出し・終了で自動保存し次回再開。\n同じ CD の手動再起動ではスキップ。"
+      "source": "Saves on CD eject and exit, then resumes next time.\nManual restart does not resume.",
+      "translation": "CD取り出し・終了で保存し、次回は自動再開。\n手動再起動では再開しない。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress state data",
-      "translation": "ステートデータ圧縮"
+      "source": "Compress saved state data",
+      "translation": "状態データを圧縮する"
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress new .TState saves (zlib).\nLoad still accepts uncompressed files.",
-      "translation": "新規 .TState を zlib 圧縮。読み込みは非圧縮も可。"
+      "source": "Makes new saved states smaller. Older uncompressed files can still be loaded.",
+      "translation": "新しい状態保存を小さくします。以前の非圧縮ファイルも読めます。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Faster mouse integration",
-      "translation": "高速マウス統合"
+      "source": "Faster mouse response",
+      "translation": "マウス反応を速くする"
     },
     {
       "context": "SettingsDialog",
-      "source": "Mouse BIOS integration that writes guest memory to reduce latency.",
-      "translation": "マウスBIOSを使った統合で、メモリ書込みを行い遅延を低減します。"
+      "source": "Sends mouse coordinates directly to the system for faster response.",
+      "translation": "システムにマウス座標を直接伝え、反応を速くします。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Absolute mouse edge assist (exit vector)",
-      "translation": "絶対マウス縁アシスト（Exit vector）"
+      "source": "Mouse assist at screen edges",
+      "translation": "画面端のマウス補助"
     },
     {
       "context": "SettingsDialog",
-      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
-      "translation": "MOS / アプリ固有のみ。ホストが絵から外れたとき、最後の絵内移動を縁まで延長。\nポインタが窓上にある間は自由軸が追従します。"
+      "source": "For some software. When the mouse leaves the picture, treat it as moved to the edge.\nWhile the pointer is over the window, free directions still follow.",
+      "translation": "一部のソフト向け。マウスが画面の外へ出たとき、端まで動いたものとして扱います。\nウインドウ上にポインタがあるあいだは、動ける方向はそのまま追従します。"
     },
     {
       "context": "SettingsDialog",
-      "source": "CDDA cache:",
-      "translation": "CDDAキャッシュ:"
+      "source": "CD audio prefetch:",
+      "translation": "CD音楽の先読み："
     },
     {
       "context": "SettingsDialog",
@@ -1767,18 +1767,18 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Prefetch only the CDDA audio needed ahead of playback and keep\nplaying through data reads without interrupting. The value is how\nmany seconds until playback is considered finished.",
-      "translation": "CDDA を必要な分だけ先読みし、データ読み出し中も再生を中断せず続けます。\n数値は、再生終了とみなすまでの秒数です。"
+      "source": "Prefetches only the CD audio needed, and keeps playing during data reads.\nThe value is how many seconds until playback is treated as finished.",
+      "translation": "CDの音楽を必要な分だけ先に読み、データの読み込み中も音を止めません。\n数値は、再生が終わったとみなすまでの秒数です。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Inhibit display idle",
-      "translation": "ディスプレイのアイドルを抑制"
+      "source": "Prevent automatic screen off",
+      "translation": "画面の自動オフを防ぐ"
     },
     {
       "context": "SettingsDialog",
-      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "Wayland セッションで画面の自動消灯や暗転を防ぎます。"
+      "source": "Prevents the screen from blanking or dimming automatically (Wayland).",
+      "translation": "画面が自動で消灯・暗くなるのを防ぎます（Wayland環境）。"
     },
     {
       "context": "SettingsDialog",
@@ -1802,8 +1802,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Available only on sessions that support Wayland idle-inhibit.",
-      "translation": "Wayland の idle-inhibit に対応したセッションでのみ利用できます。"
+      "source": "Available only where preventing screen-off is supported.",
+      "translation": "画面オフ防止に対応した環境でのみ使えます。"
     },
     {
       "context": "SettingsDialog",
@@ -1837,13 +1837,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
-      "translation": "ディスクプロファイル (fp_XXXXXXXX.ini、選択色の枠) を編集中です。\n適用または OK でクロック・起動ディスク・メモリ・ポート・オプション、\nおよび FD0 / FD1 / HD0–HD6 のマウント状態をプロファイルへ保存します（次回読込時に復元）。\nCMOS（ドライブレター・シングルドライブ）はこのディスク用の cmos/cmos_XXXXXXXX.bin を使います — Towns SETUP で設定。\nCPU とモデルは townsqt.conf のグローバル設定のままで、プロファイルには保存しません。\nメモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動します。"
+      "source": "Editing settings for this disc (selection highlight).\nApply or OK saves speed, boot drive, memory, ports, options, and floppy/hard disk connections (restored on next load).\nDrive setup uses this disc's CMOS (set in Towns SETUP). CPU and model stay shared.\nMemory, boot drive, and CPU accuracy changes restart the emulator.",
+      "translation": "このディスク専用の設定を編集しています（枠の色で選択中）。\n［適用］または［OK］で、速度・起動ディスク・メモリ・ポート・オプションと、フロッピー／ハードディスクの接続状態を保存します（次回読み込み時に復元）。\nドライブ構成はこのディスク用のCMOSを使います（TownsのSETUPで設定）。CPUと機種は共通設定のままです。\nメモリ・起動ディスク・CPU精度の変更は再起動します。"
     },
     {
       "context": "SettingsDialog",
-      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-      "translation": "この CD のディスクプロファイルはまだありません。「プロファイルを作成」でディスクごとの設定を保存できます\n（復元用に FD0 / FD1 / HD0–HD6 のマウント状態も含みます）。\nプロファイルには Towns SETUP 用の CMOS ファイル (cmos/cmos_XXXXXXXX.bin) も付きます。\n作成するまでは、適用または OK で基本構成の既定を townsqt.conf へ保存します。\nメモリ・起動ディスク・CPU 忠実度の変更は再起動し、ゲームポートの変更は即時反映されます。"
+      "source": "No settings for this CD yet. Use Create profile to save disc-specific settings.\nUntil then, Apply or OK saves shared basic settings.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.",
+      "translation": "このCD用の設定はまだありません。「プロファイルを作成」でディスク専用の設定を保存できます。\n作成するまでは、［適用］または［OK］で共通の基本設定を保存します。\nメモリ・起動ディスク・CPU精度の変更は再起動します。ゲームパッド／マウスの変更はすぐ反映されます。"
     },
     {
       "context": "SettingsDialog",
@@ -1852,18 +1852,18 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "No CD mounted.",
-      "translation": "CD未マウント。"
+      "source": "No CD inserted.",
+      "translation": "CDが入っていません。"
     },
     {
       "context": "SettingsDialog",
-      "source": "No profile for this disc.",
-      "translation": "このディスクのプロファイルはありません。"
+      "source": "No settings for this disc.",
+      "translation": "このディスクの設定がありません。"
     },
     {
       "context": "SettingsDialog",
       "source": "Disc profile loaded.",
-      "translation": "ディスクプロファイル読込済み。"
+      "translation": "ディスク設定を読み込みました。"
     },
     {
       "context": "SettingsDialog",

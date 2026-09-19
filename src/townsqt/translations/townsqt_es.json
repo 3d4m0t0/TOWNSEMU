@@ -1447,8 +1447,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone.",
-      "translation": "¿Borrar el perfil «%1»?\nSe quitarán ajustes de máquina/ratón.\nNo se puede deshacer."
+      "source": "Delete disc settings \"%1\"?\nMachine and mouse settings for this disc will be removed.\nThis cannot be undone.",
+      "translation": "¿Borrar los ajustes del disco «%1»?\nSe quitarán los ajustes de máquina/ratón de este disco.\nNo se puede deshacer."
     },
     {
       "context": "SettingsDialog",
@@ -1557,8 +1557,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
-      "translation": "Editar defaults Básico (townsqt.conf). Aplicar/OK guarda aquí.\nMemoria, boot y fidelidad CPU reinician; gameport al instante.\nCon CD, cree un perfil por disco\n(FD0/FD1/HD0–HD6, CMOS en cmos/cmos_XXXXXXXX.bin)."
+      "source": "Editing shared basic settings. Apply or OK saves them.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.\nWith a CD inserted, use Create profile to save settings for that disc.",
+      "translation": "Ajustes básicos compartidos. Aplicar/OK guarda.\nMemoria, disco de arranque y precisión de CPU reinician. Mando/ratón: inmediato.\nCon un CD, use Crear perfil para ese disco."
     },
     {
       "context": "SettingsDialog",
@@ -1567,8 +1567,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
-      "translation": "CMOS activa (cmos.bin global o perfil cmos/cmos_XXXXXXXX.bin).\nAplicar/OK actualiza CMOS RAM y archivo. Towns OS suele necesitar reset/boot."
+      "source": "Edits drive setup (CMOS). Apply or OK saves.\nTowns OS may need a reset or restart before changes take effect.",
+      "translation": "Ajustes de unidades (CMOS). Aplicar/OK guarda.\nTowns OS puede necesitar reinicio o reset."
     },
     {
       "context": "SettingsDialog",
@@ -1657,8 +1657,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Without sinc interpolation, linear interpolation is used.",
-      "translation": "Sin sinc: interpolación lineal."
+      "source": "When off, a simpler conversion method is used.",
+      "translation": "Desactivado: conversión más simple."
     },
     {
       "context": "SettingsDialog",
@@ -1697,7 +1697,7 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Changes take effect immediately when you press Apply or OK.",
+      "source": "Changes apply immediately when you press Apply or OK.",
       "translation": "Efecto inmediato con Aplicar u OK."
     },
     {
@@ -1708,57 +1708,57 @@
     {
       "context": "SettingsDialog",
       "source": "Open content browser on startup",
-      "translation": "Open content browser on startup"
+      "translation": "Abrir explorador al inicio"
     },
     {
       "context": "SettingsDialog",
-      "source": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup.",
-      "translation": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup."
+      "source": "Off: start with basic settings.\nOn: open the content browser on startup.",
+      "translation": "Desactivado: iniciar con ajustes básicos.\nActivado: abrir el explorador al inicio."
     },
     {
       "context": "SettingsDialog",
-      "source": "Enable auto-resume",
-      "translation": "Auto-resume"
+      "source": "Use auto-resume",
+      "translation": "Reanudar auto"
     },
     {
       "context": "SettingsDialog",
-      "source": "With a disc profile, save/restore on eject and exit.\nSame-CD manual restart skips resume.",
-      "translation": "Con perfil de disco: guardar/restaurar al expulsar y salir.\nReinicio manual del mismo CD omite el resume."
+      "source": "Saves on CD eject and exit, then resumes next time.\nManual restart does not resume.",
+      "translation": "Guarda al expulsar el CD y al salir, y reanuda la próxima vez.\nEl reinicio manual no reanuda."
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress state data",
-      "translation": "Comprimir datos de state"
+      "source": "Compress saved state data",
+      "translation": "Comprimir guardados"
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress new .TState saves (zlib).\nLoad still accepts uncompressed files.",
-      "translation": "Comprimir nuevos .TState (zlib).\nLa carga sigue aceptando sin comprimir."
+      "source": "Makes new saved states smaller. Older uncompressed files can still be loaded.",
+      "translation": "Las partidas nuevas ocupan menos. Los archivos sin comprimir antiguos siguen cargando."
     },
     {
       "context": "SettingsDialog",
-      "source": "Faster mouse integration",
+      "source": "Faster mouse response",
       "translation": "Ratón más rápido"
     },
     {
       "context": "SettingsDialog",
-      "source": "Mouse BIOS integration that writes guest memory to reduce latency.",
-      "translation": "Integración Mouse BIOS escribiendo RAM (menos latencia)."
+      "source": "Sends mouse coordinates directly to the system for faster response.",
+      "translation": "Envía las coordenadas del ratón al sistema para una respuesta más rápida."
     },
     {
       "context": "SettingsDialog",
-      "source": "Absolute mouse edge assist (exit vector)",
-      "translation": "Asistencia de borde del ratón absoluto (exit vector)"
+      "source": "Mouse assist at screen edges",
+      "translation": "Ayuda ratón en el borde"
     },
     {
       "context": "SettingsDialog",
-      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
-      "translation": "Solo MOS / app. Si el host sale de la imagen, prolonga el último movimiento\nhasta el borde; el eje libre sigue mientras el puntero esté sobre la ventana."
+      "source": "For some software. When the mouse leaves the picture, treat it as moved to the edge.\nWhile the pointer is over the window, free directions still follow.",
+      "translation": "Para algunos programas. Si el ratón sale de la imagen, se trata como llegado al borde.\nMientras el puntero esté sobre la ventana, los ejes libres siguen."
     },
     {
       "context": "SettingsDialog",
-      "source": "CDDA cache:",
-      "translation": "Caché CDDA:"
+      "source": "CD audio prefetch:",
+      "translation": "Precarga audio CD:"
     },
     {
       "context": "SettingsDialog",
@@ -1767,18 +1767,18 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Prefetch only the CDDA audio needed ahead of playback and keep\nplaying through data reads without interrupting. The value is how\nmany seconds until playback is considered finished.",
-      "translation": "Precargar pista CDDA y seguir en lecturas de datos.\nValor = segundos hasta fin de reproducción."
+      "source": "Prefetches only the CD audio needed, and keeps playing during data reads.\nThe value is how many seconds until playback is treated as finished.",
+      "translation": "Precarga solo el audio de CD necesario y sigue durante lecturas de datos.\nEl valor es los segundos hasta dar la reproducción por terminada."
     },
     {
       "context": "SettingsDialog",
-      "source": "Inhibit display idle",
-      "translation": "Anti idle pantalla"
+      "source": "Prevent automatic screen off",
+      "translation": "No apagar pantalla auto"
     },
     {
       "context": "SettingsDialog",
-      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "Evita apagado/atenuación automática en Wayland."
+      "source": "Prevents the screen from blanking or dimming automatically (Wayland).",
+      "translation": "Evita que la pantalla se apague o atenúe sola (Wayland)."
     },
     {
       "context": "SettingsDialog",
@@ -1802,8 +1802,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Available only on sessions that support Wayland idle-inhibit.",
-      "translation": "Solo con Wayland idle-inhibit."
+      "source": "Available only where preventing screen-off is supported.",
+      "translation": "Solo donde se admite evitar el apagado."
     },
     {
       "context": "SettingsDialog",
@@ -1837,13 +1837,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
-      "translation": "Editar perfil (fp_XXXXXXXX.ini, ámbar).\nAplicar/OK guarda reloj, boot, memoria, puertos, opciones\ny montajes FD0/FD1/HD0–HD6.\nCMOS: cmos/cmos_XXXXXXXX.bin — Towns SETUP.\nCPU/modelo siguen globales (townsqt.conf).\nMemoria/boot/fidelidad → reinicio."
+      "source": "Editing settings for this disc (selection highlight).\nApply or OK saves speed, boot drive, memory, ports, options, and floppy/hard disk connections (restored on next load).\nDrive setup uses this disc's CMOS (set in Towns SETUP). CPU and model stay shared.\nMemory, boot drive, and CPU accuracy changes restart the emulator.",
+      "translation": "Ajustes de este disco (resaltado de selección).\nAplicar/OK guarda velocidad, arranque, memoria, puertos, opciones y conexiones de disquete/disco duro (se restauran al cargar).\nLas unidades usan el CMOS de este disco (Towns SETUP). CPU y modelo siguen compartidos.\nMemoria, arranque y precisión de CPU reinician."
     },
     {
       "context": "SettingsDialog",
-      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-      "translation": "Aún no hay perfil. «Crear perfil» para ajustes por disco\n(FD0/FD1/HD0–HD6).\nEl perfil tiene su CMOS (cmos/cmos_XXXXXXXX.bin).\nSi no, Aplicar/OK guarda Básico en townsqt.conf.\nMemoria/boot/fidelidad → reinicio; gameport al instante."
+      "source": "No settings for this CD yet. Use Create profile to save disc-specific settings.\nUntil then, Apply or OK saves shared basic settings.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.",
+      "translation": "Aún no hay ajustes para este CD. Crear perfil guarda ajustes del disco.\nHasta entonces, Aplicar/OK guarda los ajustes básicos compartidos.\nMemoria, arranque y precisión de CPU reinician. Mando/ratón: inmediato."
     },
     {
       "context": "SettingsDialog",
@@ -1852,13 +1852,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "No CD mounted.",
+      "source": "No CD inserted.",
       "translation": "Sin CD."
     },
     {
       "context": "SettingsDialog",
-      "source": "No profile for this disc.",
-      "translation": "Sin perfil para este disco."
+      "source": "No settings for this disc.",
+      "translation": "Sin ajustes para este disco."
     },
     {
       "context": "SettingsDialog",

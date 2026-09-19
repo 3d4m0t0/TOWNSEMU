@@ -1433,7 +1433,7 @@
     {
       "context": "SettingsDialog",
       "source": "Create profile",
-      "translation": "创建配置文件"
+      "translation": "创建配置"
     },
     {
       "context": "SettingsDialog",
@@ -1443,12 +1443,12 @@
     {
       "context": "SettingsDialog",
       "source": "Delete disc profile",
-      "translation": "删除配置文件"
+      "translation": "删除配置"
     },
     {
       "context": "SettingsDialog",
-      "source": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone.",
-      "translation": "删除配置文件“%1”？\n将移除该盘的机器/鼠标设置。\n无法撤销。"
+      "source": "Delete disc settings \"%1\"?\nMachine and mouse settings for this disc will be removed.\nThis cannot be undone.",
+      "translation": "删除光盘设置“%1”？\n将移除此光盘的机器/鼠标设置。\n无法撤销。"
     },
     {
       "context": "SettingsDialog",
@@ -1557,8 +1557,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
-      "translation": "编辑基本默认值（townsqt.conf）。应用/OK 保存在此。\n内存、启动盘与 CPU 保真度会重启；gameport 立即生效。\n挂载 CD 时可创建按盘配置文件\n（FD0/FD1/HD0–HD6，CMOS：cmos/cmos_XXXXXXXX.bin）。"
+      "source": "Editing shared basic settings. Apply or OK saves them.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.\nWith a CD inserted, use Create profile to save settings for that disc.",
+      "translation": "正在编辑共用基本设置。应用或确定后保存。\n内存、启动盘和 CPU 精度更改会重启。手柄/鼠标更改立即生效。\n已插入 CD 时，可用「创建配置」保存该盘设置。"
     },
     {
       "context": "SettingsDialog",
@@ -1567,8 +1567,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
-      "translation": "编辑活动 CMOS（全局 cmos.bin 或配置 cmos/cmos_XXXXXXXX.bin）。\n应用/OK 更新 VM CMOS RAM 与文件。Towns OS 通常需复位/启动。"
+      "source": "Edits drive setup (CMOS). Apply or OK saves.\nTowns OS may need a reset or restart before changes take effect.",
+      "translation": "编辑驱动器设置（CMOS）。应用或确定后保存。\nTowns OS 可能需要复位或重启后才生效。"
     },
     {
       "context": "SettingsDialog",
@@ -1657,8 +1657,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Without sinc interpolation, linear interpolation is used.",
-      "translation": "无 sinc 时使用线性插值。"
+      "source": "When off, a simpler conversion method is used.",
+      "translation": "关闭时使用更简单的转换方式。"
     },
     {
       "context": "SettingsDialog",
@@ -1697,8 +1697,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Changes take effect immediately when you press Apply or OK.",
-      "translation": "按应用或 OK 后立即生效。"
+      "source": "Changes apply immediately when you press Apply or OK.",
+      "translation": "按应用或确定后立即生效。"
     },
     {
       "context": "SettingsDialog",
@@ -1708,57 +1708,57 @@
     {
       "context": "SettingsDialog",
       "source": "Open content browser on startup",
-      "translation": "Open content browser on startup"
+      "translation": "启动时打开浏览器"
     },
     {
       "context": "SettingsDialog",
-      "source": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup.",
-      "translation": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup."
+      "source": "Off: start with basic settings.\nOn: open the content browser on startup.",
+      "translation": "关：用基本设置启动。\n开：启动时打开内容浏览器。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Enable auto-resume",
-      "translation": "自动恢复"
+      "source": "Use auto-resume",
+      "translation": "自动继续"
     },
     {
       "context": "SettingsDialog",
-      "source": "With a disc profile, save/restore on eject and exit.\nSame-CD manual restart skips resume.",
-      "translation": "有光盘配置时，弹出与退出时保存/恢复。\n同一光盘手动重启跳过恢复。"
+      "source": "Saves on CD eject and exit, then resumes next time.\nManual restart does not resume.",
+      "translation": "弹出 CD 或退出时保存，下次自动继续。\n手动重启不会继续。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress state data",
+      "source": "Compress saved state data",
       "translation": "压缩状态数据"
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress new .TState saves (zlib).\nLoad still accepts uncompressed files.",
-      "translation": "新建 .TState 使用 zlib 压缩。\n加载仍支持未压缩文件。"
+      "source": "Makes new saved states smaller. Older uncompressed files can still be loaded.",
+      "translation": "新的状态存档更小。仍可加载旧的未压缩文件。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Faster mouse integration",
-      "translation": "更快的鼠标集成"
+      "source": "Faster mouse response",
+      "translation": "更快的鼠标响应"
     },
     {
       "context": "SettingsDialog",
-      "source": "Mouse BIOS integration that writes guest memory to reduce latency.",
-      "translation": "写入访客内存以降低延迟的 Mouse BIOS 集成。"
+      "source": "Sends mouse coordinates directly to the system for faster response.",
+      "translation": "将鼠标坐标直接传给系统，加快响应。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Absolute mouse edge assist (exit vector)",
-      "translation": "绝对鼠标边缘辅助（Exit vector）"
+      "source": "Mouse assist at screen edges",
+      "translation": "屏幕边缘鼠标辅助"
     },
     {
       "context": "SettingsDialog",
-      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
-      "translation": "仅 MOS / 应用专用。主机离开画面时，将最后画面内移动延伸到边缘；\n指针仍在窗口上时，自由轴继续跟随。"
+      "source": "For some software. When the mouse leaves the picture, treat it as moved to the edge.\nWhile the pointer is over the window, free directions still follow.",
+      "translation": "适用于部分软件。鼠标离开画面时，视为移到边缘。\n指针仍在窗口上时，可动方向继续跟随。"
     },
     {
       "context": "SettingsDialog",
-      "source": "CDDA cache:",
-      "translation": "CDDA 缓存:"
+      "source": "CD audio prefetch:",
+      "translation": "CD 音频预读："
     },
     {
       "context": "SettingsDialog",
@@ -1767,18 +1767,18 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Prefetch only the CDDA audio needed ahead of playback and keep\nplaying through data reads without interrupting. The value is how\nmany seconds until playback is considered finished.",
-      "translation": "预取 CDDA 音轨，数据读取时不中断播放。\n数值为视为播放结束的秒数。"
+      "source": "Prefetches only the CD audio needed, and keeps playing during data reads.\nThe value is how many seconds until playback is treated as finished.",
+      "translation": "只预读需要的 CD 音频，读数据时也不停播。\n数值是视为播放结束的秒数。"
     },
     {
       "context": "SettingsDialog",
-      "source": "Inhibit display idle",
-      "translation": "禁止屏幕休眠"
+      "source": "Prevent automatic screen off",
+      "translation": "防止自动息屏"
     },
     {
       "context": "SettingsDialog",
-      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "防止 Wayland 会话自动息屏/变暗。"
+      "source": "Prevents the screen from blanking or dimming automatically (Wayland).",
+      "translation": "防止屏幕自动熄灭或变暗（Wayland）。"
     },
     {
       "context": "SettingsDialog",
@@ -1802,8 +1802,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Available only on sessions that support Wayland idle-inhibit.",
-      "translation": "仅适用于支持 Wayland idle-inhibit 的会话。"
+      "source": "Available only where preventing screen-off is supported.",
+      "translation": "仅在支持防息屏的环境下可用。"
     },
     {
       "context": "SettingsDialog",
@@ -1837,13 +1837,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
-      "translation": "编辑光盘配置文件（fp_XXXXXXXX.ini，选中高亮）。\n应用/OK 保存时钟、启动盘、内存、端口、选项\n及 FD0/FD1/HD0–HD6 挂载。\nCMOS：cmos/cmos_XXXXXXXX.bin — Towns SETUP。\nCPU/型号保持全局（townsqt.conf）。\n内存/启动盘/CPU 保真度 → 重启。"
+      "source": "Editing settings for this disc (selection highlight).\nApply or OK saves speed, boot drive, memory, ports, options, and floppy/hard disk connections (restored on next load).\nDrive setup uses this disc's CMOS (set in Towns SETUP). CPU and model stay shared.\nMemory, boot drive, and CPU accuracy changes restart the emulator.",
+      "translation": "正在编辑此光盘的专用设置（选中高亮）。\n应用或确定后保存速度、启动盘、内存、端口、选项以及软驱/硬盘连接（下次加载时恢复）。\n驱动器设置使用此光盘的 CMOS（在 Towns SETUP 中设置）。CPU 与机型保持共用。\n内存、启动盘和 CPU 精度更改会重启。"
     },
     {
       "context": "SettingsDialog",
-      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-      "translation": "此 CD 尚无配置文件。用「创建配置文件」保存按盘设置\n（含 FD0/FD1/HD0–HD6）。\n配置文件另有 CMOS（cmos/cmos_XXXXXXXX.bin）。\n此前应用/OK 将基本设置写入 townsqt.conf。\n内存/启动盘/CPU 保真度 → 重启；gameport 立即。"
+      "source": "No settings for this CD yet. Use Create profile to save disc-specific settings.\nUntil then, Apply or OK saves shared basic settings.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.",
+      "translation": "此 CD 尚无设置。可用「创建配置」保存该盘专用设置。\n在此之前，应用或确定会保存共用基本设置。\n内存、启动盘和 CPU 精度更改会重启。手柄/鼠标更改立即生效。"
     },
     {
       "context": "SettingsDialog",
@@ -1852,13 +1852,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "No CD mounted.",
-      "translation": "未挂载 CD。"
+      "source": "No CD inserted.",
+      "translation": "未插入 CD。"
     },
     {
       "context": "SettingsDialog",
-      "source": "No profile for this disc.",
-      "translation": "此光盘无配置文件。"
+      "source": "No settings for this disc.",
+      "translation": "此光盘无设置。"
     },
     {
       "context": "SettingsDialog",
@@ -1873,7 +1873,7 @@
     {
       "context": "SettingsDialog",
       "source": "Delete profile",
-      "translation": "删除配置文件"
+      "translation": "删除配置"
     },
     {
       "context": "TownsQtCpuProfile",

@@ -439,44 +439,43 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("SettingsDialog", "Delete disc profile"): "ディスクプロファイルの削除",
     (
         "SettingsDialog",
-        "Delete the disc profile \"%1\"?\n"
-        "Per-disc machine and mouse settings will be removed.\n"
+        "Delete disc settings \"%1\"?\n"
+        "Machine and mouse settings for this disc will be removed.\n"
         "This cannot be undone.",
-    ): "ディスクプロファイル「%1」を削除しますか？\n"
-    "ディスクごとのマシン／マウス設定が失われます。\n"
+    ): "ディスク設定「%1」を削除しますか？\n"
+    "このディスク専用のマシン／マウス設定が消えます。\n"
     "この操作は取り消せません。",
     (
         "SettingsDialog",
         "Per-disc mouse integration saved with the disc profile (fp_XXXXXXXX.ini).\n"
         "Create a profile on the Basics tab first. Apply or OK writes changes immediately\n"
         "(no emulator restart). Use Scan… to open Memory scan (Settings closes until Cancel or Update).",
-    ): "ディスクごとのマウス統合。ディスクプロファイル（fp_XXXXXXXX.ini）に保存されます。\n"
-    "先に基本構成タブでプロファイルを作成してください。適用または OK で即時反映します"
-    "（エミュレータ再起動なし）。\n"
-    "「スキャン…」でメモリスキャンを開きます（キャンセルまたは Update まで設定は閉じます）。",
+    ): "このディスク専用のマウス設定です。先に「基本構成」タブでプロファイルを作成してください。\n"
+    "［適用］または［OK］ですぐ反映されます（再起動なし）。\n"
+    "「スキャン…」で座標の探索画面を開きます（閉じるまで設定は使えません）。",
     (
         "SettingsDialog",
         "Open Memory scan to find guest RAM cursor coordinates.\n"
         "Settings closes while the scan window is open.",
-    ): "ゲスト RAM のカーソル座標を探すメモリスキャンを開きます。\n"
-    "スキャンウインドウ表示中は設定を閉じます。",
+    ): "マウス座標を探す画面を開きます。\n"
+    "そのあいだ設定画面は閉じます。",
     ("SettingsDialog", "Scan…"): "スキャン…",
     (
         "SettingsDialog",
         "Mount a CD image to edit mouse integration.",
-    ): "マウス統合を編集するには CD イメージをマウントしてください。",
+    ): "マウス設定を編集するには、CDイメージを入れてください。",
     (
         "SettingsDialog",
         "Create a disc profile on the Basics tab first.",
-    ): "先に基本構成タブでディスクプロファイルを作成してください。",
+    ): "先に「基本構成」タブでディスク設定を作成してください。",
     (
         "SettingsDialog",
-        "No CD mounted. Disc profiles apply only while a CD image is loaded.",
-    ): "CD がマウントされていません。ディスクプロファイルは CD イメージ読込中のみ有効です。",
+        "No CD inserted.",
+    ): "CDが入っていません。",
     (
         "SettingsDialog",
-        "No profile for this disc. Create one to save per-disc settings from Basics.",
-    ): "このディスクのプロファイルがありません。基本構成の内容から作成してください。",
+        "No settings for this disc.",
+    ): "このディスクの設定がありません。",
     (
         "SettingsDialog",
         "Editing disc profile (selection highlight). Clock, memory, ports and options save to the profile;\n"
@@ -494,30 +493,28 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("SettingsDialog", "Open content browser on startup"): "起動時にコンテンツブラウザを開く",
     (
         "SettingsDialog",
-        "When off, cold-start with global settings (HD configuration is kept;\n"
-        "CD / FD are not remounted). When on, open the content browser on startup.",
-    ): "オフのときはグローバル設定でコールドスタートします（HD構成は保持、CD / FDは再マウントしません）。\n"
-    "オンのときは起動時にコンテンツブラウザを開きます。",
+        "Off: start with basic settings.\n"
+        "On: open the content browser on startup.",
+    ): "オフ：基本設定で起動。\n"
+    "オン：起動時にコンテンツブラウザを開く。",
     ("ContentBrowserWidget", "Last autosave"): "最後の自動保存",
     ("ContentBrowserWidget", "Double-click to resume"): "ダブルクリックで再開",
     (
         "ContentBrowserWidget",
         "AUTOSAVE · %1 — double-click to resume",
     ): "AUTOSAVE · %1 — ダブルクリックで再開",
-    ("SettingsDialog", "Enable auto-resume"): "オートレジューム有効",
+    ("SettingsDialog", "Use auto-resume"): "自動再開を使う",
     (
         "SettingsDialog",
-        "With a disc profile, save/restore on eject and exit.\n"
-        "Same-CD manual restart skips resume.",
-    ): "ディスクプロファイルがあるとき、取り出し・終了で自動保存し次回再開。\n"
-    "同じ CD の手動再起動ではスキップ。",
-    ("SettingsDialog", "Compress state data"): "ステートデータ圧縮",
+        "Saves on CD eject and exit, then resumes next time.\n"
+        "Manual restart does not resume.",
+    ): "CD取り出し・終了で保存し、次回は自動再開。\n"
+    "手動再起動では再開しない。",
+    ("SettingsDialog", "Compress saved state data"): "状態データを圧縮する",
     (
         "SettingsDialog",
-        "Compress new .TState saves (zlib).\n"
-        "Load still accepts uncompressed files.",
-    ): "新規 .TState を zlib 圧縮。\n"
-    "読み込みは非圧縮も可。",
+        "Makes new saved states smaller. Older uncompressed files can still be loaded.",
+    ): "新しい状態保存を小さくします。以前の非圧縮ファイルも読めます。",
     ("SettingsDialog", "Boot drive"): "起動ディスク",
     ("SettingsDialog", "Drive configuration"): "ドライブ構成",
     (
@@ -542,54 +539,44 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("DriveConfigPage", "ROM"): "ROM",
     (
         "SettingsDialog",
-        "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
-        "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
-        "Create a disc profile when a CD is mounted to save per-disc settings\n"
-        "(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
-    ): "基本構成の既定値 (townsqt.conf) を編集中です。適用または OK でここに保存します。\n"
-    "メモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動し、ゲームポートの変更は即時反映されます。\n"
-    "CD マウント中にディスクプロファイルを作成すると、ディスクごとの設定を保存できます\n"
-    "（FD0 / FD1 / HD0–HD6 のマウントと cmos/cmos_XXXXXXXX.bin の CMOS）。",
+        "Editing shared basic settings. Apply or OK saves them.\n"
+        "Memory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.\n"
+        "With a CD inserted, use Create profile to save settings for that disc.",
+    ): "共通の基本設定を編集しています。［適用］または［OK］で保存します。\n"
+    "メモリ・起動ディスク・CPU精度の変更は再起動します。ゲームパッド／マウスの変更はすぐ反映されます。\n"
+    "CDを入れているときは「プロファイルを作成」で、そのディスク専用の設定も保存できます。",
     (
         "SettingsDialog",
-        "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\n"
-        "Apply or OK saves clock, boot drive, memory, ports, options,\n"
-        "and FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\n"
-        "CMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\n"
-        "CPU and model stay global in townsqt.conf and are not stored in the profile.\n"
-        "Memory, boot drive, and CPU fidelity changes restart the emulator.",
-    ): "ディスクプロファイル (fp_XXXXXXXX.ini、選択色の枠) を編集中です。\n"
-    "適用または OK でクロック・起動ディスク・メモリ・ポート・オプション、\n"
-    "および FD0 / FD1 / HD0–HD6 のマウント状態をプロファイルへ保存します（次回読込時に復元）。\n"
-    "CMOS（ドライブレター・シングルドライブ）はこのディスク用の cmos/cmos_XXXXXXXX.bin を使います — Towns SETUP で設定。\n"
-    "CPU とモデルは townsqt.conf のグローバル設定のままで、プロファイルには保存しません。\n"
-    "メモリ・起動ディスク・CPU 忠実度の変更はエミュレーターを再起動します。",
+        "Editing settings for this disc (selection highlight).\n"
+        "Apply or OK saves speed, boot drive, memory, ports, options, and floppy/hard disk connections (restored on next load).\n"
+        "Drive setup uses this disc's CMOS (set in Towns SETUP). CPU and model stay shared.\n"
+        "Memory, boot drive, and CPU accuracy changes restart the emulator.",
+    ): "このディスク専用の設定を編集しています（枠の色で選択中）。\n"
+    "［適用］または［OK］で、速度・起動ディスク・メモリ・ポート・オプションと、フロッピー／ハードディスクの接続状態を保存します（次回読み込み時に復元）。\n"
+    "ドライブ構成はこのディスク用のCMOSを使います（TownsのSETUPで設定）。CPUと機種は共通設定のままです。\n"
+    "メモリ・起動ディスク・CPU精度の変更は再起動します。",
     (
         "SettingsDialog",
-        "No disc profile for this CD yet. Use Create profile to save per-disc settings\n"
-        "(including FD0, FD1, and HD0–HD6 mount state for restore).\n"
-        "A profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\n"
-        "Until then, Apply or OK saves Basics defaults to townsqt.conf.\n"
-        "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-    ): "この CD のディスクプロファイルはまだありません。「プロファイルを作成」でディスクごとの設定を保存できます\n"
-    "（復元用に FD0 / FD1 / HD0–HD6 のマウント状態も含みます）。\n"
-    "プロファイルには Towns SETUP 用の CMOS ファイル (cmos/cmos_XXXXXXXX.bin) も付きます。\n"
-    "作成するまでは、適用または OK で基本構成の既定を townsqt.conf へ保存します。\n"
-    "メモリ・起動ディスク・CPU 忠実度の変更は再起動し、ゲームポートの変更は即時反映されます。",
+        "No settings for this CD yet. Use Create profile to save disc-specific settings.\n"
+        "Until then, Apply or OK saves shared basic settings.\n"
+        "Memory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.",
+    ): "このCD用の設定はまだありません。「プロファイルを作成」でディスク専用の設定を保存できます。\n"
+    "作成するまでは、［適用］または［OK］で共通の基本設定を保存します。\n"
+    "メモリ・起動ディスク・CPU精度の変更は再起動します。ゲームパッド／マウスの変更はすぐ反映されます。",
     (
         "SettingsDialog",
-        "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\n"
-        "Apply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
-    ): "有効な CMOS（グローバル cmos.bin またはプロファイルの cmos/cmos_XXXXXXXX.bin）を編集します。\n"
-    "適用または OK で VM の CMOS RAM とファイルを更新します。Towns OS では通常リセット／再起動が必要です。",
+        "Edits drive setup (CMOS). Apply or OK saves.\n"
+        "Towns OS may need a reset or restart before changes take effect.",
+    ): "ドライブ構成（CMOS）を編集します。［適用］または［OK］で保存します。\n"
+    "Towns OSでは、反映にリセットや再起動が必要なことがあります。",
     (
         "SettingsDialog",
         "Mouse integration is configured for this disc profile.",
-    ): "このディスクプロファイルにはマウス統合が設定されています。",
+    ): "このディスクにはマウス設定があります。",
     (
         "SettingsDialog",
         "Choose an operation type and Game Phys as needed, then Apply or OK.",
-    ): "必要に応じて操作の種類と Game Phys を選び、適用または OK してください。",
+    ): "必要なら操作の種類などを選び、［適用］または［OK］してください。",
     ("MouseCoordProfilePage", "Mouse operation type"): "マウス操作の種類",
     ("MouseCoordProfilePage", "Soft X"): "Soft X",
     ("MouseCoordProfilePage", "Axis"): "軸",
@@ -608,14 +595,10 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("SettingsDialog", "PCM LPF"): "PCM LPF",
     (
         "SettingsDialog",
-        "Prefetch only the CDDA audio needed ahead of playback and keep
-"
-        "playing through data reads without interrupting. The value is how
-"
-        "many seconds until playback is considered finished.",
-    ): "CDDA を必要な分だけ先読みし、データ読み出し中も再生を中断せず続けます。
-"
-       "数値は、再生終了とみなすまでの秒数です。",
+        "Prefetches only the CD audio needed, and keeps playing during data reads.\n"
+        "The value is how many seconds until playback is treated as finished.",
+    ): "CDの音楽を必要な分だけ先に読み、データの読み込み中も音を止めません。\n"
+    "数値は、再生が終わったとみなすまでの秒数です。",
     (
         "SettingsDialog",
         "Even while Mouse BIOS is running, if it is unused, end mouse integration\n"
@@ -624,24 +607,23 @@ JA_FORCE: dict[tuple[str, str], str] = {
     (
         "SettingsDialog",
         "Directly rewrite guest coordinates to reduce input lag.",
-    ): "ゲスト座標を直接書き換えて入力遅延を減らします。",
-    ("SettingsDialog", "Faster mouse integration"): "高速マウス統合",
+    ): "マウス座標を直接書き換えて、反応の遅れを減らします。",
+    ("SettingsDialog", "Faster mouse response"): "マウス反応を速くする",
     (
         "SettingsDialog",
-        "Mouse BIOS integration that writes guest memory to reduce latency.",
-    ): "マウスBIOSを使った統合で、メモリ書込みを行い遅延を低減します。",
+        "Sends mouse coordinates directly to the system for faster response.",
+    ): "システムにマウス座標を直接伝え、反応を速くします。",
     (
         "SettingsDialog",
-        "Absolute mouse edge assist (exit vector)",
-    ): "絶対マウス縁アシスト（Exit vector）",
+        "Mouse assist at screen edges",
+    ): "画面端のマウス補助",
     (
         "SettingsDialog",
-        "MOS / app-specific only. When the host leaves the picture, extend the last\n"
-        "in-picture motion to the rim; the free axis still follows while the pointer\n"
-        "stays over the window.",
-    ): "MOS / アプリ固有のみ。ホストが絵から外れたとき、最後の絵内移動を縁まで延長。\n"
-    "ポインタが窓上にある間は自由軸が追従します。",
-    ("SettingsDialog", "CDDA cache:"): "CDDAキャッシュ:",
+        "For some software. When the mouse leaves the picture, treat it as moved to the edge.\n"
+        "While the pointer is over the window, free directions still follow.",
+    ): "一部のソフト向け。マウスが画面の外へ出たとき、端まで動いたものとして扱います。\n"
+    "ウインドウ上にポインタがあるあいだは、動ける方向はそのまま追従します。",
+    ("SettingsDialog", "CD audio prefetch:"): "CD音楽の先読み：",
     ("SettingsDialog", "MOS unused detection (test)"): "MOS未使用検出（試験）",
     ("SettingsDialog", "High-res / high-res PCM"): "高解像度 / 高解像度PCM",
     ("SettingsDialog", "UG SCSI / peripheral I/O"): "UG SCSI / 周辺I/O",
@@ -656,6 +638,24 @@ JA_FORCE: dict[tuple[str, str], str] = {
     ("SettingsDialog", "FluidSynth"): "FluidSynth",
     ("SettingsDialog", "ALSA"): "ALSA",
     ("SettingsDialog", "(select)"): "（選択）",
+    (
+        "SettingsDialog",
+        "When off, a simpler conversion method is used.",
+    ): "オフのときは、より簡易な変換方式を使います。",
+    (
+        "SettingsDialog",
+        "Prevents the screen from blanking or dimming automatically (Wayland).",
+    ): "画面が自動で消灯・暗くなるのを防ぎます（Wayland環境）。",
+    (
+        "SettingsDialog",
+        "Available only where preventing screen-off is supported.",
+    ): "画面オフ防止に対応した環境でのみ使えます。",
+    ("SettingsDialog", "Prevent automatic screen off"): "画面の自動オフを防ぐ",
+    (
+        "SettingsDialog",
+        "Changes apply immediately when you press Apply or OK.",
+    ): "［適用］または［OK］ですぐに反映されます。",
+
     ("AudioMixerDialog", "Audio mixer"): "オーディオミキサー",
     ("AudioMixerDialog", "Close"): "閉じる",
     ("CdromMonitorWindow", "CD-ROM monitor"): "CD-ROMモニター",

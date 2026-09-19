@@ -49,6 +49,9 @@
 #include <QTabBar>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include <QEvent>
+#include <QResizeEvent>
+#include <QShowEvent>
 
 #include "townsparam.h"
 
@@ -62,6 +65,190 @@
 
 namespace
 {
+constexpr char kNoteSourceProp[]="townsqtNoteSource";
+
+bool IsPreferredBreakAfter(QChar ch)
+{
+	switch(ch.unicode())
+	{
+	case U'。':
+	case U'．':
+	case U'、':
+	case U'，':
+	case U'！':
+	case U'？':
+	case '.':
+	case ',':
+	case ';':
+	case ':':
+	case '!':
+	case '?':
+	case ' ':
+		return true;
+	default:
+		return false;
+	}
+}
+
+QString WrapParagraphPreferringBreaks(const QString &para,const QFontMetrics &fm,int maxWidth)
+{
+	if(para.isEmpty() || fm.horizontalAdvance(para)<=maxWidth)
+	{
+		return para;
+	}
+
+	QString out;
+	QString line;
+	int lastBreak=-1;
+	auto refreshLastBreak=[&](){
+		lastBreak=-1;
+		for(int j=0; j<line.size(); ++j)
+		{
+			if(true==IsPreferredBreakAfter(line.at(j)))
+			{
+				lastBreak=j;
+			}
+		}
+	};
+
+	for(int i=0; i<para.size(); ++i)
+	{
+		const QChar ch=para.at(i);
+		line.append(ch);
+		if(true==IsPreferredBreakAfter(ch))
+		{
+			lastBreak=line.size()-1;
+		}
+		if(fm.horizontalAdvance(line)<=maxWidth)
+		{
+			continue;
+		}
+		if(0<=lastBreak)
+		{
+			out+=line.left(lastBreak+1);
+			out+=QLatin1Char('\n');
+			line=line.mid(lastBreak+1);
+			refreshLastBreak();
+			while(1<line.size() && fm.horizontalAdvance(line)>maxWidth && lastBreak<0)
+			{
+				int keep=line.size()-1;
+				while(1<keep && fm.horizontalAdvance(line.left(keep))>maxWidth)
+				{
+					--keep;
+				}
+				out+=line.left(keep);
+				out+=QLatin1Char('\n');
+				line=line.mid(keep);
+			}
+			continue;
+		}
+		if(line.size()<=1)
+		{
+			continue;
+		}
+		out+=line.left(line.size()-1);
+		out+=QLatin1Char('\n');
+		line=QString(ch);
+		lastBreak=true==IsPreferredBreakAfter(ch) ? 0 : -1;
+	}
+	out+=line;
+	return out;
+}
+
+QString WrapNotePreferringBreaks(const QString &text,const QFont &font,int maxWidth)
+{
+	if(maxWidth<8)
+	{
+		return text;
+	}
+	const QFontMetrics fm(font);
+	const QStringList paras=text.split(QLatin1Char('\n'));
+	QStringList out;
+	out.reserve(paras.size());
+	for(const QString &para : paras)
+	{
+		out.append(WrapParagraphPreferringBreaks(para,fm,maxWidth));
+	}
+	return out.join(QLatin1Char('\n'));
+}
+
+void ReflowNoteLabel(QLabel *label)
+{
+	if(nullptr==label)
+	{
+		return;
+	}
+	const QVariant source=label->property(kNoteSourceProp);
+	if(true!=source.isValid())
+	{
+		return;
+	}
+	const int width=label->contentsRect().width();
+	if(width<8)
+	{
+		return;
+	}
+	const QString wrapped=
+	    WrapNotePreferringBreaks(source.toString(),label->font(),width);
+	if(wrapped!=label->text())
+	{
+		label->setText(wrapped);
+	}
+}
+
+void SetNoteLabelText(QLabel *label,const QString &text)
+{
+	if(nullptr==label)
+	{
+		return;
+	}
+	label->setProperty(kNoteSourceProp,text);
+	ReflowNoteLabel(label);
+	if(true==label->text().isEmpty())
+	{
+		label->setText(text);
+	}
+}
+
+class NoteReflowFilter : public QObject
+{
+public:
+	using QObject::QObject;
+
+protected:
+	bool eventFilter(QObject *watched,QEvent *event) override
+	{
+		if(QEvent::Resize==event->type() || QEvent::Show==event->type())
+		{
+			if(auto *label=qobject_cast<QLabel *>(watched))
+			{
+				QWidget *win=label->window();
+				/*! Skip while applyFixedDialogSize measures pages — early narrow
+				    widths would wrap notes and inflate the fixed dialog height. */
+				if(nullptr!=win && true==win->property("townsqtSizingNotes").toBool())
+				{
+					return QObject::eventFilter(watched,event);
+				}
+				ReflowNoteLabel(label);
+			}
+		}
+		return QObject::eventFilter(watched,event);
+	}
+};
+
+void InstallNoteReflow(QLabel *label,const QString &text)
+{
+	if(nullptr==label)
+	{
+		return;
+	}
+	label->setWordWrap(true);
+	label->setProperty(kNoteSourceProp,text);
+	label->setText(text);
+	label->installEventFilter(new NoteReflowFilter(label));
+	ReflowNoteLabel(label);
+}
+
 void CompactVBox(QVBoxLayout *layout)
 {
 	layout->setContentsMargins(4,4,4,4);
@@ -80,8 +267,8 @@ void FinishTabPage(QVBoxLayout *layout,QWidget *footer_note=nullptr)
 
 QLabel *MakeTabFooterNote(QWidget *parent,const QString &text)
 {
-	auto *note=new QLabel(text,parent);
-	note->setWordWrap(true);
+	auto *note=new QLabel(parent);
+	InstallNoteReflow(note,text);
 	return note;
 }
 
@@ -119,9 +306,9 @@ void CompactGroupBoxLayout(QLayout *layout)
 
 QLabel *MakeIndentedNote(QWidget *parent,const QString &text)
 {
-	auto *label=new QLabel(text,parent);
-	label->setWordWrap(true);
+	auto *label=new QLabel(parent);
 	label->setContentsMargins(22,0,0,6);
+	InstallNoteReflow(label,text);
 	return label;
 }
 
@@ -418,6 +605,10 @@ SettingsDialog::SettingsDialog(const Values &initial,const QString &romDir,QWidg
 	{
 		setPalette(QApplication::palette());
 	}
+	/*! Fixed-size dialog: no maximize / user resize (WM decorations). */
+	setWindowFlag(Qt::WindowMaximizeButtonHint,false);
+	setWindowFlag(Qt::WindowMinimizeButtonHint,false);
+	setSizeGripEnabled(false);
 	buildUi();
 	{
 		const QFont mono=QFontDatabase::systemFont(QFontDatabase::FixedFont);
@@ -608,10 +799,20 @@ void SettingsDialog::applyFixedDialogSize()
 	bar->setElideMode(Qt::ElideNone);
 	bar->setStyleSheet(QString());
 
+	setProperty("townsqtSizingNotes",true);
+	/*! Restore note labels to source (no soft wraps) for stable width hints. */
+	for(QLabel *label : findChildren<QLabel *>())
+	{
+		const QVariant source=label->property(kNoteSourceProp);
+		if(true==source.isValid())
+		{
+			label->setText(source.toString());
+		}
+	}
+
 	// Width from minimumSizeHint avoids Expanding rows (game ports / audio device)
 	// pulling the dialog far wider than the MIDI / machine controls.
 	int max_width=0;
-	int max_height=0;
 	const int prev_tab=tabs_->currentIndex();
 	for(int i=0; i<tabs_->count(); ++i)
 	{
@@ -624,7 +825,6 @@ void SettingsDialog::applyFixedDialogSize()
 			}
 		}
 		max_width=std::max(max_width,minimumSizeHint().width());
-		max_height=std::max(max_height,sizeHint().height());
 	}
 	tabs_->setCurrentIndex(0<=prev_tab ? prev_tab : 0);
 	main->activate();
@@ -640,6 +840,43 @@ void SettingsDialog::applyFixedDialogSize()
 		}
 	}
 	const int width=std::max({max_width,tab_width,button_row_width});
+
+	/*! Reflow notes to the final content width, then measure height. */
+	const int page_inner=std::max(8,width-margins.left()-margins.right());
+	for(QLabel *label : findChildren<QLabel *>())
+	{
+		const QVariant source=label->property(kNoteSourceProp);
+		if(true!=source.isValid())
+		{
+			continue;
+		}
+		int wrap_w=page_inner;
+		if(label->maximumWidth()<QWIDGETSIZE_MAX/2)
+		{
+			wrap_w=std::min(wrap_w,label->maximumWidth());
+		}
+		const QMargins note_m=label->contentsMargins();
+		wrap_w=std::max(8,wrap_w-note_m.left()-note_m.right());
+		label->setText(WrapNotePreferringBreaks(source.toString(),label->font(),wrap_w));
+	}
+
+	int max_height=0;
+	for(int i=0; i<tabs_->count(); ++i)
+	{
+		tabs_->setCurrentIndex(i);
+		if(QWidget *page=tabs_->widget(i))
+		{
+			if(QLayout *page_layout=page->layout())
+			{
+				page_layout->activate();
+			}
+		}
+		max_height=std::max(max_height,sizeHint().height());
+	}
+	tabs_->setCurrentIndex(0<=prev_tab ? prev_tab : 0);
+	main->activate();
+
+	setProperty("townsqtSizingNotes",false);
 	setFixedSize(width,max_height);
 	// Keep dialog width; stretch tabs evenly across the bar.
 	bar->setExpanding(true);
@@ -756,10 +993,10 @@ void SettingsDialog::buildUi()
 				const auto reply=QMessageBox::question(
 				    this,
 				    tr("Delete disc profile"),
-				    tr("Delete the disc profile \"%1\"?\n"
-				       "Per-disc machine and mouse settings will be removed.\n"
-				       "This cannot be undone.").arg(name),
-				    QMessageBox::Yes|QMessageBox::No,
+				tr("Delete disc settings \"%1\"?\n"
+				   "Machine and mouse settings for this disc will be removed.\n"
+				   "This cannot be undone.").arg(name),
+				QMessageBox::Yes|QMessageBox::No,
 				    QMessageBox::No);
 				if(QMessageBox::Yes!=reply)
 				{
@@ -999,11 +1236,11 @@ void SettingsDialog::buildUi()
 
 		auto *basics_footer=MakeTabFooterNote(
 		    page,
-		    tr("Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
-		       "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
-		       "Create a disc profile when a CD is mounted to save per-disc settings\n"
-		       "(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin)."));
+		    tr("Editing shared basic settings. Apply or OK saves them.\n"
+		           "Memory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.\n"
+		           "With a CD inserted, use Create profile to save settings for that disc."));
 		basics_footer->setMaximumWidth(640);
+		ReflowNoteLabel(basics_footer);
 		basics_footer_label_=basics_footer;
 		FinishTabPage(v,basics_footer);
 		machine_page_=page;
@@ -1019,8 +1256,8 @@ void SettingsDialog::buildUi()
 		v->addWidget(drive_config_page_,1);
 		v->addWidget(MakeTabFooterNote(
 		    page,
-		    tr("Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\n"
-		       "Apply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.")));
+		    tr("Edits drive setup (CMOS). Apply or OK saves.\n"
+		           "Towns OS may need a reset or restart before changes take effect.")));
 		drive_config_page_host_=page;
 		tabs_->addTab(page,tr("Drive configuration"));
 	}
@@ -1131,7 +1368,7 @@ void SettingsDialog::buildUi()
 		pcm_grid->addWidget(pcm_resample_sinc_,0,0);
 		pcm_grid->addLayout(lpf_row,0,1);
 		pcm_grid->addWidget(
-		    MakeIndentedNote(page,tr("Without sinc interpolation, linear interpolation is used.")),
+		    MakeIndentedNote(page,tr("When off, a simpler conversion method is used.")),
 		    1,0,1,2);
 		pcm_grid->setColumnStretch(0,1);
 		pcm_grid->setColumnStretch(1,1);
@@ -1237,7 +1474,7 @@ void SettingsDialog::buildUi()
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
-		    tr("Changes take effect immediately when you press Apply or OK.")));
+		    tr("Changes apply immediately when you press Apply or OK.")));
 		display_audio_page_=page;
 		tabs_->addTab(page,tr("Video / Audio"));
 	}
@@ -1252,39 +1489,37 @@ void SettingsDialog::buildUi()
 		v->addWidget(open_content_browser_on_startup_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("When off, cold-start with global settings (HD configuration is kept;\n"
-		       "CD / FD are not remounted). When on, open the content browser on startup.")));
+		    tr("Off: start with basic settings.\n"
+		           "On: open the content browser on startup.")));
 
-		auto_resume_enabled_=new QCheckBox(tr("Enable auto-resume"),page);
+		auto_resume_enabled_=new QCheckBox(tr("Use auto-resume"),page);
 		v->addWidget(auto_resume_enabled_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("With a disc profile, save/restore on eject and exit.\n"
-		       "Same-CD manual restart skips resume.")));
+		    tr("Saves on CD eject and exit, then resumes next time.\n"
+		           "Manual restart does not resume.")));
 
-		state_data_compression_enabled_=new QCheckBox(tr("Compress state data"),page);
+		state_data_compression_enabled_=new QCheckBox(tr("Compress saved state data"),page);
 		v->addWidget(state_data_compression_enabled_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Compress new .TState saves (zlib).\n"
-		       "Load still accepts uncompressed files.")));
+		    tr("Makes new saved states smaller. Older uncompressed files can still be loaded.")));
 
-		snap_mouse_integration_=new QCheckBox(tr("Faster mouse integration"),page);
+		snap_mouse_integration_=new QCheckBox(tr("Faster mouse response"),page);
 		v->addWidget(snap_mouse_integration_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Mouse BIOS integration that writes guest memory to reduce latency.")));
+		    tr("Sends mouse coordinates directly to the system for faster response.")));
 
-		absolute_mouse_edge_assist_=new QCheckBox(tr("Absolute mouse edge assist (exit vector)"),page);
+		absolute_mouse_edge_assist_=new QCheckBox(tr("Mouse assist at screen edges"),page);
 		v->addWidget(absolute_mouse_edge_assist_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("MOS / app-specific only. When the host leaves the picture, extend the last\n"
-		       "in-picture motion to the rim; the free axis still follows while the pointer\n"
-		       "stays over the window.")));
+		    tr("For some software. When the mouse leaves the picture, treat it as moved to the edge.\n"
+		           "While the pointer is over the window, free directions still follow.")));
 
 		auto *cdda_cache_row=new QHBoxLayout();
-		cdda_cache_during_data_read_=new QCheckBox(tr("CDDA cache:"),page);
+		cdda_cache_during_data_read_=new QCheckBox(tr("CD audio prefetch:"),page);
 		cdda_cache_post_read_grace_sec_=new QSpinBox(page);
 		cdda_cache_post_read_grace_sec_->setRange(1,60);
 		cdda_cache_post_read_grace_sec_->setSuffix(tr(" s"));
@@ -1294,16 +1529,15 @@ void SettingsDialog::buildUi()
 		v->addLayout(cdda_cache_row);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Prefetch only the CDDA audio needed ahead of playback and keep\n"
-		       "playing through data reads without interrupting. The value is how\n"
-		       "many seconds until playback is considered finished.")));
+		    tr("Prefetches only the CD audio needed, and keeps playing during data reads.\n"
+		           "The value is how many seconds until playback is treated as finished.")));
 		connect(cdda_cache_during_data_read_,&QCheckBox::toggled,cdda_cache_post_read_grace_sec_,&QWidget::setEnabled);
 
-		idle_inhibit_=new QCheckBox(tr("Inhibit display idle"),page);
+		idle_inhibit_=new QCheckBox(tr("Prevent automatic screen off"),page);
 		v->addWidget(idle_inhibit_);
 		v->addWidget(MakeIndentedNote(
 		    page,
-		    tr("Prevents automatic screen blanking/dimming on Wayland sessions.")));
+		    tr("Prevents the screen from blanking or dimming automatically (Wayland).")));
 
 		FinishTabPage(v,MakeTabFooterNote(
 		    page,
@@ -1471,7 +1705,7 @@ void SettingsDialog::updateFunctionTab()
 	if(!idle_ok)
 	{
 		idle_inhibit_->setToolTip(
-		    tr("Available only on sessions that support Wayland idle-inhibit."));
+		    tr("Available only where preventing screen-off is supported."));
 	}
 	else
 	{
@@ -2042,30 +2276,28 @@ void SettingsDialog::applyProfileEditAppearance(void)
 	{
 		if(true==editing)
 		{
-			basics_footer_label_->setText(
-			    tr("Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\n"
-			       "Apply or OK saves clock, boot drive, memory, ports, options,\n"
-			       "and FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\n"
-			       "CMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\n"
-			       "CPU and model stay global in townsqt.conf and are not stored in the profile.\n"
-			       "Memory, boot drive, and CPU fidelity changes restart the emulator."));
+			SetNoteLabelText(
+			    basics_footer_label_,
+			    tr("Editing settings for this disc (selection highlight).\n"
+			           "Apply or OK saves speed, boot drive, memory, ports, options, and floppy/hard disk connections (restored on next load).\n"
+			           "Drive setup uses this disc's CMOS (set in Towns SETUP). CPU and model stay shared.\n"
+			           "Memory, boot drive, and CPU accuracy changes restart the emulator."));
 		}
 		else if(true==values_.discMounted)
 		{
-			basics_footer_label_->setText(
-			    tr("No disc profile for this CD yet. Use Create profile to save per-disc settings\n"
-			       "(including FD0, FD1, and HD0–HD6 mount state for restore).\n"
-			       "A profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\n"
-			       "Until then, Apply or OK saves Basics defaults to townsqt.conf.\n"
-			       "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately."));
+			SetNoteLabelText(
+			    basics_footer_label_,
+			    tr("No settings for this CD yet. Use Create profile to save disc-specific settings.\n"
+			           "Until then, Apply or OK saves shared basic settings.\n"
+			           "Memory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately."));
 		}
 		else
 		{
-			basics_footer_label_->setText(
-			    tr("Editing Basics defaults (townsqt.conf). Apply or OK saves here.\n"
-			       "Memory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\n"
-			       "Create a disc profile when a CD is mounted to save per-disc settings\n"
-			       "(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin)."));
+			SetNoteLabelText(
+			    basics_footer_label_,
+			    tr("Editing shared basic settings. Apply or OK saves them.\n"
+			       "Memory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.\n"
+			       "With a CD inserted, use Create profile to save settings for that disc."));
 		}
 	}
 }
@@ -2298,11 +2530,11 @@ void SettingsDialog::updateProfileTabControls()
 		disc_profile_status_label_->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
 		if(true!=mounted)
 		{
-			disc_profile_status_label_->setText(tr("No CD mounted."));
+			disc_profile_status_label_->setText(tr("No CD inserted."));
 		}
 		else if(true!=haveProfile)
 		{
-			disc_profile_status_label_->setText(tr("No profile for this disc."));
+			disc_profile_status_label_->setText(tr("No settings for this disc."));
 		}
 		else
 		{

@@ -1447,8 +1447,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Delete the disc profile \"%1\"?\nPer-disc machine and mouse settings will be removed.\nThis cannot be undone.",
-      "translation": "디스크 프로필 \"%1\"을(를) 삭제할까요?\n디스크별 머신/마우스 설정이 삭제됩니다.\n되돌릴 수 없습니다."
+      "source": "Delete disc settings \"%1\"?\nMachine and mouse settings for this disc will be removed.\nThis cannot be undone.",
+      "translation": "디스크 설정 \"%1\"을(를) 삭제할까요?\n이 디스크 전용 머신/마우스 설정이 삭제됩니다.\n되돌릴 수 없습니다."
     },
     {
       "context": "SettingsDialog",
@@ -1557,8 +1557,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing Basics defaults (townsqt.conf). Apply or OK saves here.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.\nCreate a disc profile when a CD is mounted to save per-disc settings\n(FD0 / FD1 / HD0–HD6 mounts, and CMOS under cmos/cmos_XXXXXXXX.bin).",
-      "translation": "기본 구성 기본값(townsqt.conf) 편집. 적용/OK로 여기 저장.\n메모리·부팅·CPU 충실도는 재시작; gameport는 즉시.\nCD 마운트 시 디스크별 프로필 생성 가능\n(FD0/FD1/HD0–HD6, CMOS: cmos/cmos_XXXXXXXX.bin)."
+      "source": "Editing shared basic settings. Apply or OK saves them.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.\nWith a CD inserted, use Create profile to save settings for that disc.",
+      "translation": "공통 기본 설정을 편집합니다. 적용/OK로 저장합니다.\n메모리·부팅 디스크·CPU 정확도 변경은 재시작합니다. 게임패드/마우스는 바로 반영됩니다.\nCD를 넣은 경우 «프로필 만들기»로 그 디스크 설정을 저장할 수 있습니다."
     },
     {
       "context": "SettingsDialog",
@@ -1567,8 +1567,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Edits the active CMOS (global cmos.bin or profile cmos/cmos_XXXXXXXX.bin).\nApply or OK updates VM CMOS RAM and the file. Towns OS usually needs reset/boot.",
-      "translation": "활성 CMOS (전역 cmos.bin 또는 프로필 cmos/cmos_XXXXXXXX.bin).\n적용/OK로 VM CMOS RAM·파일 갱신. Towns OS는 보통 리셋/부팅 필요."
+      "source": "Edits drive setup (CMOS). Apply or OK saves.\nTowns OS may need a reset or restart before changes take effect.",
+      "translation": "드라이브 구성(CMOS)을 편집합니다. 적용/OK로 저장합니다.\nTowns OS에서는 반영에 리셋이나 재시작이 필요할 수 있습니다."
     },
     {
       "context": "SettingsDialog",
@@ -1657,8 +1657,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Without sinc interpolation, linear interpolation is used.",
-      "translation": "sinc 없으면 선형 보간."
+      "source": "When off, a simpler conversion method is used.",
+      "translation": "끄면 더 단순한 변환을 씁니다."
     },
     {
       "context": "SettingsDialog",
@@ -1697,8 +1697,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Changes take effect immediately when you press Apply or OK.",
-      "translation": "적용 또는 OK 시 즉시 반영."
+      "source": "Changes apply immediately when you press Apply or OK.",
+      "translation": "적용 또는 OK 시 바로 반영됩니다."
     },
     {
       "context": "SettingsDialog",
@@ -1708,57 +1708,57 @@
     {
       "context": "SettingsDialog",
       "source": "Open content browser on startup",
-      "translation": "Open content browser on startup"
+      "translation": "시작 시 브라우저 열기"
     },
     {
       "context": "SettingsDialog",
-      "source": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup.",
-      "translation": "When off, cold-start with global settings (HD configuration is kept;\nCD / FD are not remounted). When on, open the content browser on startup."
+      "source": "Off: start with basic settings.\nOn: open the content browser on startup.",
+      "translation": "끔: 기본 설정으로 시작.\n켬: 시작할 때 콘텐츠 브라우저 열기."
     },
     {
       "context": "SettingsDialog",
-      "source": "Enable auto-resume",
-      "translation": "오토 리줌"
+      "source": "Use auto-resume",
+      "translation": "자동 이어하기"
     },
     {
       "context": "SettingsDialog",
-      "source": "With a disc profile, save/restore on eject and exit.\nSame-CD manual restart skips resume.",
-      "translation": "디스크 프로필이 있으면 꺼내기·종료 시 저장/복원.\n같은 CD 수동 재시작은 레지움을 건너뜁니다."
+      "source": "Saves on CD eject and exit, then resumes next time.\nManual restart does not resume.",
+      "translation": "CD 꺼내기·종료 시 저장하고, 다음에 자동으로 이어합니다.\n수동 재시작에서는 이어하지 않습니다."
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress state data",
-      "translation": "스테이트 데이터 압축"
+      "source": "Compress saved state data",
+      "translation": "상태 데이터 압축"
     },
     {
       "context": "SettingsDialog",
-      "source": "Compress new .TState saves (zlib).\nLoad still accepts uncompressed files.",
-      "translation": "새 .TState를 zlib 압축.\n로드는 비압축도 가능."
+      "source": "Makes new saved states smaller. Older uncompressed files can still be loaded.",
+      "translation": "새 상태 저장을 작게 만듭니다. 이전의 비압축 파일도 읽을 수 있습니다."
     },
     {
       "context": "SettingsDialog",
-      "source": "Faster mouse integration",
-      "translation": "고속 마우스 통합"
+      "source": "Faster mouse response",
+      "translation": "마우스 반응 빠르게"
     },
     {
       "context": "SettingsDialog",
-      "source": "Mouse BIOS integration that writes guest memory to reduce latency.",
-      "translation": "지연을 줄이려 게스트 메모리를 쓰는 Mouse BIOS 통합."
+      "source": "Sends mouse coordinates directly to the system for faster response.",
+      "translation": "시스템에 마우스 좌표를 직접 전달해 반응을 빠르게 합니다."
     },
     {
       "context": "SettingsDialog",
-      "source": "Absolute mouse edge assist (exit vector)",
-      "translation": "절대 마우스 가장자리 보조(Exit vector)"
+      "source": "Mouse assist at screen edges",
+      "translation": "화면 가장자리 마우스 보조"
     },
     {
       "context": "SettingsDialog",
-      "source": "MOS / app-specific only. When the host leaves the picture, extend the last\nin-picture motion to the rim; the free axis still follows while the pointer\nstays over the window.",
-      "translation": "MOS / 앱 전용. 호스트가 화면을 벗어나면 마지막 화면 내 이동을 가장자리까지 연장.\n포인터가 창 위에 있는 동안 자유 축은 계속 따라갑니다."
+      "source": "For some software. When the mouse leaves the picture, treat it as moved to the edge.\nWhile the pointer is over the window, free directions still follow.",
+      "translation": "일부 소프트웨어용. 마우스가 화면 밖으로 나가면 가장자리까지 움직인 것으로 처리합니다.\n포인터가 창 위에 있는 동안에는 움직일 수 있는 방향은 그대로 따라갑니다."
     },
     {
       "context": "SettingsDialog",
-      "source": "CDDA cache:",
-      "translation": "CDDA 캐시:"
+      "source": "CD audio prefetch:",
+      "translation": "CD 음악 미리 읽기:"
     },
     {
       "context": "SettingsDialog",
@@ -1767,18 +1767,18 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Prefetch only the CDDA audio needed ahead of playback and keep\nplaying through data reads without interrupting. The value is how\nmany seconds until playback is considered finished.",
-      "translation": "CDDA 트랙을 미리 읽고 데이터 읽기 중에도 재생.\n값은 재생 종료로 볼 초."
+      "source": "Prefetches only the CD audio needed, and keeps playing during data reads.\nThe value is how many seconds until playback is treated as finished.",
+      "translation": "필요한 CD 음악만 미리 읽고, 데이터 읽기 중에도 재생을 계속합니다.\n값은 재생이 끝난 것으로 볼 초입니다."
     },
     {
       "context": "SettingsDialog",
-      "source": "Inhibit display idle",
-      "translation": "화면 절전 방지"
+      "source": "Prevent automatic screen off",
+      "translation": "화면 자동 끄기 방지"
     },
     {
       "context": "SettingsDialog",
-      "source": "Prevents automatic screen blanking/dimming on Wayland sessions.",
-      "translation": "Wayland에서 화면 자동 꺼짐/어둡게 방지."
+      "source": "Prevents the screen from blanking or dimming automatically (Wayland).",
+      "translation": "화면이 자동으로 꺼지거나 어두워지는 것을 막습니다(Wayland)."
     },
     {
       "context": "SettingsDialog",
@@ -1802,8 +1802,8 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Available only on sessions that support Wayland idle-inhibit.",
-      "translation": "Wayland idle-inhibit 지원 세션에서만."
+      "source": "Available only where preventing screen-off is supported.",
+      "translation": "화면 끄기 방지를 지원하는 환경에서만 쓸 수 있습니다."
     },
     {
       "context": "SettingsDialog",
@@ -1837,13 +1837,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "Editing the disc profile (fp_XXXXXXXX.ini, selection highlight).\nApply or OK saves clock, boot drive, memory, ports, options,\nand FD0 / FD1 / HD0–HD6 mount state to the profile (restored on next load).\nCMOS (drive letters, single drive) uses cmos/cmos_XXXXXXXX.bin for this disc — set in Towns SETUP.\nCPU and model stay global in townsqt.conf and are not stored in the profile.\nMemory, boot drive, and CPU fidelity changes restart the emulator.",
-      "translation": "디스크 프로필(fp_XXXXXXXX.ini, 선택) 편집.\n적용/OK로 클럭·부팅·메모리·포트·옵션\n및 FD0/FD1/HD0–HD6 마운트 저장.\nCMOS: cmos/cmos_XXXXXXXX.bin — Towns SETUP.\nCPU/모델은 전역(townsqt.conf).\n메모리·부팅·CPU 충실도 → 재시작."
+      "source": "Editing settings for this disc (selection highlight).\nApply or OK saves speed, boot drive, memory, ports, options, and floppy/hard disk connections (restored on next load).\nDrive setup uses this disc's CMOS (set in Towns SETUP). CPU and model stay shared.\nMemory, boot drive, and CPU accuracy changes restart the emulator.",
+      "translation": "이 디스크 전용 설정을 편집합니다(선택 강조).\n적용/OK로 속도·부팅 디스크·메모리·포트·옵션과 플로피/하드 연결을 저장합니다(다음 로드 시 복원).\n드라이브 구성은 이 디스크용 CMOS를 씁니다(Towns SETUP). CPU와 기종은 공통입니다.\n메모리·부팅 디스크·CPU 정확도 변경은 재시작합니다."
     },
     {
       "context": "SettingsDialog",
-      "source": "No disc profile for this CD yet. Use Create profile to save per-disc settings\n(including FD0, FD1, and HD0–HD6 mount state for restore).\nA profile also gets its own CMOS file (cmos/cmos_XXXXXXXX.bin) for Towns SETUP.\nUntil then, Apply or OK saves Basics defaults to townsqt.conf.\nMemory, boot drive, and CPU fidelity changes restart the emulator; game-port changes apply immediately.",
-      "translation": "이 CD용 프로필 없음. «프로필 만들기»로 디스크별 설정\n(FD0/FD1/HD0–HD6 포함).\n프로필에 CMOS(cmos/cmos_XXXXXXXX.bin)도 생김.\n그전에는 적용/OK가 기본을 townsqt.conf에 저장.\n메모리·부팅·CPU 충실도 → 재시작; gameport 즉시."
+      "source": "No settings for this CD yet. Use Create profile to save disc-specific settings.\nUntil then, Apply or OK saves shared basic settings.\nMemory, boot drive, and CPU accuracy changes restart the emulator. Game pad / mouse changes apply immediately.",
+      "translation": "이 CD용 설정이 아직 없습니다. «프로필 만들기»로 디스크 전용 설정을 저장할 수 있습니다.\n그 전까지는 적용/OK로 공통 기본 설정을 저장합니다.\n메모리·부팅 디스크·CPU 정확도 변경은 재시작하고, 게임패드/마우스는 바로 반영됩니다."
     },
     {
       "context": "SettingsDialog",
@@ -1852,13 +1852,13 @@
     },
     {
       "context": "SettingsDialog",
-      "source": "No CD mounted.",
-      "translation": "CD 없음."
+      "source": "No CD inserted.",
+      "translation": "CD가 없습니다."
     },
     {
       "context": "SettingsDialog",
-      "source": "No profile for this disc.",
-      "translation": "이 디스크용 프로필 없음."
+      "source": "No settings for this disc.",
+      "translation": "이 디스크 설정이 없습니다."
     },
     {
       "context": "SettingsDialog",
