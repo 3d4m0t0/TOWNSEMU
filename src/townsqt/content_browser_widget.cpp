@@ -36,6 +36,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSizePolicy>
+#include <QStackedWidget>
 #include <QTimer>
 #include <QVariant>
 #include <QVBoxLayout>
@@ -275,12 +276,12 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent)
 
 	/*! In-app overlay (child of top-level window). Wayland ignores
 	    WindowStaysOnTopHint on separate xdg_toplevel; a child surface always
-	    stacks above siblings. True desktop-wide overlay needs wlr-layer-shell. */
+	    stacks above siblings. True desktop-wide overlay needs wlr-layer-shell.
+	    Opacity fade only — pixmap is nearest-neighbor scaled (no smooth filter). */
 	hover_overlay_=new QLabel(this);
 	hover_overlay_->setAttribute(Qt::WA_TransparentForMouseEvents);
-	hover_overlay_->setAttribute(Qt::WA_TranslucentBackground);
 	hover_overlay_->setAlignment(Qt::AlignCenter);
-	hover_overlay_->setStyleSheet(QStringLiteral("background: transparent;"));
+	hover_overlay_->setStyleSheet(QStringLiteral("background: black;"));
 	hover_opacity_=new QGraphicsOpacityEffect(hover_overlay_);
 	hover_opacity_->setOpacity(0.0);
 	hover_overlay_->setGraphicsEffect(hover_opacity_);
@@ -673,6 +674,15 @@ QRect ContentBrowserWidget::vmDisplayRectInHost(void) const
 {
 	/*! Content browser shares the central-stack slot with EmuView — same draw area. */
 	QWidget *host=nullptr!=window() ? window() : const_cast<ContentBrowserWidget *>(this);
+	if(auto *stack=qobject_cast<QStackedWidget *>(parentWidget()))
+	{
+		if(QWidget *current=stack->currentWidget(); nullptr!=current && current!=this)
+		{
+			/*! After launch the stack shows EmuView; map from that page so the overlay
+			    still covers the picture while this browser page is hidden. */
+			return QRect(current->mapTo(host,QPoint(0,0)),current->size());
+		}
+	}
 	return QRect(mapTo(host,QPoint(0,0)),size());
 }
 
@@ -712,13 +722,14 @@ void ContentBrowserWidget::refreshHoverOverlayPixmap(void)
 	{
 		return;
 	}
-	/*! Fill VM draw area; letterbox/pillarbox with black when the shot is smaller. */
+	/*! Fill VM draw area; letterbox/pillarbox with black when the shot is smaller.
+	    FastTransformation only — no bilinear/smooth upscale on the state shot. */
 	QPixmap canvas(box);
 	canvas.fill(Qt::black);
 	const QPixmap scaled=
-	    hover_source_.scaled(box,Qt::KeepAspectRatio,Qt::SmoothTransformation);
+	    hover_source_.scaled(box,Qt::KeepAspectRatio,Qt::FastTransformation);
 	QPainter p(&canvas);
-	p.setRenderHint(QPainter::SmoothPixmapTransform,true);
+	p.setRenderHint(QPainter::SmoothPixmapTransform,false);
 	p.setRenderHint(QPainter::TextAntialiasing,true);
 	if(true!=scaled.isNull())
 	{
@@ -836,6 +847,28 @@ void ContentBrowserWidget::pinStateOverlayForLaunch(void)
 		hover_fade_->setEndValue(kHoverOverlayOpacity);
 		hover_fade_->start();
 	}
+}
+
+void ContentBrowserWidget::raiseStateOverlay(void)
+{
+	if(nullptr==hover_overlay_ || true!=hover_overlay_->isVisible())
+	{
+		return;
+	}
+	QWidget *host=window();
+	if(nullptr==host)
+	{
+		host=this;
+	}
+	if(hover_overlay_->parentWidget()!=host)
+	{
+		hover_overlay_->setParent(host);
+	}
+	/*! Stack switch to EmuView can bury this sibling; re-cover the draw area. */
+	refreshHoverOverlayPixmap();
+	hover_overlay_->setGeometry(hoverOverlayRect());
+	hover_overlay_->show();
+	hover_overlay_->raise();
 }
 
 void ContentBrowserWidget::flushPendingLaunch(void)

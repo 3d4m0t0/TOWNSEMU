@@ -34,6 +34,8 @@ public:
 	void setWindowScale(int scale);
 	/*! Pin preview for launch; fade-in runs to completion, then pending load may flush. */
 	void pinStateOverlayForLaunch(void);
+	/*! Keep the pinned preview above the emu view after the stack switches. */
+	void raiseStateOverlay(void);
 	/*! VM is advancing — fade out a launch-pinned (or lingering) state preview. */
 	void notifyVmRunning(void);
 	/*! Immediately hide the state preview (e.g. closing the browser without launch). */

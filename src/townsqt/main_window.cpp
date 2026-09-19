@@ -575,6 +575,12 @@ void MainWindow::startEmulator()
 	controller_=new EmulatorController(argv_,&framebuffer_,&inputQueue_);
 	controller_->moveToThread(emu_thread_);
 	setupEmulatorConnections();
+	if(true==content_browser_dismiss_overlay_on_vm_)
+	{
+		/*! Arm dismiss for the new VM only — not residual frames from the previous one. */
+		content_browser_overlay_wait_controller_=controller_;
+		content_browser_overlay_skip_next_frame_=false;
+	}
 	if(nullptr!=view_)
 	{
 		view_->pollMousePosition();
@@ -5064,10 +5070,26 @@ void MainWindow::onFrameReady()
 	last_emu_activity_ms_=QDateTime::currentMSecsSinceEpoch();
 	if(true==content_browser_dismiss_overlay_on_vm_)
 	{
-		content_browser_dismiss_overlay_on_vm_=false;
-		if(nullptr!=content_browser_)
+		/*! Ignore frames from a stopping controller, and the synthetic post-load
+		    frameReady (framebuffer cleared — EmuView still holds the previous picture). */
+		if(content_browser_overlay_wait_controller_.isNull() ||
+		   content_browser_overlay_wait_controller_!=controller_)
 		{
-			content_browser_->notifyVmRunning();
+			/*! Still waiting for the next boot's controller. */
+		}
+		else if(true==content_browser_overlay_skip_next_frame_)
+		{
+			content_browser_overlay_skip_next_frame_=false;
+		}
+		else
+		{
+			content_browser_dismiss_overlay_on_vm_=false;
+			content_browser_overlay_wait_controller_.clear();
+			content_browser_overlay_skip_next_frame_=false;
+			if(nullptr!=content_browser_)
+			{
+				content_browser_->notifyVmRunning();
+			}
 		}
 	}
 	if(cached_differential_integration_ &&
@@ -6648,6 +6670,8 @@ void MainWindow::openContentBrowser()
 
 	content_browser_open_=true;
 	content_browser_dismiss_overlay_on_vm_=false;
+	content_browser_overlay_wait_controller_.clear();
+	content_browser_overlay_skip_next_frame_=false;
 	content_browser_->reload();
 	central_stack_->setCurrentWidget(content_browser_);
 	statusBar()->showMessage(tr("Content browser"),0);
@@ -6685,6 +6709,8 @@ void MainWindow::closeContentBrowser()
 	}
 	content_browser_open_=false;
 	content_browser_dismiss_overlay_on_vm_=false;
+	content_browser_overlay_wait_controller_.clear();
+	content_browser_overlay_skip_next_frame_=false;
 	if(nullptr!=content_browser_)
 	{
 		content_browser_->hideStateHover();
@@ -6734,6 +6760,8 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 
 	content_browser_start_ini_on_close_=false;
 	content_browser_dismiss_overlay_on_vm_=true;
+	content_browser_overlay_wait_controller_.clear();
+	content_browser_overlay_skip_next_frame_=false;
 
 	const bool emuRunning=
 	    nullptr!=emu_thread_ && true==emu_thread_->isRunning();
@@ -6748,10 +6776,17 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 	{
 		content_browser_resume_on_close_=false;
 		content_browser_open_=false;
+		content_browser_overlay_wait_controller_=controller_;
+		/*! loadState clears the present queue then emits frameReady — skip that one. */
+		content_browser_overlay_skip_next_frame_=true;
 		if(nullptr!=central_stack_ && nullptr!=view_)
 		{
 			central_stack_->setCurrentWidget(view_);
 			view_->suppressHeldMouseButtons();
+		}
+		if(nullptr!=content_browser_)
+		{
+			content_browser_->raiseStateOverlay();
 		}
 		statusBar()->clearMessage();
 		loadStateSlotFromMenu(loadSlot);
@@ -6775,6 +6810,10 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 		central_stack_->setCurrentWidget(view_);
 		view_->suppressHeldMouseButtons();
 	}
+	if(nullptr!=content_browser_)
+	{
+		content_browser_->raiseStateOverlay();
+	}
 	statusBar()->clearMessage();
 
 	pending_boot_cd_path_=cdImagePath;
@@ -6782,6 +6821,7 @@ void MainWindow::onContentBrowserLaunch(unsigned int fingerprint,const QString &
 	refresh_argv_from_settings_on_next_boot_=true;
 	if(true==emuRunning)
 	{
+		/*! Keep overlay up through stop; arm wait_controller_ in startEmulator. */
 		stopEmulatorAsync([this]{
 			startEmulator();
 		});
