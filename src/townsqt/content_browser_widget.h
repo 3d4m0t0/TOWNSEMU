@@ -3,6 +3,7 @@
 #include <QPixmap>
 #include <QHash>
 #include <QPointer>
+#include <QShowEvent>
 #include <QWidget>
 
 #include "townsqt_content_library.h"
@@ -51,9 +52,12 @@ Q_SIGNALS:
 protected:
 	bool eventFilter(QObject *watched,QEvent *event) override;
 	void resizeEvent(QResizeEvent *event) override;
+	void showEvent(QShowEvent *event) override;
 
 private:
 	void rebuildList(bool animateExpand);
+	/*! Rebuild expanded state grid when viewport/host width or DE metrics changed. */
+	void reflowStateGridIfNeeded(void);
 	struct StateUiMetrics
 	{
 		int thumbW=104;

@@ -6672,8 +6672,14 @@ void MainWindow::openContentBrowser()
 	content_browser_dismiss_overlay_on_vm_=false;
 	content_browser_overlay_wait_controller_.clear();
 	content_browser_overlay_skip_next_frame_=false;
-	content_browser_->reload();
+	/*! Show first so host/viewport widths match the current window scale before
+	    the state grid is built (reload-before-show kept the previous scale). */
 	central_stack_->setCurrentWidget(content_browser_);
+	if(QLayout *lay=content_browser_->layout())
+	{
+		lay->activate();
+	}
+	content_browser_->reload();
 	statusBar()->showMessage(tr("Content browser"),0);
 
 	if(nullptr!=controller_ && nullptr!=emu_thread_ && true==emu_thread_->isRunning())

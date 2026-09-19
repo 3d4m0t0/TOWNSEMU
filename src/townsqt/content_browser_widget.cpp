@@ -387,17 +387,33 @@ ContentBrowserWidget::StateUiMetrics ContentBrowserWidget::stateUiMetrics(void) 
 int ContentBrowserWidget::stateGridColumns(const StateUiMetrics &metrics) const
 {
 	int avail=0;
+	const int scrollBarW=
+	    (nullptr!=scroll_ && nullptr!=scroll_->verticalScrollBar()) ?
+	        scroll_->verticalScrollBar()->sizeHint().width() :
+	        0;
 	if(nullptr!=scroll_ && nullptr!=scroll_->viewport())
 	{
 		avail=scroll_->viewport()->width();
-		if(nullptr!=scroll_->verticalScrollBar())
-		{
-			avail-=scroll_->verticalScrollBar()->sizeHint().width();
-		}
+		avail-=scrollBarW;
 	}
 	if(avail<=0 && nullptr!=list_host_)
 	{
 		avail=list_host_->width();
+	}
+	/*! After a window-scale change while this page was hidden, min/max already
+	    match the new content size but the scroll viewport can still report the
+	    last visible (old-scale) width until the page is shown again. Prefer the
+	    host width so the first open after scale change uses the correct columns. */
+	if(width()>0)
+	{
+		int fromHost=width()-scrollBarW;
+		if(QLayout *lay=layout())
+		{
+			int left=0,top=0,right=0,bottom=0;
+			lay->getContentsMargins(&left,&top,&right,&bottom);
+			fromHost-=left+right;
+		}
+		avail=qMax(avail,fromHost);
 	}
 	const int usable=avail-kEntryHMargins-metrics.leftPad;
 	if(usable<metrics.thumbW)
@@ -954,23 +970,38 @@ void ContentBrowserWidget::hideStateHover(void)
 	}
 }
 
+void ContentBrowserWidget::reflowStateGridIfNeeded(void)
+{
+	if(0==expanded_fingerprint_)
+	{
+		return;
+	}
+	const StateUiMetrics metrics=stateUiMetrics();
+	const int cols=stateGridColumns(metrics);
+	if(cols!=state_grid_cols_ ||
+	   metrics.thumbW!=state_thumb_w_ ||
+	   metrics.thumbH!=state_thumb_h_ ||
+	   metrics.hSpacing!=state_h_spacing_ ||
+	   metrics.fontPx!=state_font_px_)
+	{
+		rebuildList(false);
+	}
+}
+
 void ContentBrowserWidget::resizeEvent(QResizeEvent *event)
 {
 	QWidget::resizeEvent(event);
 	syncHoverOverlayGeometry();
-	if(0!=expanded_fingerprint_)
-	{
-		const StateUiMetrics metrics=stateUiMetrics();
-		const int cols=stateGridColumns(metrics);
-		if(cols!=state_grid_cols_ ||
-		   metrics.thumbW!=state_thumb_w_ ||
-		   metrics.thumbH!=state_thumb_h_ ||
-		   metrics.hSpacing!=state_h_spacing_ ||
-		   metrics.fontPx!=state_font_px_)
-		{
-			rebuildList(false);
-		}
-	}
+	reflowStateGridIfNeeded();
+}
+
+void ContentBrowserWidget::showEvent(QShowEvent *event)
+{
+	QWidget::showEvent(event);
+	/*! Opening after a scale change: geometry is current but the list may have
+	    been built earlier against a stale viewport — reflow once visible. */
+	reflowStateGridIfNeeded();
+	syncHoverOverlayGeometry();
 }
 
 bool ContentBrowserWidget::eventFilter(QObject *watched,QEvent *event)
