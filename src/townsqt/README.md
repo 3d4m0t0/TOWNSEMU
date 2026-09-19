@@ -1,6 +1,6 @@
 # Tsugaru_QT — FM TOWNS / Marty エミュレータ ”津軽” (Qt)
 
-**版 Tsugaru20260522-qt 1.1.0**
+**版 Tsugaru20260522-qt 1.2.0**
 
 CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/captainys/TOWNSEMU) の **Qt 6** フロントエンドです。
 
@@ -8,7 +8,7 @@ CaptainYS 作 FM TOWNS / Marty エミュレータ [Tsugaru](https://github.com/c
 
 **Tsugaru_QT — FM TOWNS / Marty Emulator ”津軽” (Qt frontend)**
 
-**Version Tsugaru20260522-qt 1.1.0**
+**Version Tsugaru20260522-qt 1.2.0**
 
 A **Qt 6** frontend for CaptainYS's FM TOWNS / Marty emulator [Tsugaru](https://github.com/captainys/TOWNSEMU).
 
@@ -38,8 +38,9 @@ Referral registration link: [cursor.com/referral?code=TI3UQLE9PFH3](https://curs
 * **HDD イメージ** — 上流 Tsugaru と同様、新規作成はスパース形式です。論理サイズは指定どおりで、未書き込み領域の実ディスク使用量は小さく、書き込みに応じて増えます。TownsOS 向けに 127 MB・1 パーティション＋フォーマット済みイメージを作るオプションもあります。旧形式の密なイメージは HDD 設定の **Compact** で変換できます。
 * **マウス統合** — ゲストメモリへ座標を書き込むことで、ポインタ操作の遅延を抑えています。アプリ別統合では DS.base からのオフセットを使え、CMOS 変更など環境が変わっても追従しやすくしています。操作設定は **規定** と **マウスキャプチャ** に簡略化（規定時の優先はアプリ別 Phys → Mouse BIOS (MOS) → キャプチャ）。アプリ別／MOS 統合中でもマウス中ボタンでキャプチャに切り替えられます。オフセット対応のプリセットを同梱しています。
 * **CPU コア及びメモリウェイト** — 互換モードと 16 MHz は i386 命令タイミング、それ以外は i486 相当です。i486 用とは別に各命令の実行サイクル数を用意することで、i386 の動作速度をエミュレート（再現）しています。メモリウェイトも RAM／VRAM で再現し、互換モードをより実機に寄せています（下表）。
-* **オートレジューム** — ディスクプロファイルが有効なとき、終了時の状態をステートセーブで残し、次回起動時に再現します。
-* **CDDA キャッシュ** — CD 音源（CDDA）を先読みキャッシュし、データトラックの読み込み中も演奏を止めない仕組みです。
+* **コンテンツブラウザ** — タイトル登録とステートサムネイルからの起動が行えます。メニューバーの **ツール → ステート操作** は廃止し、ステート管理をここに統合しました。アイコン・名称の変更、ステートの保存・削除・読み込みが行えます。ステート作成時に画面キャプチャを保存し、クリックでオーバーレイ表示、ダブルクリックで読み込んで VM を再開します。起動時に開くこともできます。
+* **オートレジューム** — ディスクプロファイルが有効なとき、終了時の状態をステートセーブで残し、次回起動時に再現します。ステートの zlib 圧縮も選択できます。
+* **CDDA キャッシュ** — CD 音源（CDDA）を短い窓で先読みし、データトラックの読み込み中も演奏を止めない仕組みです。
 * **CD イメージ** — Tsugaru が扱える CD-ROM イメージに加え、`.chd` 形式にも対応しています。
 * **MIDI** — FluidSynth によるソフトウェア音源出力です。利用には別途パッケージが必要です。現在、SysEx は GS 音源向けのみ処理します。SoundFont は GS 対応のものを推奨します。
 * **Wayland idle-inhibit** — 実行中は画面スリープやスクリーンセーバーを抑止します。
@@ -62,8 +63,9 @@ Main differences from `Tsugaru_CUI`:
 * **HDD images** — Same as upstream Tsugaru: new images are created sparse. Logical size matches your choice; on-disk usage starts small and grows on write. Optional TownsOS 127 MB image with one partition + empty format. Use **Compact** in HDD settings to convert older dense images.
 * **Mouse integration** — Writing coordinates into guest memory reduces pointer latency. App-specific mode can use a DS.base offset so CMOS and other environment changes are less likely to break mapping. Modes are simplified to **Default** and **Mouse capture** (Default priority: app Phys → Mouse BIOS (MOS) → capture). Middle button switches to capture even during app/MOS integration. Offset-aware presets are bundled.
 * **CPU core and memory wait** — Compatible and 16 MHz use i386 instruction timing; other speeds use i486-class timing. A separate per-instruction cycle table (distinct from i486) emulates i386 execution speed. RAM/VRAM waits are also modeled, bringing Compatible mode closer to real hardware (see table).
-* **Auto-resume** — When a disc profile is active, saves state on exit and restores it on the next launch.
-* **CDDA cache** — CD audio (CDDA) is read-ahead in short windows so data-track reads do not interrupt playback.
+* **Content browser** — Register titles and launch from state thumbnails. The menu **Tools → State** commands are removed; state management lives here (rename, icon, save, delete, load). Saving a state also captures the screen; click shows an overlay preview, double-click loads the state and resumes the VM. Optional open-on-startup.
+* **Auto-resume** — When a disc profile is active, saves state on exit and restores it on the next launch. Optional zlib compression for on-disk states.
+* **CDDA cache** — CD audio (CDDA) is prefetched in short windows so data-track reads do not interrupt playback.
 * **CD images** — In addition to the CD-ROM image formats Tsugaru already supports, `.chd` is accepted.
 * **MIDI** — Software synthesis via FluidSynth (a separate package is required). Only GS-oriented SysEx is handled at present. A GS SoundFont is recommended.
 * **Wayland idle-inhibit** — Suppresses screen sleep / screensaver while running.
@@ -78,6 +80,30 @@ Main differences from `Tsugaru_CUI`:
 ---
 
 ## 変更履歴 / Changelog
+
+### v1.2.0
+
+* **コンテンツブラウザ** — タイトル登録とステートサムネイルからの起動が行えます。メニューバーの **ツール → ステート操作** を廃止し、ステート管理をコンテンツブラウザに統合しました。ここでアイコン・名称の変更、ステートの保存・削除・読み込みが行えます。ステート作成時に画面キャプチャを保存し、クリックでオーバーレイ表示、ダブルクリックでステートを読み込んで VM を再開します。
+* **マウス** — 画面端の Exit-vector 補助、キャプチャ解除時のホストカーソル表示。
+* **画面倍率** — DPI に依存しない整数スケール。
+* **ステート圧縮** — 新規 .TState の zlib 圧縮オプション。
+* **音声** — FM／PCM のチャンクを DAC 周期に揃え、テンポのぶれを抑制。
+* **CDDA** — 短い窓の先読みなど、再生継続まわりを改善。
+* **設定 UI / i18n** — 分かりやすい短い文言へ整理。色指定はシステムのパレットを使用。
+* **Tsugaru** — `StatusSecondByte()` の状態報告と、TownsRender のズーム端書き込み（RGBA バッファ越え）を修正。
+* **バグ修正** — スロット #0 以外のステートの扱いが誤っていたのを修正。ステート読み込みの際にマウス統合が壊れる場合があったのを修正。ほか。
+
+### English
+
+* **Content browser** — Register titles and launch from state thumbnails. Removes **Tools → State** from the menu bar and consolidates state management here (icon, name, save, delete, load). Saving a state also captures the screen; click shows an overlay preview, double-click loads the state and resumes the VM.
+* **Mouse** — Exit-vector edge assist; host cursor when capture is released.
+* **Window scale** — DPI-independent integer scale.
+* **State compression** — Optional zlib for new on-disk .TState files.
+* **Audio** — Align FM/PCM chunks to the DAC period to reduce tempo wobble.
+* **CDDA** — Short-window prefetch and related playback-continue improvements.
+* **Settings UI / i18n** — Shorter plain-language copy; UI colors follow the system palette.
+* **Tsugaru** — Fix `StatusSecondByte()` status reporting and TownsRender zoom-edge writes that overran the RGBA buffer.
+* **Bug fixes** — Incorrect handling of state slots other than #0. Mouse integration could break after loading a state. And other fixes.
 
 ### v1.1.0
 
